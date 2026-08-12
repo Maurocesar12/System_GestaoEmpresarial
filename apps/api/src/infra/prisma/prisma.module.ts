@@ -1,5 +1,7 @@
 import { Global, Module } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../config/env.schema';
+import { PrismaService, URL_DO_BANCO } from './prisma.service';
 
 /**
  * Acesso ao banco.
@@ -10,7 +12,21 @@ import { PrismaService } from './prisma.service';
  */
 @Global()
 @Module({
-  providers: [PrismaService],
+  providers: [
+    {
+      // A URL vem do ConfigService, e não de `process.env` lido dentro do
+      // serviço: assim ela passa pela validação de ambiente da subida, e um
+      // teste pode trocá-la sem mexer em variável global do processo.
+      provide: URL_DO_BANCO,
+      inject: [ConfigService],
+      // O tipo de retorno é anotado porque `config.get` com `infer` devolve
+      // `any` para o ESLint, e um `any` escapando daqui contaminaria o tipo da
+      // URL no serviço.
+      useFactory: (config: ConfigService<Env, true>): string =>
+        config.get('DATABASE_URL', { infer: true }),
+    },
+    PrismaService,
+  ],
   exports: [PrismaService],
 })
 export class PrismaModule {}
