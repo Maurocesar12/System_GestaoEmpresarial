@@ -1,0 +1,16 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 11 exige aprovação explícita de scripts de build (postinstall).
+# argon2 compila binário nativo — é obrigatório. msgpackr-extract é só
+# otimização opcional do BullMQ; msgpackr funciona em JS puro sem ele.
+allowBuilds:
+  argon2: true
+  msgpackr-extract: false
+  '@tailwindcss/oxide': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  '@prisma/engines': true
+  prisma: true

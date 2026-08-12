@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Um push novo no mesmo branch cancela a execução anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Lint, tipos, testes e build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Checagem de tipos
+        run: pnpm typecheck
+
+      - name: Testes
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+        env:
+          # O build do Next valida NEXT_PUBLIC_API_URL em tempo de build.
+          NEXT_PUBLIC_API_URL: http://localhost:3333
+
+  auditoria:
+    name: Auditoria de dependências
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      # Arquitetura §9.3 — scan de dependências no CI.
+      - name: Auditar vulnerabilidades
+        run: pnpm audit --audit-level=high

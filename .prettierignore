@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+pnpm-lock.yaml
+
+# Documento de arquitetura — preservado como escrito, não é código.
+docs/arquitetura.md

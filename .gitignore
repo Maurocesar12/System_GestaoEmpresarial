@@ -1,0 +1,38 @@
+# dependências
+node_modules/
+.pnpm-store/
+
+# build
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# turbo
+.turbo/
+
+# ambiente — NUNCA versionar segredo (ver arquitetura §9.3)
+.env
+.env.*
+!.env.example
+
+# prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# testes
+coverage/
+
+# editor / SO
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
