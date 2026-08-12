@@ -15,12 +15,7 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/main.ts',
-    '!src/**/*.module.ts',
-    '!src/generated/**',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/main.ts', '!src/**/*.module.ts', '!src/generated/**'],
   coverageDirectory: 'coverage',
   testEnvironment: 'node',
 };

@@ -113,18 +113,21 @@ CREATE POLICY tenant_isolation ON "tenant"
   USING (id = app_current_tenant_id())
   WITH CHECK (id = app_current_tenant_id());
 
-DROP POLICY IF EXISTS tenant_signup ON "tenant";
-
--- Exceção necessária para o cadastro self-service: no instante em que a empresa
--- é criada, ela ainda não existe, então não há contexto de tenant a definir.
--- Esta política permite **apenas o INSERT**, e apenas quando não há contexto
--- algum. Depois de criada, o fluxo define o contexto e volta à regra normal.
+-- Não há política de exceção para o cadastro self-service, e isso é
+-- deliberado. A primeira versão deste arquivo tinha uma, permitindo INSERT
+-- quando não havia contexto — e ela não funcionava.
 --
--- Políticas permissivas se somam (OR), então esta abre uma porta só para esse
--- caso, sem afrouxar a política acima.
-CREATE POLICY tenant_signup ON "tenant"
-  FOR INSERT
-  WITH CHECK (app_current_tenant_id() IS NULL);
+-- O motivo é sutil: quando um INSERT tem cláusula RETURNING (e o Prisma sempre
+-- usa RETURNING no `create`, para devolver o registro criado), o PostgreSQL
+-- aplica também a política de **leitura** sobre a linha recém-inserida. Sem
+-- contexto, a linha não pode ser lida de volta, e o comando falha — com a
+-- mesma mensagem de violação de política, o que faz parecer um problema no
+-- WITH CHECK.
+--
+-- A solução é não precisar da exceção: quem cria a empresa **gera o UUID na
+-- aplicação**, define o contexto com ele e só então insere. A política acima
+-- então aprova naturalmente, tanto na gravação quanto na leitura de volta.
+-- Ver `PrismaService.criarNovoTenant()`.
 
 -- ----------------------------------------------------------------------------
 --  Tabela `plano` — catálogo do produto, sem RLS

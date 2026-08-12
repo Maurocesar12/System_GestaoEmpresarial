@@ -17,6 +17,7 @@
 
 [CmdletBinding()]
 param(
+  [System.Security.SecureString]$SenhaSuperusuario,
   [string]$PgBin = 'C:\Program Files\PostgreSQL\17\bin',
   [string]$PgHost = 'localhost',
   [int]$PgPort = 5432,
@@ -37,32 +38,65 @@ if (-not (Test-Path $psql)) {
 # Senhas longas e aleatórias: ninguém precisa digitá-las, então não há motivo
 # para serem curtas. base64url evita caracteres que precisariam de escape na
 # connection string.
+#
+# Usa RNGCryptoServiceProvider, e não o mais moderno RandomNumberGenerator.Fill:
+# o Fill só existe a partir do PowerShell 7, e este script precisa rodar também
+# no Windows PowerShell 5.1, que vem instalado por padrão no Windows.
 function New-Senha {
-  $bytes = [byte[]]::new(24)
-  [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  $bytes = New-Object byte[] 24
+  $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+  try {
+    $rng.GetBytes($bytes)
+  }
+  finally {
+    $rng.Dispose()
+  }
   return [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
 }
 
 $senhaApp = New-Senha
 $senhaAdmin = New-Senha
 
+if (-not $SenhaSuperusuario) {
+  $SenhaSuperusuario = Read-Host -Prompt "Senha do superusuario '$Superusuario'" -AsSecureString
+}
+
+# A senha vai para o psql pela variável de ambiente PGPASSWORD, e não como
+# argumento: argumentos de linha de comando ficam visíveis na lista de
+# processos do sistema.
+#
+# Também é o que evita o psql pedir a senha três vezes: o script SQL usa
+# `\connect` para entrar em cada banco criado, e cada reconexão autentica de novo.
+$ponteiro = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SenhaSuperusuario)
+try {
+  $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ponteiro)
+}
+finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ponteiro)
+}
+
 Write-Host ''
 Write-Host 'Criando roles e bancos...' -ForegroundColor Cyan
-Write-Host "Digite a senha do superusuario '$Superusuario' quando o psql pedir." -ForegroundColor Yellow
 Write-Host ''
 
-& $psql `
-  --host $PgHost `
-  --port $PgPort `
-  --username $Superusuario `
-  --dbname postgres `
-  --set ON_ERROR_STOP=1 `
-  --variable "senha_app=$senhaApp" `
-  --variable "senha_admin=$senhaAdmin" `
-  --file $sql
+try {
+  & $psql `
+    --host $PgHost `
+    --port $PgPort `
+    --username $Superusuario `
+    --dbname postgres `
+    --set ON_ERROR_STOP=1 `
+    --variable "senha_app=$senhaApp" `
+    --variable "senha_admin=$senhaAdmin" `
+    --file $sql
 
-if ($LASTEXITCODE -ne 0) {
-  throw "psql terminou com erro $LASTEXITCODE. Nada foi gravado no .env."
+  if ($LASTEXITCODE -ne 0) {
+    throw "psql terminou com erro $LASTEXITCODE. Nada foi gravado no .env."
+  }
+}
+finally {
+  # A senha do superusuário não fica no ambiente depois que o script termina.
+  Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
 }
 
 # --- Gravar as connection strings no .env ---------------------------------

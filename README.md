@@ -11,7 +11,7 @@ README cobre só o que é preciso para rodar e continuar o desenvolvimento.
 
 - Node.js 22 (ver [`.nvmrc`](.nvmrc))
 - pnpm 11 — `npm install -g pnpm`
-- PostgreSQL 15+ — **ainda não é necessário**; entra na próxima fatia
+- PostgreSQL 15+ rodando localmente
 
 ## Rodando
 
@@ -30,6 +30,27 @@ O `JWT_SECRET` precisa de no mínimo 32 caracteres — gere um:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+Prepare o banco. O script cria os bancos, os dois roles e preenche as
+connection strings no `.env` — ele pede a senha do superusuário `postgres`:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts\setup-database.ps1
+```
+
+Se você esqueceu a senha do `postgres`, há um script para redefini-la — precisa
+ser executado como Administrador:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts\resetar-senha-postgres.ps1
+```
+
+Aplique as migrations e popule os planos:
+
+```bash
+pnpm --filter @gestao/api db:migrate
+pnpm --filter @gestao/api db:seed
 ```
 
 Suba tudo:
@@ -54,10 +75,47 @@ Todos rodam na raiz e atravessam o monorepo via Turborepo:
 | `pnpm build`     | Build de produção de tudo    |
 | `pnpm lint`      | ESLint                       |
 | `pnpm typecheck` | Checagem de tipos sem emitir |
-| `pnpm test`      | Testes                       |
+| `pnpm test`      | Testes unitários             |
 | `pnpm format`    | Prettier                     |
 
 Para rodar em um pacote só: `pnpm --filter @gestao/api test`.
+
+Os testes de isolamento entre empresas precisam de banco e rodam à parte:
+
+```bash
+pnpm --filter @gestao/api test:db
+```
+
+## Como o isolamento entre empresas funciona
+
+Todas as empresas dividem as mesmas tabelas, separadas pela coluna `tenant_id`.
+O risco desse modelo é um `WHERE tenant_id` esquecido devolver dado da empresa
+errada — e isso vaza em silêncio, sem erro nenhum no log. A defesa tem três
+camadas:
+
+| Camada                | Onde                                                                            | O que faz                                                             |
+| --------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 1. Contexto           | [`tenant-context.ts`](apps/api/src/infra/tenant/tenant-context.ts)              | Guarda o tenant da requisição em `AsyncLocalStorage`                  |
+| 2. Extensão do Prisma | [`tenant.extension.ts`](apps/api/src/infra/prisma/tenant.extension.ts)          | Injeta o filtro nas consultas e recusa gravação com tenant divergente |
+| 3. Row-Level Security | [migration de RLS](apps/api/prisma/migrations/20260812120100_rls/migration.sql) | O banco não devolve nem aceita linha de outra empresa                 |
+
+Na prática, todo acesso a dado passa por `prisma.comTenant()`, que abre uma
+transação e define `app.current_tenant_id` nela — é essa variável que as
+políticas de RLS consultam.
+
+```ts
+const clientes = await this.prisma.comTenant((tx) =>
+  tx.cliente.findMany({ orderBy: { nome: 'asc' } }),
+);
+```
+
+Duas coisas que não são óbvias e estão documentadas no código:
+
+- A conexão da aplicação usa um role **sem** `BYPASSRLS`. Com ele, as políticas
+  seriam ignoradas em silêncio e os testes passariam sem provar nada.
+- As tabelas usam `FORCE ROW LEVEL SECURITY`, e não só `ENABLE`. O dono da
+  tabela ignora as políticas por padrão — e o dono é justamente quem roda as
+  migrations.
 
 ## Estrutura
 
@@ -98,21 +156,26 @@ O app `admin` (painel interno) ainda não existe — entra junto com o
 
 ## Estado atual
 
-**Pronto** — fundação (arquitetura §11, item 1):
+**Pronto** — fundação e isolamento de dados (arquitetura §11, itens 1 e 2):
 
 - Monorepo Turborepo com pnpm workspaces
 - API NestJS subindo com CORS restrito, `helmet`, rate limiting e formato único de erro
 - Variáveis de ambiente validadas na subida — a API se recusa a iniciar mal configurada
-- Contexto de tenant por requisição (`AsyncLocalStorage`), com testes de isolamento
+- Schema completo: plataforma, CRM e financeiro, com dinheiro em `Decimal` e
+  índices compostos começando por `tenant_id`
+- Isolamento em três camadas, com 11 testes que tentam ativamente atravessar a
+  fronteira entre duas empresas
 - `@gestao/shared-types` compartilhado entre API e frontend
 - Next.js 16 + Tailwind 4, pronto para receber componentes do shadcn/ui
-- CI no GitHub Actions: lint, tipos, testes, build e auditoria de dependências
+- CI no GitHub Actions: lint, tipos, testes, build, isolamento contra um
+  PostgreSQL real e auditoria de dependências
 
-**Próxima fatia** — schema e isolamento de dados:
+**Próxima fatia** — autenticação:
 
-1. Schema Prisma, políticas de RLS, índices e testes de isolamento entre tenants
-2. Auth — login, JWT, refresh com rotação, guards de papel
-3. Tenant + Onboarding — signup self-service e dados-semente
+1. Login com Argon2id, JWT de vida curta e refresh com rotação
+2. Guards de papel (`admin`, `financeiro`, `atendente`, `tecnico`)
+3. Middleware que popula o contexto de tenant a partir do JWT
+4. Tenant + Onboarding — signup self-service e dados-semente
 
 ## Decisões tomadas nesta fundação
 

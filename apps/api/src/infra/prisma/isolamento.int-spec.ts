@@ -50,25 +50,33 @@ beforeAll(async () => {
   });
   planoId = plano.id;
 
-  // As duas empresas do experimento. A criação acontece sem contexto de tenant,
-  // igual ao cadastro self-service real — é o caso que a política `tenant_signup`
-  // permite.
-  const empresaA = await prisma.tenant.create({
-    data: { nome: `Empresa A ${marca}`, planoId },
-  });
-  const empresaB = await prisma.tenant.create({
-    data: { nome: `Empresa B ${marca}`, planoId },
-  });
+  // As duas empresas do experimento, criadas pelo mesmo caminho do cadastro
+  // self-service: o id é gerado na aplicação e vira o contexto antes do INSERT.
+  tenantA = await prisma.criarNovoTenant(
+    { nome: `Empresa A ${marca}`, plano: { connect: { id: planoId } } },
+    (_tx, id) => Promise.resolve(id),
+  );
 
-  tenantA = empresaA.id;
-  tenantB = empresaB.id;
+  tenantB = await prisma.criarNovoTenant(
+    { nome: `Empresa B ${marca}`, plano: { connect: { id: planoId } } },
+    (_tx, id) => Promise.resolve(id),
+  );
 });
 
 afterAll(async () => {
   if (!prisma) return;
 
-  // Apagar o tenant leva junto tudo que depende dele (onDelete: Cascade).
-  await prisma.tenant.deleteMany({ where: { id: { in: [tenantA, tenantB] } } });
+  // Cada empresa precisa ser apagada dentro do próprio contexto: sem ele a RLS
+  // não enxerga a linha, e o delete simplesmente não afeta nada. Apagar o
+  // tenant leva junto tudo que depende dele (onDelete: Cascade).
+  for (const tenantId of [tenantA, tenantB]) {
+    if (!tenantId) continue;
+    await prisma.comTenantExplicito(tenantId, (tx) =>
+      tx.tenant.deleteMany({ where: { id: tenantId } }),
+    );
+  }
+
+  // `plano` é catálogo do produto, fora da RLS.
   await prisma.plano.deleteMany({ where: { id: planoId } });
   await prisma.$disconnect();
 });
@@ -169,8 +177,10 @@ describe('isolamento entre empresas', () => {
     // precisa recusar. É o papel do WITH CHECK na política — sem ele, daria
     // para plantar dado dentro da empresa alheia mesmo sem conseguir lê-lo.
     await expect(
-      prisma.comTenantExplicito(tenantA, (tx) =>
-        tx.$executeRaw`
+      prisma.comTenantExplicito(
+        tenantA,
+        (tx) =>
+          tx.$executeRaw`
           INSERT INTO cliente (id, tenant_id, nome, criado_em, atualizado_em)
           VALUES (gen_random_uuid(), ${tenantB}::uuid, ${`SQL cru ${marca}`}, now(), now())
         `,

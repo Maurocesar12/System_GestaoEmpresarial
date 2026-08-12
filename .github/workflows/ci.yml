@@ -43,6 +43,67 @@ jobs:
         env:
           # O build do Next valida NEXT_PUBLIC_API_URL em tempo de build.
           NEXT_PUBLIC_API_URL: http://localhost:3333
+          # O schema do ambiente da API exige DATABASE_URL. Aqui nada conecta
+          # ao banco — só precisa existir para a validação passar.
+          DATABASE_URL: postgresql://localhost:5432/placeholder
+
+  isolamento:
+    name: Isolamento entre tenants
+    runs-on: ubuntu-latest
+
+    # Um PostgreSQL de verdade, porque é a Row-Level Security dele que está
+    # sendo testada. Com banco mockado, o teste passaria sempre — inclusive
+    # com a RLS desligada.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      TEST_DATABASE_URL: postgresql://gestao_app:gestao_app@localhost:5432/gestao_test?schema=public
+      DATABASE_URL: postgresql://gestao_app:gestao_app@localhost:5432/gestao_test?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      # O role da aplicação precisa ser criado SEM BYPASSRLS, igual ao de
+      # desenvolvimento. Com BYPASSRLS aqui, o CI ficaria verde mesmo com o
+      # isolamento quebrado — que é exatamente o que estes testes existem para
+      # impedir. O primeiro teste da suíte confere esse atributo.
+      - name: Criar role e banco de teste
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+            CREATE ROLE gestao_app WITH LOGIN NOBYPASSRLS PASSWORD 'gestao_app';
+            CREATE DATABASE gestao_test OWNER gestao_app;
+          SQL
+          psql -h localhost -U postgres -d gestao_test -v ON_ERROR_STOP=1 \
+            -c 'ALTER SCHEMA public OWNER TO gestao_app;'
+
+      - name: Aplicar migrations
+        run: pnpm --filter @gestao/api exec prisma migrate deploy
+
+      - name: Testes de isolamento
+        run: pnpm --filter @gestao/api run test:db
 
   auditoria:
     name: Auditoria de dependências

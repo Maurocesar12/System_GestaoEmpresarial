@@ -1,6 +1,7 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../../generated/prisma/client';
+import { uuidv7 } from '../../common/uuid';
+import { Prisma, PrismaClient } from '../../generated/prisma/client';
 import { exigirContextoTenant, obterContextoTenant } from '../tenant/tenant-context';
 import { criarExtensaoTenant } from './tenant.extension';
 
@@ -119,10 +120,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Executa `operacao` definindo o tenant explicitamente, sem depender do
    * contexto da requisição.
    *
-   * Existe para o cadastro self-service: a empresa acabou de ser criada, o
-   * usuário ainda não fez login, e mesmo assim é preciso gravar o primeiro
-   * usuário e as etapas do funil já sob o escopo dela. Também é o que os
-   * testes de isolamento usam para simular duas empresas diferentes.
+   * Serve a dois casos: os workers do BullMQ, que restauram o tenant a partir
+   * do payload do job, e os testes de isolamento, que precisam alternar entre
+   * duas empresas.
    */
   async comTenantExplicito<T>(
     tenantId: string,
@@ -131,6 +131,41 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.comEscopo.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}::text, true)`;
       return operacao(tx);
+    });
+  }
+
+  /**
+   * Cria uma empresa nova e roda `operacao` já dentro do escopo dela.
+   *
+   * O cadastro self-service tem um problema de ovo e galinha: a política de RLS
+   * exige um tenant no contexto, mas o tenant é justamente o que está sendo
+   * criado. A saída é gerar o identificador **aqui**, e não deixar o banco
+   * gerá-lo: com o id em mãos antes do INSERT, o contexto é definido primeiro e
+   * a política aprova a linha normalmente.
+   *
+   * Isso importa mais do que parece. O Prisma usa `RETURNING` no `create` para
+   * devolver o registro, e sob RLS o `RETURNING` exige que a linha também possa
+   * ser **lida** de volta. Sem contexto, ela não pode — e o INSERT falha mesmo
+   * que a gravação em si fosse permitida.
+   *
+   * UUID v7 em vez de v4 porque ele começa com o instante de criação: os
+   * registros nascem em ordem cronológica e o índice da chave primária não
+   * fragmenta a cada inserção.
+   *
+   * @param dados Campos da empresa, sem o `id` — quem o define é este método.
+   */
+  async criarNovoTenant<T>(
+    dados: Omit<Prisma.TenantCreateInput, 'id'>,
+    operacao: (tx: TransacaoComTenant, tenantId: string) => Promise<T>,
+  ): Promise<T> {
+    const tenantId = uuidv7();
+
+    return this.comEscopo.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}::text, true)`;
+
+      await tx.tenant.create({ data: { ...dados, id: tenantId } });
+
+      return operacao(tx, tenantId);
     });
   }
 }
