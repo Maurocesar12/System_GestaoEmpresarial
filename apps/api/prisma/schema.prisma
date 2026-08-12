@@ -1,0 +1,578 @@
+// ============================================================================
+//  Schema do banco — SaaS de Gestão Empresarial
+//
+//  REGRAS QUE VALEM PARA TODO O ARQUIVO:
+//
+//  1. Toda tabela de negócio carrega `tenantId` e fica sob política de RLS.
+//     A política é criada por migration SQL, não aqui — o Prisma não conhece
+//     Row-Level Security. Ver `prisma/migrations/*_rls/migration.sql`.
+//
+//  2. Todo valor em dinheiro é `Decimal @db.Decimal(14, 2)`, nunca `Float`.
+//     Float perde centavos, e o erro se acumula no fluxo de caixa.
+//
+//  3. Todo índice de tabela grande começa por `tenantId`. Como toda consulta
+//     filtra por tenant, um índice que não comece por ele quase não é usado.
+//
+//  4. Os enums abaixo espelham exatamente os de `@gestao/shared-types`.
+//     Se um valor mudar lá, precisa mudar aqui — e vice-versa.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+//  Enums
+// ============================================================================
+
+/// Papéis de usuário dentro de um tenant. Regem o acesso a CRM e financeiro.
+enum PapelUsuario {
+  admin
+  financeiro
+  atendente
+  tecnico
+
+  @@map("papel_usuario")
+}
+
+/// Ciclo de vida da assinatura de um tenant.
+enum StatusTenant {
+  trial
+  ativo
+  suspenso
+  cancelado
+
+  @@map("status_tenant")
+}
+
+enum StatusOrcamento {
+  aberto
+  aprovado
+  recusado
+
+  @@map("status_orcamento")
+}
+
+enum StatusAgendamento {
+  agendado
+  confirmado
+  executado
+  cancelado
+
+  @@map("status_agendamento")
+}
+
+/// Canal do lembrete. WhatsApp aqui é mensagem *utility*, não marketing.
+enum CanalLembrete {
+  email
+  whatsapp
+
+  @@map("canal_lembrete")
+}
+
+enum StatusLembrete {
+  pendente
+  enviado
+  falhou
+  cancelado
+
+  @@map("status_lembrete")
+}
+
+/// Sentido do lançamento no fluxo de caixa.
+enum TipoLancamento {
+  entrada
+  saida
+
+  @@map("tipo_lancamento")
+}
+
+/// Separação pessoal/empresa — exigência do público PME.
+enum NaturezaLancamento {
+  pessoal
+  empresa
+
+  @@map("natureza_lancamento")
+}
+
+enum TipoCusto {
+  fixo
+  variavel
+
+  @@map("tipo_custo")
+}
+
+// ============================================================================
+//  Plataforma
+// ============================================================================
+
+/// Catálogo de planos do SaaS.
+///
+/// É a única tabela **sem** `tenantId`: os planos são do produto, não de um
+/// assinante. Todo tenant lê a mesma lista, então a RLS aqui apenas libera
+/// leitura em vez de filtrar por tenant.
+model Plano {
+  id    String  @id @default(uuid(7)) @db.Uuid
+  nome  String  @db.VarChar(60)
+  slug  String  @unique @db.VarChar(60)
+  preco Decimal @db.Decimal(14, 2)
+
+  /// Limites aplicados como guard no backend.
+  /// `null` significa ilimitado — diferente de zero, que bloqueia tudo.
+  limiteUsuarios      Int? @map("limite_usuarios")
+  limiteClientes      Int? @map("limite_clientes")
+  limiteEnviosMensais Int? @map("limite_envios_mensais")
+
+  /// Plano fora de venda continua existindo: tenants antigos seguem nele.
+  ativo Boolean @default(true)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  tenants Tenant[]
+
+  @@map("plano")
+}
+
+/// A empresa assinante. É a raiz de tudo — o `tenantId` das outras tabelas
+/// aponta para cá.
+model Tenant {
+  id   String  @id @default(uuid(7)) @db.Uuid
+  nome String  @db.VarChar(120)
+  cnpj String? @unique @db.VarChar(14)
+
+  planoId String       @map("plano_id") @db.Uuid
+  plano   Plano        @relation(fields: [planoId], references: [id], onDelete: Restrict)
+  status  StatusTenant @default(trial)
+
+  /// Fim do período de teste. Depois disso o acesso depende da assinatura.
+  trialTerminaEm DateTime? @map("trial_termina_em")
+
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+  /// Cancelamento é registrado, não apagado — a exclusão definitiva dos dados
+  /// segue a política de retenção (LGPD, arquitetura §9.4).
+  canceladoEm  DateTime? @map("cancelado_em")
+
+  assinatura            Assinatura?
+  usuarios              Usuario[]
+  clientes              Cliente[]
+  atendimentos          Atendimento[]
+  servicos              Servico[]
+  orcamentos            Orcamento[]
+  agendamentos          Agendamento[]
+  etapasFunil           EtapaFunil[]
+  clientesFunil         ClienteFunil[]
+  lembretes             LembreteFollowUp[]
+  categoriasFinanceiras CategoriaFinanceira[]
+  lancamentos           LancamentoFinanceiro[]
+  proLabores            ProLabore[]
+  reservas              ReservaFinanceira[]
+  refreshTokens         RefreshToken[]
+  logsAuditoria         LogAuditoria[]
+
+  @@index([status])
+  @@map("tenant")
+}
+
+/// Assinatura no gateway de pagamento (Asaas).
+model Assinatura {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @unique @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Identificador da assinatura no Asaas. Único para que um webhook
+  /// reprocessado não crie uma segunda assinatura para o mesmo tenant.
+  asaasId String @unique @map("asaas_id") @db.VarChar(60)
+
+  status            String    @db.VarChar(30)
+  proximoVencimento DateTime? @map("proximo_vencimento") @db.Date
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@map("assinatura")
+}
+
+/// Usuário da equipe do assinante. Não há portal para o cliente final.
+model Usuario {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome  String @db.VarChar(120)
+  email String @db.VarChar(180)
+
+  /// Hash Argon2id — nunca a senha em texto. O nome do campo diz isso de
+  /// propósito, para que um `select` distraído não pareça inofensivo.
+  senhaHash String @map("senha_hash") @db.VarChar(255)
+
+  papel PapelUsuario @default(atendente)
+  ativo Boolean      @default(true)
+
+  ultimoLoginEm DateTime? @map("ultimo_login_em")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  refreshTokens RefreshToken[]
+
+  /// E-mail único **por tenant**, não globalmente: a mesma pessoa pode ser
+  /// usuária de duas empresas diferentes com o mesmo e-mail.
+  @@unique([tenantId, email])
+  @@index([tenantId, ativo])
+  @@map("usuario")
+}
+
+/// Refresh token com rotação (arquitetura §9.1).
+///
+/// Guardamos o hash, não o token: se o banco vazar, os tokens gravados não
+/// servem para autenticar ninguém.
+model RefreshToken {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// Redundante com `usuario.tenantId`, e de propósito: sem a coluna aqui, a
+  /// política de RLS desta tabela teria de fazer subquery em `usuario` a cada
+  /// refresh de token — uma das operações mais frequentes da API.
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  usuarioId String  @map("usuario_id") @db.Uuid
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique @map("token_hash") @db.VarChar(255)
+
+  expiraEm   DateTime  @map("expira_em")
+  /// Preenchido quando o token é usado. Um token já revogado sendo apresentado
+  /// de novo indica roubo de credencial — e derruba a família inteira.
+  revogadoEm DateTime? @map("revogado_em")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([tenantId, usuarioId, expiraEm])
+  @@map("refresh_token")
+}
+
+// ============================================================================
+//  CRM
+// ============================================================================
+
+model Cliente {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome      String  @db.VarChar(120)
+  email     String? @db.VarChar(180)
+  telefone  String? @db.VarChar(20)
+  documento String? @map("documento") @db.VarChar(14)
+
+  observacoes String? @db.Text
+
+  /// Origem do lead e UTM — alimentam o módulo de marketing (beta).
+  origem      String? @db.VarChar(60)
+  utmSource   String? @map("utm_source") @db.VarChar(120)
+  utmMedium   String? @map("utm_medium") @db.VarChar(120)
+  utmCampaign String? @map("utm_campaign") @db.VarChar(120)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  atendimentos Atendimento[]
+  orcamentos   Orcamento[]
+  agendamentos Agendamento[]
+  posicaoFunil ClienteFunil?
+  lembretes    LembreteFollowUp[]
+  lancamentos  LancamentoFinanceiro[]
+
+  @@index([tenantId, nome])
+  @@index([tenantId, criadoEm])
+  @@index([tenantId, origem])
+  @@map("cliente")
+}
+
+/// Registro do histórico de atendimento de um cliente.
+model Atendimento {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  clienteId String  @map("cliente_id") @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  descricao String   @db.Text
+  data      DateTime @db.Date
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([tenantId, clienteId, data])
+  @@map("atendimento")
+}
+
+/// Catálogo de serviços do tenant. `custoBase` é a base do cálculo de margem.
+model Servico {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome      String  @db.VarChar(120)
+  categoria String? @db.VarChar(60)
+
+  custoBase   Decimal  @map("custo_base") @db.Decimal(14, 2)
+  precoPadrao Decimal? @map("preco_padrao") @db.Decimal(14, 2)
+
+  ativo Boolean @default(true)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  orcamentos   Orcamento[]
+  agendamentos Agendamento[]
+  lancamentos  LancamentoFinanceiro[]
+
+  @@unique([tenantId, nome])
+  @@index([tenantId, ativo])
+  @@map("servico")
+}
+
+model Orcamento {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  clienteId String  @map("cliente_id") @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  servicoId String?  @map("servico_id") @db.Uuid
+  servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+
+  descricao String?         @db.Text
+  valor     Decimal         @db.Decimal(14, 2)
+  status    StatusOrcamento @default(aberto)
+
+  validoAte    DateTime? @map("valido_ate") @db.Date
+  respondidoEm DateTime? @map("respondido_em")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([tenantId, status])
+  @@index([tenantId, clienteId])
+  @@map("orcamento")
+}
+
+model Agendamento {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  clienteId String  @map("cliente_id") @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  servicoId String?  @map("servico_id") @db.Uuid
+  servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+
+  dataHora    DateTime          @map("data_hora")
+  observacoes String?           @db.Text
+  status      StatusAgendamento @default(agendado)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([tenantId, dataHora])
+  @@index([tenantId, status])
+  @@map("agendamento")
+}
+
+/// Etapa do funil de vendas. Criada como dado-semente no onboarding.
+model EtapaFunil {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome  String @db.VarChar(60)
+  ordem Int
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  clientes ClienteFunil[]
+
+  @@unique([tenantId, ordem])
+  @@map("etapa_funil")
+}
+
+/// Posição atual do cliente no funil.
+///
+/// Um cliente ocupa uma etapa por vez, daí `clienteId` ser único. O histórico
+/// de movimentação, se for preciso, vira uma tabela própria depois.
+model ClienteFunil {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  clienteId String  @unique @map("cliente_id") @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  etapaId String     @map("etapa_id") @db.Uuid
+  etapa   EtapaFunil @relation(fields: [etapaId], references: [id], onDelete: Restrict)
+
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([tenantId, etapaId])
+  @@map("cliente_funil")
+}
+
+model LembreteFollowUp {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  clienteId String  @map("cliente_id") @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  canal  CanalLembrete
+  status StatusLembrete @default(pendente)
+
+  dataEnvio DateTime  @map("data_envio")
+  enviadoEm DateTime? @map("enviado_em")
+  /// Motivo da falha, quando houver. Fica no banco para o suporte conseguir
+  /// responder "por que meu cliente não recebeu?".
+  erro      String?   @db.Text
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  /// O worker busca os lembretes vencidos por status e data — este índice é o
+  /// que mantém essa varredura barata conforme a tabela cresce.
+  @@index([tenantId, status, dataEnvio])
+  @@index([tenantId, clienteId])
+  @@map("lembrete_follow_up")
+}
+
+// ============================================================================
+//  Financeiro
+// ============================================================================
+
+model CategoriaFinanceira {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome      String    @db.VarChar(60)
+  tipoCusto TipoCusto @map("tipo_custo")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  lancamentos LancamentoFinanceiro[]
+
+  @@unique([tenantId, nome])
+  @@map("categoria_financeira")
+}
+
+/// Lançamento de entrada ou saída.
+///
+/// A ligação opcional com `servico` e `cliente` é o que torna possível o
+/// diferencial do produto: com receita e custo apontando para o serviço que os
+/// gerou, a margem por tipo de serviço vira uma query agregada.
+model LancamentoFinanceiro {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  tipo     TipoLancamento
+  natureza NaturezaLancamento @default(empresa)
+
+  descricao String   @db.VarChar(180)
+  valor     Decimal  @db.Decimal(14, 2)
+  data      DateTime @db.Date
+
+  categoriaId String?              @map("categoria_id") @db.Uuid
+  categoria   CategoriaFinanceira? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+
+  servicoId String?  @map("servico_id") @db.Uuid
+  servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+
+  clienteId String?  @map("cliente_id") @db.Uuid
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  /// Fluxo de caixa e faturamento sempre varrem por período — este é o índice
+  /// mais usado do módulo financeiro.
+  @@index([tenantId, data])
+  @@index([tenantId, tipo, data])
+  @@index([tenantId, servicoId])
+  @@map("lancamento_financeiro")
+}
+
+/// Pró-labore com vigência. Registros novos não sobrescrevem os antigos: o
+/// histórico é o que permite recalcular meses passados corretamente.
+model ProLabore {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  valor Decimal @db.Decimal(14, 2)
+
+  vigenciaInicio DateTime  @map("vigencia_inicio") @db.Date
+  /// `null` significa vigência em aberto — é o valor atual.
+  vigenciaFim    DateTime? @map("vigencia_fim") @db.Date
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([tenantId, vigenciaInicio])
+  @@map("pro_labore")
+}
+
+model ReservaFinanceira {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome       String   @db.VarChar(60)
+  valorAtual Decimal  @map("valor_atual") @db.Decimal(14, 2)
+  meta       Decimal? @db.Decimal(14, 2)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@unique([tenantId, nome])
+  @@map("reserva_financeira")
+}
+
+// ============================================================================
+//  Auditoria (LGPD — arquitetura §9.4)
+// ============================================================================
+
+/// Quem alterou, o quê e quando, nas tabelas sensíveis.
+///
+/// A tabela existe desde já para que a gravação possa ser ligada em qualquer
+/// módulo sem uma nova migration. `usuarioId` não é chave estrangeira de
+/// propósito: o log precisa sobreviver à exclusão do usuário, senão a trilha
+/// de auditoria some junto com quem se quer auditar.
+model LogAuditoria {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  usuarioId String? @map("usuario_id") @db.Uuid
+
+  entidade   String @db.VarChar(60)
+  entidadeId String @map("entidade_id") @db.Uuid
+  acao       String @db.VarChar(20)
+
+  /// Valores antes e depois, para reconstruir o que mudou.
+  antes  Json?
+  depois Json?
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([tenantId, entidade, entidadeId])
+  @@index([tenantId, criadoEm])
+  @@map("log_auditoria")
+}

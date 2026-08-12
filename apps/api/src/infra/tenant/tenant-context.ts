@@ -53,3 +53,22 @@ export function exigirContextoTenant(): TenantContext {
 
   return contexto;
 }
+
+/**
+ * Id da empresa da requisição atual.
+ *
+ * Atalho para escrever `tenantId` nos `create` do Prisma, onde o tipo gerado
+ * exige o campo:
+ *
+ * ```ts
+ * tx.cliente.create({ data: { nome, tenantId: tenantAtual() } })
+ * ```
+ *
+ * Deixar o tenant visível no código é proposital. A extensão do Prisma o
+ * preencheria sozinha, mas um `tenantId` escrito à vista ensina quem lê que
+ * aquele dado pertence a uma empresa — e a extensão continua ali para garantir
+ * que o valor não seja o de outra.
+ */
+export function tenantAtual(): string {
+  return exigirContextoTenant().tenantId;
+}

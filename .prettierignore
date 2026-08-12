@@ -5,5 +5,8 @@ dist
 coverage
 pnpm-lock.yaml
 
+# Prisma Client — código gerado.
+apps/api/src/generated
+
 # Documento de arquitetura — preservado como escrito, não é código.
 docs/arquitetura.md

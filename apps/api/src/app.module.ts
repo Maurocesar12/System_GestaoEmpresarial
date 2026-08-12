@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv, type Env } from './config/env.schema';
+import { PrismaModule } from './infra/prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 
 /**
@@ -37,6 +38,7 @@ import { HealthModule } from './modules/health/health.module';
       }),
     }),
 
+    PrismaModule,
     HealthModule,
   ],
   providers: [

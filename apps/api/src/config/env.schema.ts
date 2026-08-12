@@ -24,10 +24,14 @@ export const envSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
 
   /**
-   * Conexão da aplicação: usuário SEM BYPASSRLS (arquitetura §4.3).
-   * Vira obrigatória quando o PrismaModule entrar, na fatia de schema + RLS.
+   * Conexão da aplicação. Precisa ser um usuário **sem** `BYPASSRLS`
+   * (arquitetura §4.3): com BYPASSRLS, as políticas de RLS seriam ignoradas em
+   * silêncio e o isolamento entre empresas deixaria de existir.
    */
-  DATABASE_URL: z.string().optional(),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatória — rode scripts/setup-database.ps1'),
+
+  /** Banco usado pelos testes automatizados. Só é lido em NODE_ENV=test. */
+  TEST_DATABASE_URL: z.string().optional(),
 
   /** Conexão do painel interno: usuário COM BYPASSRLS, isolada da aplicação. */
   ADMIN_DATABASE_URL: z.string().optional(),

@@ -9,6 +9,12 @@ build/
 out/
 *.tsbuildinfo
 
+# Rede de segurança: saída de compilação nunca mora junto do fonte.
+# Um build com rootDir errado espalha estes arquivos por dentro de src/.
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.map
+
 # turbo
 .turbo/
 
