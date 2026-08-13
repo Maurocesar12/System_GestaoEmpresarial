@@ -38,8 +38,26 @@ export const envSchema = z.object({
 
   /** Mínimo de 32 caracteres — segredo curto de JWT é assinatura quebrável. */
   JWT_SECRET: z.string().min(32, 'JWT_SECRET precisa ter ao menos 32 caracteres'),
-  JWT_ACCESS_TTL: z.string().default('15m'),
-  JWT_REFRESH_TTL: z.string().default('7d'),
+
+  /**
+   * Validade do access token, em minutos. Curta de propósito (§9.1): se um
+   * token vazar, a janela de uso é pequena. O refresh token é o que evita pedir
+   * a senha de novo a cada quinze minutos.
+   */
+  JWT_ACCESS_TTL_MINUTOS: z.coerce.number().int().positive().max(60).default(15),
+
+  /** Validade do refresh token, em dias — é o tempo que a sessão dura. */
+  JWT_REFRESH_TTL_DIAS: z.coerce.number().int().positive().max(90).default(7),
+
+  /**
+   * Plano e duração do trial de quem se cadastra.
+   *
+   * Valores provisórios: a definição comercial dos planos ainda está em aberto
+   * (arquitetura §12). Ficam aqui, e não espalhados pelo código, para que a
+   * decisão quando vier seja uma linha de configuração.
+   */
+  ONBOARDING_PLANO_PADRAO: z.string().default('essencial'),
+  ONBOARDING_TRIAL_DIAS: z.coerce.number().int().positive().default(14),
 
   /** Redis do BullMQ (Upstash). Obrigatório quando a fila de lembretes entrar. */
   REDIS_URL: z.string().optional(),

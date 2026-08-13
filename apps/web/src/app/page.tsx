@@ -1,4 +1,5 @@
 import type { HealthResponse } from '@gestao/shared-types';
+import Link from 'next/link';
 import { apiFetch, ApiRequestError } from '@/lib/api';
 
 /**
@@ -77,14 +78,29 @@ export default async function Home() {
         )}
       </section>
 
+      <section className="flex flex-wrap gap-3">
+        <Link
+          href="/cadastro"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
+        >
+          Cadastrar empresa
+        </Link>
+        <Link
+          href="/entrar"
+          className="hover:bg-accent inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors"
+        >
+          Entrar
+        </Link>
+      </section>
+
       <section className="space-y-3">
-        <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
           Próxima fatia
         </h2>
-        <ol className="space-y-1.5 text-sm text-muted-foreground">
-          <li>1. Schema Prisma + políticas de RLS + testes de isolamento</li>
-          <li>2. Auth — login, JWT, refresh com rotação, guards de papel</li>
-          <li>3. Tenant + Onboarding — signup self-service e dados-semente</li>
+        <ol className="text-muted-foreground space-y-1.5 text-sm">
+          <li>1. Clientes — cadastro, histórico e origem do lead</li>
+          <li>2. Funil — kanban com arrastar e soltar</li>
+          <li>3. Orçamentos — emissão e acompanhamento</li>
         </ol>
       </section>
     </main>
