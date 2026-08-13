@@ -47,10 +47,17 @@ export async function apiFetch<T>(
   } catch (causa) {
     // Rede fora do ar / API dormindo: sem isso o erro chega como um
     // "fetch failed" cru, sem o formato que o resto do app espera tratar.
+    //
+    // A mensagem diz o endereço que falhou e o que fazer. "Erro de conexão"
+    // sozinho manda quem está desenvolvendo caçar no console; dizer que a API
+    // em tal endereço não respondeu aponta direto para a causa — quase sempre
+    // a API não está no ar, ou a URL configurada está errada.
+    const detalhe = causa instanceof Error ? causa.message : String(causa);
+
     throw new ApiRequestError(0, {
       codigo: CODIGOS_ERRO.ERRO_INTERNO,
-      mensagem: 'Não foi possível falar com o servidor.',
-      ...(causa instanceof Error ? { detalhes: { rede: [causa.message] } } : {}),
+      mensagem: `Não foi possível falar com a API em ${env.NEXT_PUBLIC_API_URL}. Verifique se ela está rodando.`,
+      detalhes: { conexao: [detalhe] },
     });
   }
 

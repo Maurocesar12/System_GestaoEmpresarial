@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { cadastroSchema, type CadastroInput } from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
+import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
-import { cadastrar } from '../acoes';
+import { cadastrar, type ResultadoAcao } from '../acoes';
 
 /** Campos do formulário, para o `setError` saber quais existem. */
 const CAMPOS = ['nomeEmpresa', 'nomeResponsavel', 'email', 'senha'] as const;
@@ -19,7 +20,7 @@ const CAMPOS = ['nomeEmpresa', 'nomeResponsavel', 'email', 'senha'] as const;
  * aparece enquanto a pessoa digita, e não depois de enviar.
  */
 export function FormularioCadastro() {
-  const [erroGeral, setErroGeral] = useState<string>();
+  const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
 
   const {
@@ -33,7 +34,7 @@ export function FormularioCadastro() {
   });
 
   const aoEnviar = (dados: CadastroInput) => {
-    setErroGeral(undefined);
+    setFalha(undefined);
 
     iniciarEnvio(async () => {
       const resultado = await cadastrar(dados);
@@ -47,20 +48,20 @@ export function FormularioCadastro() {
         }
       }
 
-      setErroGeral(resultado?.erro);
+      setFalha(resultado);
     });
   };
 
   return (
-    <form onSubmit={handleSubmit(aoEnviar)} className="flex flex-col gap-4" noValidate>
-      {erroGeral && (
-        <p
-          role="alert"
-          className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm"
-        >
-          {erroGeral}
-        </p>
-      )}
+    // `method="post"` protege o caso em que o JavaScript não carrega: o envio
+    // nativo do HTML é GET por padrão, e colocaria a senha na URL.
+    <form
+      method="post"
+      onSubmit={handleSubmit(aoEnviar)}
+      className="flex flex-col gap-4"
+      noValidate
+    >
+      {falha?.erro && <AvisoErro mensagem={falha.erro} detalhes={falha.campos} />}
 
       <Campo
         rotulo="Nome da empresa"

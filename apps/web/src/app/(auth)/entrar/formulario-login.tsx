@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginInput } from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
+import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
-import { entrar } from '../acoes';
+import { entrar, type ResultadoAcao } from '../acoes';
 
 /**
  * Formulário de login.
@@ -19,7 +20,7 @@ import { entrar } from '../acoes';
  * protege o sistema é a do servidor, que roda de qualquer forma.
  */
 export function FormularioLogin() {
-  const [erroGeral, setErroGeral] = useState<string>();
+  const [falha, setFalha] = useState<ResultadoAcao>();
 
   // `useTransition` mantém a interface responsiva enquanto a Server Action
   // roda, e dá o estado de "em andamento" sem precisar controlá-lo à mão.
@@ -36,7 +37,7 @@ export function FormularioLogin() {
   });
 
   const aoEnviar = (dados: LoginInput) => {
-    setErroGeral(undefined);
+    setFalha(undefined);
 
     iniciarEnvio(async () => {
       const resultado = await entrar(dados);
@@ -51,22 +52,23 @@ export function FormularioLogin() {
         }
       }
 
-      setErroGeral(resultado?.erro);
+      setFalha(resultado);
     });
   };
 
   return (
-    <form onSubmit={handleSubmit(aoEnviar)} className="flex flex-col gap-4" noValidate>
-      {erroGeral && (
-        // `role="alert"` faz o leitor de tela anunciar a mensagem assim que ela
-        // aparece, sem depender de o usuário navegar até ela.
-        <p
-          role="alert"
-          className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm"
-        >
-          {erroGeral}
-        </p>
-      )}
+    // `method="post"` não é decoração: se o JavaScript falhar em carregar, o
+    // navegador faz o envio nativo do formulário, e o padrão do HTML é **GET**
+    // — o que colocaria a senha na barra de endereços, no histórico e nos logs
+    // do servidor. Com `post`, o pior caso vira uma página de erro, e não uma
+    // credencial vazada.
+    <form
+      method="post"
+      onSubmit={handleSubmit(aoEnviar)}
+      className="flex flex-col gap-4"
+      noValidate
+    >
+      {falha?.erro && <AvisoErro mensagem={falha.erro} detalhes={falha.campos} />}
 
       <Campo
         rotulo="E-mail"

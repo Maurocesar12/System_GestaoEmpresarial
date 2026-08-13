@@ -10,9 +10,10 @@ import {
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
+import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
-import { salvarCliente } from './acoes';
+import { salvarCliente, type ResultadoAcao } from './acoes';
 
 /** Campos do formulário, para o `setError` saber quais existem. */
 const CAMPOS = ['nome', 'email', 'telefone', 'documento', 'observacoes', 'origem'] as const;
@@ -25,7 +26,7 @@ const CAMPOS = ['nome', 'email', 'telefone', 'documento', 'observacoes', 'origem
  * manter duas cópias das mesmas regras de validação e dos mesmos campos.
  */
 export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
-  const [erroGeral, setErroGeral] = useState<string>();
+  const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
 
   const {
@@ -53,7 +54,7 @@ export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
   });
 
   const aoEnviar = (dados: ClienteFormInput) => {
-    setErroGeral(undefined);
+    setFalha(undefined);
 
     iniciarEnvio(async () => {
       const resultado = await salvarCliente(cliente?.id ?? null, dados);
@@ -67,20 +68,18 @@ export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
         }
       }
 
-      setErroGeral(resultado?.erro);
+      setFalha(resultado);
     });
   };
 
   return (
-    <form onSubmit={handleSubmit(aoEnviar)} className="flex max-w-xl flex-col gap-4" noValidate>
-      {erroGeral && (
-        <p
-          role="alert"
-          className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm"
-        >
-          {erroGeral}
-        </p>
-      )}
+    <form
+      method="post"
+      onSubmit={handleSubmit(aoEnviar)}
+      className="flex max-w-xl flex-col gap-4"
+      noValidate
+    >
+      {falha?.erro && <AvisoErro mensagem={falha.erro} detalhes={falha.campos} />}
 
       <Campo
         rotulo="Nome"
