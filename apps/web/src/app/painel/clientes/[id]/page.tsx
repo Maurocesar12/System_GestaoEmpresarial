@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { Cliente } from '@gestao/shared-types';
+import type { Cliente, EtapaFunil, QuadroFunil } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
 import { FormularioCliente } from '../formulario-cliente';
 import { BotaoRemover } from './botao-remover';
+import { EntrarNoFunil } from './entrar-no-funil';
 
 export const metadata: Metadata = {
   title: 'Cliente — Gestão Empresarial',
@@ -21,7 +22,17 @@ interface Props {
  */
 export default async function PaginaCliente({ params }: Props) {
   const { id } = await params;
-  const cliente = await apiComSessao<Cliente>(`/clientes/${id}`);
+
+  // As três consultas em paralelo: em sequência, a página esperaria a soma dos
+  // tempos em vez do mais lento deles.
+  const [cliente, etapas, quadro] = await Promise.all([
+    apiComSessao<Cliente>(`/clientes/${id}`),
+    apiComSessao<EtapaFunil[]>('/funil/etapas'),
+    apiComSessao<QuadroFunil>('/funil'),
+  ]);
+
+  const etapaAtual =
+    quadro.colunas.find((coluna) => coluna.clientes.some((c) => c.id === id))?.etapa.id ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,6 +58,8 @@ export default async function PaginaCliente({ params }: Props) {
       </div>
 
       <FormularioCliente cliente={cliente} />
+
+      <EntrarNoFunil clienteId={cliente.id} etapas={etapas} etapaAtual={etapaAtual} />
 
       <section className="border-destructive/30 flex flex-col gap-3 rounded-lg border border-dashed p-4">
         <div className="flex flex-col gap-1">

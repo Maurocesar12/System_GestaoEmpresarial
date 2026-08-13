@@ -9,6 +9,7 @@ import { PrismaModule } from './infra/prisma/prisma.module';
 import { TenantMiddleware } from './infra/tenant/tenant.middleware';
 import { AuthModule } from './modules/auth/auth.module';
 import { ClientesModule } from './modules/crm/clientes/clientes.module';
+import { FunilModule } from './modules/crm/funil/funil.module';
 import { HealthModule } from './modules/health/health.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 
@@ -47,6 +48,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     AuthModule,
     OnboardingModule,
     ClientesModule,
+    FunilModule,
     HealthModule,
   ],
   providers: [
