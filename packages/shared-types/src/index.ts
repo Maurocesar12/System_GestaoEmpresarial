@@ -9,4 +9,6 @@ export * from './common/api-response';
 export * from './auth/auth.schemas';
 export * from './crm/clientes.schemas';
 export * from './crm/funil.schemas';
+export * from './crm/orcamentos.schemas';
+export * from './crm/servicos.schemas';
 export * from './health';
