@@ -17,7 +17,17 @@ import type { ZodType } from 'zod';
  */
 @Injectable()
 export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
-  constructor(private readonly schema: ZodType<T>) {}
+  /**
+   * O segundo parâmetro de `ZodType` é o tipo de **entrada**, deixado como
+   * `unknown` de propósito.
+   *
+   * Vários schemas do projeto transformam os dados — a query de paginação
+   * converte texto em número, o formulário de cliente converte campo vazio em
+   * `null`. Neles, entrada e saída são tipos diferentes, e um `ZodType<T>` sem
+   * o segundo parâmetro não casa: o TypeScript desiste e infere `any`,
+   * apagando a tipagem de tudo que passa pelo pipe.
+   */
+  constructor(private readonly schema: ZodType<T, unknown>) {}
 
   transform(valor: unknown): T {
     const resultado = this.schema.safeParse(valor);

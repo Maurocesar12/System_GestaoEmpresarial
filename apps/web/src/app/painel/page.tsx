@@ -13,7 +13,6 @@ export const metadata: Metadata = {
  */
 export default function PaginaPainel() {
   const proximasFatias = [
-    { titulo: 'Clientes', descricao: 'Cadastro, histórico de atendimento e origem do lead.' },
     { titulo: 'Funil', descricao: 'Etapas do funil em kanban, com arrastar e soltar.' },
     { titulo: 'Orçamentos', descricao: 'Emissão, envio e acompanhamento de status.' },
     { titulo: 'Agendamentos', descricao: 'Serviços agendados e execução.' },

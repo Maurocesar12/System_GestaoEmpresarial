@@ -10,9 +10,14 @@ import { lerAccessToken } from './sessao';
  * funciona no servidor — é lá que o cookie é legível, e é justamente por isso
  * que ele é `httpOnly`.
  *
- * Quando a API responde 401, a sessão acabou: em vez de propagar o erro para a
- * tela, manda para o login. Uma sessão expirada não é falha a ser exibida, é
- * uma navegação a fazer.
+ * **Não renova a sessão.** Quem faz isso é o middleware, que roda antes de
+ * qualquer página e é o único lugar capaz de gravar cookies antes da
+ * renderização — um Server Component consegue lê-los, mas não escrevê-los.
+ *
+ * Então, quando a API responde 401 aqui, a sessão realmente acabou: o
+ * middleware já teve a chance de renovar e não conseguiu. O caminho é a tela de
+ * entrada, e não uma mensagem de erro — sessão expirada é uma navegação a
+ * fazer, não uma falha a exibir.
  */
 export async function apiComSessao<T>(caminho: string, init: RequestInit = {}): Promise<T> {
   const token = await lerAccessToken();
