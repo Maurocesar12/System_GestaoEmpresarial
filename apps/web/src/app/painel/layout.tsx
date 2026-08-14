@@ -28,6 +28,9 @@ const MENU: readonly ItemMenu[] = [
     rotulo: 'Serviços',
     papeis: ['admin', 'financeiro', 'atendente', 'tecnico'],
   },
+  // Financeiro é restrito (§9.5): o dono precisa poder dar acesso ao sistema
+  // sem expor o quanto ganha.
+  { href: '/painel/financeiro', rotulo: 'Financeiro', papeis: ['admin', 'financeiro'] },
 ];
 
 /**
