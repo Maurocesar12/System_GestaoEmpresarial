@@ -1,15 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
+  ROTULO_CANAL_LEMBRETE,
+  ROTULO_STATUS_AGENDAMENTO,
   diasNaEtapa,
   formatarBRL,
+  type Agendamento,
   type Cliente,
+  type LembreteFollowUp,
   type Orcamento,
   type Paginado,
   type QuadroFunil,
   type ResumoOrcamentos,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
+import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
 
 export const metadata: Metadata = {
   title: 'Painel — Gestão Empresarial',
@@ -26,14 +31,21 @@ const DIAS_PARA_ALERTA = 7;
  * muda o dia de quem abre o sistema é saber onde agir.
  */
 export default async function PaginaPainel() {
-  const [clientes, quadro, resumo, orcamentos] = await Promise.all([
-    apiComSessao<Paginado<Cliente>>('/clientes?porPagina=1'),
-    apiComSessao<QuadroFunil>('/funil'),
-    apiComSessao<ResumoOrcamentos>('/orcamentos/resumo'),
-    apiComSessao<Paginado<Orcamento>>('/orcamentos?status=aberto&porPagina=5'),
-  ]);
+  const [clientes, quadro, resumo, orcamentos, agendados, confirmados, lembretes] =
+    await Promise.all([
+      apiComSessao<Paginado<Cliente>>('/clientes?porPagina=1'),
+      apiComSessao<QuadroFunil>('/funil'),
+      apiComSessao<ResumoOrcamentos>('/orcamentos/resumo'),
+      apiComSessao<Paginado<Orcamento>>('/orcamentos?status=aberto&porPagina=5'),
+      apiComSessao<Paginado<Agendamento>>('/agendamentos?status=agendado&porPagina=5'),
+      apiComSessao<Paginado<Agendamento>>('/agendamentos?status=confirmado&porPagina=5'),
+      apiComSessao<Paginado<LembreteFollowUp>>('/lembretes?status=pendente&porPagina=5'),
+    ]);
 
   const noFunil = quadro.colunas.reduce((soma, coluna) => soma + coluna.clientes.length, 0);
+  const proximosAgendamentos = [...agendados.dados, ...confirmados.dados]
+    .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
+    .slice(0, 5);
 
   // Negociações que não se movem há mais de uma semana. É o número que revela
   // dinheiro esquecido — o resto do painel mostra o que já está em andamento.
@@ -87,6 +99,95 @@ export default async function PaginaPainel() {
           href="/painel/clientes"
         />
       </section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="text-sm font-medium">Próximos compromissos</h2>
+            <Link
+              href="/painel/agenda"
+              className="text-muted-foreground text-xs underline-offset-4 hover:underline"
+            >
+              ver agenda
+            </Link>
+          </div>
+
+          {proximosAgendamentos.length === 0 ? (
+            <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
+              Nenhum compromisso pendente.
+            </p>
+          ) : (
+            <ul className="flex flex-col rounded-lg border">
+              {proximosAgendamentos.map((agendamento) => (
+                <li
+                  key={agendamento.id}
+                  className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
+                >
+                  <div className="flex min-w-0 flex-col">
+                    <Link
+                      href={`/painel/agenda/${agendamento.id}`}
+                      className="truncate text-sm font-medium underline-offset-4 hover:underline"
+                    >
+                      {agendamento.clienteNome}
+                    </Link>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {agendamento.servicoNome ?? 'Sem serviço do catálogo'} ·{' '}
+                      {ROTULO_STATUS_AGENDAMENTO[agendamento.status]}
+                    </span>
+                  </div>
+
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    {formatarQuando(agendamento.dataHora)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="text-sm font-medium">Follow-ups pendentes</h2>
+            <Link
+              href="/painel/lembretes"
+              className="text-muted-foreground text-xs underline-offset-4 hover:underline"
+            >
+              ver lembretes
+            </Link>
+          </div>
+
+          {lembretes.dados.length === 0 ? (
+            <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
+              Nenhum follow-up pendente.
+            </p>
+          ) : (
+            <ul className="flex flex-col rounded-lg border">
+              {lembretes.dados.map((lembrete) => (
+                <li
+                  key={lembrete.id}
+                  className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
+                >
+                  <div className="flex min-w-0 flex-col">
+                    <Link
+                      href={`/painel/clientes/${lembrete.clienteId}`}
+                      className="truncate text-sm font-medium underline-offset-4 hover:underline"
+                    >
+                      {lembrete.clienteNome}
+                    </Link>
+                    <span className="text-muted-foreground text-xs">
+                      {ROTULO_CANAL_LEMBRETE[lembrete.canal]}
+                    </span>
+                  </div>
+
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    {formatarQuando(lembrete.dataEnvio)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="flex flex-col gap-3">
@@ -170,6 +271,10 @@ export default async function PaginaPainel() {
       </div>
     </div>
   );
+}
+
+function formatarQuando(iso: string): string {
+  return `${formatarDiaAgenda(iso.slice(0, 10)).toLowerCase()} às ${formatarHora(iso)}`;
 }
 
 function Indicador({
