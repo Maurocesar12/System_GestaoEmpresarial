@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { PapelUsuario } from '../enums';
+import type { PapelUsuario } from './enums';
 
 /**
  * Contrato de autenticação (arquitetura §9.1).

@@ -1,44 +1,35 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  paginar,
   type Paginado,
   type Servico,
   type ServicoFormInput,
   type ServicosQuery,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
-import { PrismaService } from '../../../infra/prisma/prisma.service';
+import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
 
 /** O registro como vem do banco, com dinheiro em Decimal. */
-type ServicoBanco = {
-  id: string;
-  nome: string;
-  categoria: string | null;
-  custoBase: Prisma.Decimal;
-  precoPadrao: Prisma.Decimal | null;
-  ativo: boolean;
-  criadoEm: Date;
-};
+type ServicoBanco = Prisma.ServicoGetPayload<object>;
 
 @Injectable()
 export class ServicosService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listar(query: ServicosQuery): Promise<Paginado<Servico>> {
-    const { pagina, porPagina, busca, somenteAtivos } = query;
-
     const where: Prisma.ServicoWhereInput = {};
 
-    if (somenteAtivos) {
+    if (query.somenteAtivos) {
       where.ativo = true;
     }
 
-    if (busca) {
+    if (query.busca) {
       where.OR = [
-        { nome: { contains: busca, mode: 'insensitive' } },
-        { categoria: { contains: busca, mode: 'insensitive' } },
+        { nome: { contains: query.busca, mode: 'insensitive' } },
+        { categoria: { contains: query.busca, mode: 'insensitive' } },
       ];
     }
 
@@ -47,22 +38,18 @@ export class ServicosService {
         tx.servico.findMany({
           where,
           orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
-          skip: (pagina - 1) * porPagina,
-          take: porPagina,
+          skip: (query.pagina - 1) * query.porPagina,
+          take: query.porPagina,
         }),
         tx.servico.count({ where }),
       ]),
     );
 
-    return {
-      dados: registros.map((registro) => this.paraResposta(registro)),
-      meta: {
-        pagina,
-        porPagina,
-        total,
-        totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
-      },
-    };
+    return paginar(
+      registros.map((registro) => this.paraResposta(registro)),
+      total,
+      query,
+    );
   }
 
   async buscarPorId(id: string): Promise<Servico> {
@@ -79,27 +66,42 @@ export class ServicosService {
   }
 
   async criar(dados: ServicoFormInput): Promise<Servico> {
-    await this.garantirNomeDisponivel(dados.nome);
+    const servico = await this.prisma.comTenant(async (tx) => {
+      await this.garantirNomeDisponivel(tx, dados.nome);
 
-    const servico = await this.prisma.comTenant((tx) =>
-      tx.servico.create({
+      return tx.servico.create({
         data: { id: uuidv7(), tenantId: tenantAtual(), ...dados },
-      }),
-    );
+      });
+    });
 
     return this.paraResposta(servico);
   }
 
+  /**
+   * Atualiza um serviço.
+   *
+   * Leitura e escrita na **mesma** transação. Cada `comTenant` abre uma
+   * transação própria (`BEGIN`, `set_config`, consulta, `COMMIT`); a versão
+   * anterior abria três para um único PATCH — uma para conferir a existência,
+   * outra para conferir o nome, a terceira para gravar.
+   */
   async atualizar(id: string, dados: ServicoFormInput): Promise<Servico> {
-    const atual = await this.buscarPorId(id);
+    const servico = await this.prisma.comTenant(async (tx) => {
+      const atual = await tx.servico.findUnique({ where: { id }, select: { nome: true } });
 
-    if (atual.nome !== dados.nome) {
-      await this.garantirNomeDisponivel(dados.nome);
-    }
+      if (!atual) {
+        throw new NotFoundException({
+          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+          mensagem: 'Serviço não encontrado.',
+        });
+      }
 
-    const servico = await this.prisma.comTenant((tx) =>
-      tx.servico.update({ where: { id }, data: dados }),
-    );
+      if (atual.nome !== dados.nome) {
+        await this.garantirNomeDisponivel(tx, dados.nome);
+      }
+
+      return tx.servico.update({ where: { id }, data: dados });
+    });
 
     return this.paraResposta(servico);
   }
@@ -113,19 +115,24 @@ export class ServicosService {
    * Desativado, ele some das listas novas e o passado continua íntegro.
    */
   async desativar(id: string): Promise<Servico> {
-    await this.buscarPorId(id);
+    const servico = await this.prisma.comTenant(async (tx) => {
+      const existe = await tx.servico.findUnique({ where: { id }, select: { id: true } });
 
-    const servico = await this.prisma.comTenant((tx) =>
-      tx.servico.update({ where: { id }, data: { ativo: false } }),
-    );
+      if (!existe) {
+        throw new NotFoundException({
+          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+          mensagem: 'Serviço não encontrado.',
+        });
+      }
+
+      return tx.servico.update({ where: { id }, data: { ativo: false } });
+    });
 
     return this.paraResposta(servico);
   }
 
-  private async garantirNomeDisponivel(nome: string): Promise<void> {
-    const existente = await this.prisma.comTenant((tx) =>
-      tx.servico.findFirst({ where: { nome }, select: { id: true } }),
-    );
+  private async garantirNomeDisponivel(tx: TransacaoComTenant, nome: string): Promise<void> {
+    const existente = await tx.servico.findFirst({ where: { nome }, select: { id: true } });
 
     if (existente) {
       throw new ConflictException({

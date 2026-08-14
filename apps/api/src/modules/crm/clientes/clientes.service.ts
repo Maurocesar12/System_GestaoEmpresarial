@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  paginar,
   type Cliente,
   type ClienteFormInput,
   type ClientesQuery,
@@ -28,9 +29,7 @@ export class ClientesService {
   ) {}
 
   async listar(query: ClientesQuery): Promise<Paginado<Cliente>> {
-    const { pagina, porPagina, busca, origem } = query;
-
-    const where = this.montarFiltro(busca, origem);
+    const where = this.montarFiltro(query.busca, query.origem);
 
     // As duas consultas na mesma transação, e não em sequência: se um cliente
     // for cadastrado entre elas, o total e a página devolvida ficariam
@@ -40,22 +39,18 @@ export class ClientesService {
         tx.cliente.findMany({
           where,
           orderBy: { nome: 'asc' },
-          skip: (pagina - 1) * porPagina,
-          take: porPagina,
+          skip: (query.pagina - 1) * query.porPagina,
+          take: query.porPagina,
         }),
         tx.cliente.count({ where }),
       ]),
     );
 
-    return {
-      dados: registros.map((registro) => this.paraResposta(registro)),
-      meta: {
-        pagina,
-        porPagina,
-        total,
-        totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
-      },
-    };
+    return paginar(
+      registros.map((registro) => this.paraResposta(registro)),
+      total,
+      query,
+    );
   }
 
   async buscarPorId(id: string): Promise<Cliente> {
@@ -118,24 +113,43 @@ export class ClientesService {
   }
 
   async atualizar(id: string, dados: ClienteFormInput): Promise<Cliente> {
-    // Confere a existência dentro do escopo do tenant antes de alterar: sem
-    // isso, o `update` de um id de outra empresa falharia com erro cru do
-    // Prisma em vez de um 404 limpo.
-    await this.buscarPorId(id);
+    const cliente = await this.prisma.comTenant(async (tx) => {
+      // Confere a existência dentro do escopo do tenant antes de alterar: sem
+      // isso, o `update` de um id de outra empresa falharia com erro cru do
+      // Prisma em vez de um 404 limpo.
+      //
+      // Na mesma transação da escrita, e buscando só o `id`: chamar
+      // `buscarPorId` aqui abriria uma segunda transação e ainda traria a
+      // posição no funil junto, que não é usada para nada nesta conferência.
+      const existe = await tx.cliente.findUnique({ where: { id }, select: { id: true } });
 
-    const cliente = await this.prisma.comTenant((tx) =>
-      tx.cliente.update({ where: { id }, data: dados }),
-    );
+      if (!existe) {
+        throw new NotFoundException({
+          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+          mensagem: 'Cliente não encontrado.',
+        });
+      }
+
+      return tx.cliente.update({ where: { id }, data: dados });
+    });
 
     return this.paraResposta(cliente);
   }
 
   async remover(id: string): Promise<void> {
-    await this.buscarPorId(id);
-
     // `deleteMany` em vez de `delete`: a RLS já garante o escopo, e assim uma
     // corrida (dois pedidos de exclusão ao mesmo tempo) não vira erro 500.
-    await this.prisma.comTenant((tx) => tx.cliente.deleteMany({ where: { id } }));
+    // Contar o resultado dispensa a consulta prévia de existência.
+    const { count } = await this.prisma.comTenant((tx) =>
+      tx.cliente.deleteMany({ where: { id } }),
+    );
+
+    if (count === 0) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Cliente não encontrado.',
+      });
+    }
   }
 
   /**
@@ -172,20 +186,7 @@ export class ClientesService {
    * Datas viram string ISO: `Date` não sobrevive à serialização JSON de forma
    * previsível, e o frontend precisa de um formato estável para exibir.
    */
-  private paraResposta(registro: {
-    id: string;
-    nome: string;
-    email: string | null;
-    telefone: string | null;
-    documento: string | null;
-    observacoes: string | null;
-    origem: string | null;
-    utmSource: string | null;
-    utmMedium: string | null;
-    utmCampaign: string | null;
-    criadoEm: Date;
-    atualizadoEm: Date;
-  }): Cliente {
+  private paraResposta(registro: Prisma.ClienteGetPayload<object>): Cliente {
     return {
       id: registro.id,
       nome: registro.nome,

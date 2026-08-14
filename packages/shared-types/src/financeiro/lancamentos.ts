@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { dinheiroDigitadoSchema } from '../common/dinheiro';
 import { opcional, textoOpcional } from '../common/opcional';
-import { paginacaoQuerySchema } from '../common/pagination';
+import { paginacaoQuerySchema } from '../common/paginacao';
 import {
   naturezaLancamentoSchema,
   tipoCustoSchema,

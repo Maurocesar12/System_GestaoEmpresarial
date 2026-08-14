@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  paginar,
   ROTULO_ACAO,
   ROTULO_STATUS,
   TRANSICOES,
@@ -14,28 +15,23 @@ import {
   type StatusOrcamento,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
-import { PrismaService } from '../../../infra/prisma/prisma.service';
+import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import { FunilService } from '../funil/funil.service';
+import { garantirClienteEServico } from '../vinculos';
 // Import de valor, e não `import type`: além dos tipos, o `Prisma.Decimal` é
 // usado em tempo de execução para representar o zero quando não há orçamentos
 // somados.
 import { Prisma } from '../../../generated/prisma/client';
 
-/** O registro do banco com as relações que a resposta precisa. */
-type OrcamentoBanco = {
-  id: string;
-  clienteId: string;
-  servicoId: string | null;
-  descricao: string | null;
-  valor: Prisma.Decimal;
-  status: StatusOrcamento;
-  validoAte: Date | null;
-  respondidoEm: Date | null;
-  criadoEm: Date;
-  cliente: { nome: string };
-  servico: { nome: string } | null;
-};
+/** As relações que toda resposta de orçamento carrega. */
+const INCLUDE_PADRAO = {
+  cliente: { select: { nome: true } },
+  servico: { select: { nome: true } },
+} as const;
+
+/** O registro do banco, derivado do schema em vez de redigitado à mão. */
+type OrcamentoBanco = Prisma.OrcamentoGetPayload<{ include: typeof INCLUDE_PADRAO }>;
 
 /**
  * Orçamentos.
@@ -61,34 +57,28 @@ export class OrcamentosService {
   ) {}
 
   async listar(query: OrcamentosQuery): Promise<Paginado<Orcamento>> {
-    const { pagina, porPagina, status, clienteId } = query;
-
     const where: Prisma.OrcamentoWhereInput = {};
-    if (status) where.status = status;
-    if (clienteId) where.clienteId = clienteId;
+    if (query.status) where.status = query.status;
+    if (query.clienteId) where.clienteId = query.clienteId;
 
     const [registros, total] = await this.prisma.comTenant((tx) =>
       Promise.all([
         tx.orcamento.findMany({
           where,
-          include: { cliente: { select: { nome: true } }, servico: { select: { nome: true } } },
+          include: INCLUDE_PADRAO,
           orderBy: { criadoEm: 'desc' },
-          skip: (pagina - 1) * porPagina,
-          take: porPagina,
+          skip: (query.pagina - 1) * query.porPagina,
+          take: query.porPagina,
         }),
         tx.orcamento.count({ where }),
       ]),
     );
 
-    return {
-      dados: registros.map((registro) => this.paraResposta(registro)),
-      meta: {
-        pagina,
-        porPagina,
-        total,
-        totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
-      },
-    };
+    return paginar(
+      registros.map((registro) => this.paraResposta(registro)),
+      total,
+      query,
+    );
   }
 
   /**
@@ -135,7 +125,7 @@ export class OrcamentosService {
     const orcamento = await this.prisma.comTenant((tx) =>
       tx.orcamento.findUnique({
         where: { id },
-        include: { cliente: { select: { nome: true } }, servico: { select: { nome: true } } },
+        include: INCLUDE_PADRAO,
       }),
     );
 
@@ -151,7 +141,7 @@ export class OrcamentosService {
 
   async criar(dados: OrcamentoFormInput): Promise<Orcamento> {
     const orcamento = await this.prisma.comTenant(async (tx) => {
-      await this.garantirVinculosValidos(tx, dados);
+      await garantirClienteEServico(tx, dados);
 
       const criado = await tx.orcamento.create({
         data: {
@@ -163,7 +153,7 @@ export class OrcamentosService {
           valor: dados.valor,
           validoAte: dados.validoAte ? new Date(dados.validoAte) : null,
         },
-        include: { cliente: { select: { nome: true } }, servico: { select: { nome: true } } },
+        include: INCLUDE_PADRAO,
       });
 
       // Quem recebeu proposta está em negociação: o funil reflete isso sozinho.
@@ -183,17 +173,17 @@ export class OrcamentosService {
    * que ele gerou no financeiro.
    */
   async atualizar(id: string, dados: OrcamentoFormInput): Promise<Orcamento> {
-    const atual = await this.buscarPorId(id);
-
-    if (atual.status !== 'aberto') {
-      throw new BadRequestException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem: `Este orçamento está ${ROTULO_STATUS[atual.status].toLowerCase()} e não pode mais ser alterado. Para mudar o combinado, emita um novo.`,
-      });
-    }
-
     const orcamento = await this.prisma.comTenant(async (tx) => {
-      await this.garantirVinculosValidos(tx, dados);
+      const atual = await this.exigir(tx, id);
+
+      if (atual.status !== 'aberto') {
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem: `Este orçamento está ${ROTULO_STATUS[atual.status].toLowerCase()} e não pode mais ser alterado. Para mudar o combinado, emita um novo.`,
+        });
+      }
+
+      await garantirClienteEServico(tx, dados);
 
       return tx.orcamento.update({
         where: { id },
@@ -204,7 +194,7 @@ export class OrcamentosService {
           valor: dados.valor,
           validoAte: dados.validoAte ? new Date(dados.validoAte) : null,
         },
-        include: { cliente: { select: { nome: true } }, servico: { select: { nome: true } } },
+        include: INCLUDE_PADRAO,
       });
     });
 
@@ -220,24 +210,24 @@ export class OrcamentosService {
    * requisição pode chegar de qualquer lugar.
    */
   async mudarStatus(id: string, acao: AcaoOrcamento): Promise<Orcamento> {
-    const atual = await this.buscarPorId(id);
-    const novoStatus = TRANSICOES[atual.status][acao];
-
-    if (!novoStatus) {
-      const possiveis = acoesDisponiveis(atual.status);
-
-      throw new BadRequestException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem:
-          possiveis.length === 0
-            ? `Um orçamento ${ROTULO_STATUS[atual.status].toLowerCase()} não aceita mais alterações de status.`
-            : `Não é possível ${ROTULO_ACAO[acao].toLowerCase()} um orçamento ${ROTULO_STATUS[
-                atual.status
-              ].toLowerCase()}. Ações possíveis: ${possiveis.map((a) => ROTULO_ACAO[a].toLowerCase()).join(', ')}.`,
-      });
-    }
-
     const orcamento = await this.prisma.comTenant(async (tx) => {
+      const atual = await this.exigir(tx, id);
+      const novoStatus = TRANSICOES[atual.status][acao];
+
+      if (!novoStatus) {
+        const possiveis = acoesDisponiveis(atual.status);
+
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem:
+            possiveis.length === 0
+              ? `Um orçamento ${ROTULO_STATUS[atual.status].toLowerCase()} não aceita mais alterações de status.`
+              : `Não é possível ${ROTULO_ACAO[acao].toLowerCase()} um orçamento ${ROTULO_STATUS[
+                  atual.status
+                ].toLowerCase()}. Ações possíveis: ${possiveis.map((a) => ROTULO_ACAO[a].toLowerCase()).join(', ')}.`,
+        });
+      }
+
       const atualizado = await tx.orcamento.update({
         where: { id },
         data: {
@@ -246,7 +236,7 @@ export class OrcamentosService {
           // a resposta anterior deixou de valer.
           respondidoEm: novoStatus === 'aberto' ? null : new Date(),
         },
-        include: { cliente: { select: { nome: true } }, servico: { select: { nome: true } } },
+        include: INCLUDE_PADRAO,
       });
 
       // Venda fechada move o cliente para a etapa de fechamento. Recusar não
@@ -263,55 +253,33 @@ export class OrcamentosService {
   }
 
   async remover(id: string): Promise<void> {
-    const atual = await this.buscarPorId(id);
+    await this.prisma.comTenant(async (tx) => {
+      const atual = await this.exigir(tx, id);
 
-    if (atual.status === 'aprovado') {
-      throw new BadRequestException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem:
-          'Orçamento aprovado não pode ser excluído — ele faz parte do histórico do cliente e do financeiro.',
-      });
-    }
-
-    await this.prisma.comTenant((tx) => tx.orcamento.deleteMany({ where: { id } }));
-  }
-
-  /**
-   * Confere que cliente e serviço existem nesta empresa.
-   *
-   * A RLS já impede atravessar empresas, mas sem esta checagem um id inexistente
-   * viraria erro de chave estrangeira do Postgres — que não diz nada a quem
-   * está preenchendo o formulário.
-   */
-  private async garantirVinculosValidos(
-    tx: Parameters<Parameters<PrismaService['comTenant']>[0]>[0],
-    dados: OrcamentoFormInput,
-  ): Promise<void> {
-    const cliente = await tx.cliente.findUnique({
-      where: { id: dados.clienteId },
-      select: { id: true },
-    });
-
-    if (!cliente) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Cliente não encontrado.',
-      });
-    }
-
-    if (dados.servicoId) {
-      const servico = await tx.servico.findUnique({
-        where: { id: dados.servicoId },
-        select: { id: true },
-      });
-
-      if (!servico) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Serviço não encontrado.',
+      if (atual.status === 'aprovado') {
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem:
+            'Orçamento aprovado não pode ser excluído — ele faz parte do histórico do cliente e do financeiro.',
         });
       }
+
+      await tx.orcamento.deleteMany({ where: { id } });
+    });
+  }
+
+  /** Carrega o orçamento dentro de uma transação já aberta, ou devolve 404. */
+  private async exigir(tx: TransacaoComTenant, id: string): Promise<OrcamentoBanco> {
+    const orcamento = await tx.orcamento.findUnique({ where: { id }, include: INCLUDE_PADRAO });
+
+    if (!orcamento) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Orçamento não encontrado.',
+      });
     }
+
+    return orcamento;
   }
 
   private paraResposta(registro: OrcamentoBanco): Orcamento {

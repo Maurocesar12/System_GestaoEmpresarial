@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  paginar,
   type CategoriaFinanceira,
   type CategoriaFormInput,
   type FluxoDeCaixa,
@@ -17,34 +18,28 @@ import {
   type PeriodoQuery,
   type RelatorioMargem,
 } from '@gestao/shared-types';
-import { uuidv7 } from '../../../common/uuid';
-import { Prisma } from '../../../generated/prisma/client';
-import { PrismaService } from '../../../infra/prisma/prisma.service';
-import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { uuidv7 } from '../../common/uuid';
+import { Prisma } from '../../generated/prisma/client';
+import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
+import { tenantAtual } from '../../infra/tenant/tenant-context';
 
 const ZERO = new Prisma.Decimal(0);
-
-type LancamentoBanco = {
-  id: string;
-  tipo: 'entrada' | 'saida';
-  natureza: 'pessoal' | 'empresa';
-  descricao: string;
-  valor: Prisma.Decimal;
-  data: Date;
-  categoriaId: string | null;
-  servicoId: string | null;
-  clienteId: string | null;
-  criadoEm: Date;
-  categoria: { nome: string } | null;
-  servico: { nome: string } | null;
-  cliente: { nome: string } | null;
-};
 
 const INCLUDE_PADRAO = {
   categoria: { select: { nome: true } },
   servico: { select: { nome: true } },
   cliente: { select: { nome: true } },
 } as const;
+
+/**
+ * O registro como ele volta do banco, derivado do próprio schema.
+ *
+ * Escrever este tipo à mão significaria mantê-lo sincronizado com o Prisma na
+ * unha, e o TypeScript não avisaria quando os dois divergissem.
+ */
+type LancamentoBanco = Prisma.LancamentoFinanceiroGetPayload<{
+  include: typeof INCLUDE_PADRAO;
+}>;
 
 /**
  * Financeiro: lançamentos, categorias e os relatórios que deles derivam.
@@ -55,7 +50,7 @@ const INCLUDE_PADRAO = {
  * evitar voltaria justamente no número que o dono usa para decidir preço.
  */
 @Injectable()
-export class LancamentosService {
+export class FinanceiroService {
   constructor(private readonly prisma: PrismaService) {}
 
   // --- Categorias ----------------------------------------------------------
@@ -131,7 +126,6 @@ export class LancamentosService {
   // --- Lançamentos ---------------------------------------------------------
 
   async listar(query: LancamentosQuery): Promise<Paginado<Lancamento>> {
-    const { pagina, porPagina } = query;
     const where = this.montarFiltro(query);
 
     const [registros, total] = await this.prisma.comTenant((tx) =>
@@ -141,22 +135,18 @@ export class LancamentosService {
           include: INCLUDE_PADRAO,
           // Mais recente primeiro: extrato se lê de trás para frente.
           orderBy: [{ data: 'desc' }, { criadoEm: 'desc' }],
-          skip: (pagina - 1) * porPagina,
-          take: porPagina,
+          skip: (query.pagina - 1) * query.porPagina,
+          take: query.porPagina,
         }),
         tx.lancamentoFinanceiro.count({ where }),
       ]),
     );
 
-    return {
-      dados: registros.map((registro) => this.paraResposta(registro)),
-      meta: {
-        pagina,
-        porPagina,
-        total,
-        totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
-      },
-    };
+    return paginar(
+      registros.map((registro) => this.paraResposta(registro)),
+      total,
+      query,
+    );
   }
 
   async criar(dados: LancamentoFormInput): Promise<Lancamento> {
@@ -164,18 +154,7 @@ export class LancamentosService {
       await this.garantirVinculosValidos(tx, dados);
 
       return tx.lancamentoFinanceiro.create({
-        data: {
-          id: uuidv7(),
-          tenantId: tenantAtual(),
-          tipo: dados.tipo,
-          natureza: dados.natureza,
-          descricao: dados.descricao,
-          valor: dados.valor,
-          data: new Date(`${dados.data}T00:00:00Z`),
-          categoriaId: dados.categoriaId,
-          servicoId: dados.servicoId,
-          clienteId: dados.clienteId,
-        },
+        data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBanco(dados) },
         include: INCLUDE_PADRAO,
       });
     });
@@ -183,24 +162,20 @@ export class LancamentosService {
     return this.paraResposta(lancamento);
   }
 
+  /**
+   * Atualiza um lançamento.
+   *
+   * A checagem de existência acontece **dentro** da mesma transação da escrita.
+   * Buscar antes, por fora, custaria uma transação inteira a mais (`BEGIN` +
+   * `set_config` + consulta + `COMMIT`) sem ganhar atomicidade nenhuma.
+   */
   async atualizar(id: string, dados: LancamentoFormInput): Promise<Lancamento> {
-    await this.buscarPorId(id);
-
     const lancamento = await this.prisma.comTenant(async (tx) => {
-      await this.garantirVinculosValidos(tx, dados);
+      await Promise.all([this.garantirExiste(tx, id), this.garantirVinculosValidos(tx, dados)]);
 
       return tx.lancamentoFinanceiro.update({
         where: { id },
-        data: {
-          tipo: dados.tipo,
-          natureza: dados.natureza,
-          descricao: dados.descricao,
-          valor: dados.valor,
-          data: new Date(`${dados.data}T00:00:00Z`),
-          categoriaId: dados.categoriaId,
-          servicoId: dados.servicoId,
-          clienteId: dados.clienteId,
-        },
+        data: this.paraBanco(dados),
         include: INCLUDE_PADRAO,
       });
     });
@@ -224,9 +199,18 @@ export class LancamentosService {
   }
 
   async remover(id: string): Promise<void> {
-    await this.buscarPorId(id);
+    // O `deleteMany` sob RLS só apaga o que é do tenant; contar o resultado
+    // distingue "não existe" de "é de outra empresa" sem uma consulta extra.
+    const { count } = await this.prisma.comTenant((tx) =>
+      tx.lancamentoFinanceiro.deleteMany({ where: { id } }),
+    );
 
-    await this.prisma.comTenant((tx) => tx.lancamentoFinanceiro.deleteMany({ where: { id } }));
+    if (count === 0) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Lançamento não encontrado.',
+      });
+    }
   }
 
   // --- Relatórios ----------------------------------------------------------
@@ -238,25 +222,23 @@ export class LancamentosService {
    * distorceria o custo operacional e, por consequência, toda decisão de preço.
    */
   async fluxoDeCaixa(query: PeriodoQuery): Promise<FluxoDeCaixa> {
-    const where = {
-      data: {
-        gte: new Date(`${query.de}T00:00:00Z`),
-        lte: new Date(`${query.ate}T23:59:59.999Z`),
-      },
-      natureza: query.natureza ?? ('empresa' as const),
-    };
+    const where = this.filtroDePeriodo(query);
 
-    const [porTipo, porTipoCusto] = await this.prisma.comTenant((tx) =>
+    // As quatro somas são independentes e vão juntas ao banco. Trazer as saídas
+    // linha a linha para somar em JavaScript custaria uma transferência
+    // proporcional ao movimento do mês para produzir dois números.
+    const [porTipo, fixo, variavel] = await this.prisma.comTenant((tx) =>
       Promise.all([
-        tx.lancamentoFinanceiro.groupBy({
-          by: ['tipo'],
-          where,
+        tx.lancamentoFinanceiro.groupBy({ by: ['tipo'], where, _sum: { valor: true } }),
+        // Saída sem categoria não entra em nenhum dos dois: classificá-la por
+        // suposição inventaria um número.
+        tx.lancamentoFinanceiro.aggregate({
+          where: { ...where, tipo: 'saida', categoria: { tipoCusto: 'fixo' } },
           _sum: { valor: true },
         }),
-        // As saídas separadas por fixo e variável, para o custo operacional.
-        tx.lancamentoFinanceiro.findMany({
-          where: { ...where, tipo: 'saida' },
-          select: { valor: true, categoria: { select: { tipoCusto: true } } },
+        tx.lancamentoFinanceiro.aggregate({
+          where: { ...where, tipo: 'saida', categoria: { tipoCusto: 'variavel' } },
+          _sum: { valor: true },
         }),
       ]),
     );
@@ -264,27 +246,12 @@ export class LancamentosService {
     const entradas = porTipo.find((g) => g.tipo === 'entrada')?._sum.valor ?? ZERO;
     const saidas = porTipo.find((g) => g.tipo === 'saida')?._sum.valor ?? ZERO;
 
-    // A soma por tipo de custo é feita com Decimal, não com números: somar
-    // centenas de valores em ponto flutuante acumula erro de centavos.
-    let custoFixo = ZERO;
-    let custoVariavel = ZERO;
-
-    for (const saida of porTipoCusto) {
-      if (saida.categoria?.tipoCusto === 'fixo') {
-        custoFixo = custoFixo.plus(saida.valor);
-      } else if (saida.categoria?.tipoCusto === 'variavel') {
-        custoVariavel = custoVariavel.plus(saida.valor);
-      }
-      // Saída sem categoria não entra em nenhum dos dois: classificá-la por
-      // suposição inventaria um número.
-    }
-
     return {
       entradas: entradas.toFixed(2),
       saidas: saidas.toFixed(2),
       saldo: entradas.minus(saidas).toFixed(2),
-      custoFixo: custoFixo.toFixed(2),
-      custoVariavel: custoVariavel.toFixed(2),
+      custoFixo: (fixo._sum.valor ?? ZERO).toFixed(2),
+      custoVariavel: (variavel._sum.valor ?? ZERO).toFixed(2),
       periodo: { de: query.de, ate: query.ate },
     };
   }
@@ -297,13 +264,7 @@ export class LancamentosService {
    * planilha: *qual serviço realmente dá lucro?*
    */
   async margemPorServico(query: PeriodoQuery): Promise<RelatorioMargem> {
-    const where = {
-      data: {
-        gte: new Date(`${query.de}T00:00:00Z`),
-        lte: new Date(`${query.ate}T23:59:59.999Z`),
-      },
-      natureza: query.natureza ?? ('empresa' as const),
-    };
+    const where = this.filtroDePeriodo(query);
 
     const [grupos, servicos] = await this.prisma.comTenant((tx) =>
       Promise.all([
@@ -387,6 +348,17 @@ export class LancamentosService {
 
   // --- Apoio ---------------------------------------------------------------
 
+  /** O recorte de período compartilhado pelos dois relatórios. */
+  private filtroDePeriodo(query: PeriodoQuery): Prisma.LancamentoFinanceiroWhereInput {
+    return {
+      data: {
+        gte: new Date(`${query.de}T00:00:00Z`),
+        lte: new Date(`${query.ate}T23:59:59.999Z`),
+      },
+      natureza: query.natureza ?? 'empresa',
+    };
+  }
+
   private montarFiltro(query: LancamentosQuery): Prisma.LancamentoFinanceiroWhereInput {
     const where: Prisma.LancamentoFinanceiroWhereInput = {};
 
@@ -405,8 +377,39 @@ export class LancamentosService {
     return where;
   }
 
+  /**
+   * As colunas gravadas, iguais no `create` e no `update`.
+   *
+   * A data chega como `YYYY-MM-DD` e é fixada em meia-noite UTC. Sem o `Z`, o
+   * servidor interpretaria no fuso dele e a data mudaria de dia conforme onde a
+   * aplicação estivesse rodando.
+   */
+  private paraBanco(dados: LancamentoFormInput) {
+    return {
+      tipo: dados.tipo,
+      natureza: dados.natureza,
+      descricao: dados.descricao,
+      valor: dados.valor,
+      data: new Date(`${dados.data}T00:00:00Z`),
+      categoriaId: dados.categoriaId,
+      servicoId: dados.servicoId,
+      clienteId: dados.clienteId,
+    };
+  }
+
+  private async garantirExiste(tx: TransacaoComTenant, id: string): Promise<void> {
+    const existe = await tx.lancamentoFinanceiro.findUnique({ where: { id }, select: { id: true } });
+
+    if (!existe) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Lançamento não encontrado.',
+      });
+    }
+  }
+
   private async garantirVinculosValidos(
-    tx: Parameters<Parameters<PrismaService['comTenant']>[0]>[0],
+    tx: TransacaoComTenant,
     dados: LancamentoFormInput,
   ): Promise<void> {
     // As três verificações em paralelo: são independentes entre si.

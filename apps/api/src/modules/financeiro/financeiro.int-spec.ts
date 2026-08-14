@@ -2,8 +2,8 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
-import { AppModule } from '../../../app.module';
-import { PrismaService } from '../../../infra/prisma/prisma.service';
+import { AppModule } from '../../app.module';
+import { PrismaService } from '../../infra/prisma/prisma.service';
 
 /**
  * Financeiro, ponta a ponta.

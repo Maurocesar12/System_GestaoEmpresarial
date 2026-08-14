@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  paginar,
   ROTULO_ACAO_AGENDAMENTO,
   ROTULO_STATUS_AGENDAMENTO,
   TRANSICOES_AGENDAMENTO,
@@ -13,27 +14,19 @@ import {
   type StatusAgendamento,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
-import { PrismaService } from '../../../infra/prisma/prisma.service';
+import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
-
-type AgendamentoBanco = {
-  id: string;
-  clienteId: string;
-  servicoId: string | null;
-  dataHora: Date;
-  observacoes: string | null;
-  status: StatusAgendamento;
-  criadoEm: Date;
-  cliente: { nome: string; telefone: string | null };
-  servico: { nome: string } | null;
-};
+import { garantirClienteEServico } from '../vinculos';
 
 /** Relações que toda resposta de agendamento precisa. */
 const INCLUDE_PADRAO = {
   cliente: { select: { nome: true, telefone: true } },
   servico: { select: { nome: true } },
 } as const;
+
+/** O registro do banco, derivado do schema em vez de redigitado à mão. */
+type AgendamentoBanco = Prisma.AgendamentoGetPayload<{ include: typeof INCLUDE_PADRAO }>;
 
 @Injectable()
 export class AgendamentosService {
@@ -98,7 +91,7 @@ export class AgendamentosService {
 
   async criar(dados: AgendamentoFormInput): Promise<Agendamento> {
     const agendamento = await this.prisma.comTenant(async (tx) => {
-      await this.garantirVinculosValidos(tx, dados);
+      await garantirClienteEServico(tx, dados);
 
       return tx.agendamento.create({
         data: {
@@ -135,7 +128,7 @@ export class AgendamentosService {
     }
 
     const agendamento = await this.prisma.comTenant(async (tx) => {
-      await this.garantirVinculosValidos(tx, dados);
+      await garantirClienteEServico(tx, dados);
 
       return tx.agendamento.update({
         where: { id },
@@ -220,7 +213,7 @@ export class AgendamentosService {
    * que o sistema já sabia.
    */
   private async registrarAtendimento(
-    tx: Parameters<Parameters<PrismaService['comTenant']>[0]>[0],
+    tx: TransacaoComTenant,
     agendamento: AgendamentoBanco,
   ): Promise<void> {
     const descricao =
@@ -242,36 +235,6 @@ export class AgendamentosService {
     });
   }
 
-  private async garantirVinculosValidos(
-    tx: Parameters<Parameters<PrismaService['comTenant']>[0]>[0],
-    dados: AgendamentoFormInput,
-  ): Promise<void> {
-    const cliente = await tx.cliente.findUnique({
-      where: { id: dados.clienteId },
-      select: { id: true },
-    });
-
-    if (!cliente) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Cliente não encontrado.',
-      });
-    }
-
-    if (dados.servicoId) {
-      const servico = await tx.servico.findUnique({
-        where: { id: dados.servicoId },
-        select: { id: true },
-      });
-
-      if (!servico) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Serviço não encontrado.',
-        });
-      }
-    }
-  }
 
   private paraResposta(registro: AgendamentoBanco): Agendamento {
     return {

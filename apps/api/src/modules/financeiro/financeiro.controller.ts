@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Delete,
   Get,
@@ -9,7 +8,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  Query,
 } from '@nestjs/common';
 import {
   categoriaFormSchema,
@@ -26,9 +24,9 @@ import {
   type PeriodoQuery,
   type RelatorioMargem,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
-import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
-import { LancamentosService } from './lancamentos.service';
+import { Papeis } from '../../common/decorators/papeis.decorator';
+import { CorpoValidado, QueryValidada } from '../../common/decorators/validado.decorator';
+import { FinanceiroService } from './financeiro.service';
 
 /**
  * Rotas do financeiro.
@@ -40,8 +38,8 @@ import { LancamentosService } from './lancamentos.service';
  */
 @Controller('financeiro')
 @Papeis('admin', 'financeiro')
-export class LancamentosController {
-  constructor(private readonly financeiro: LancamentosService) {}
+export class FinanceiroController {
+  constructor(private readonly financeiro: FinanceiroService) {}
 
   // --- Categorias ----------------------------------------------------------
 
@@ -52,7 +50,7 @@ export class LancamentosController {
 
   @Post('categorias')
   criarCategoria(
-    @Body(new ZodValidationPipe(categoriaFormSchema)) dados: CategoriaFormInput,
+    @CorpoValidado(categoriaFormSchema) dados: CategoriaFormInput,
   ): Promise<CategoriaFinanceira> {
     return this.financeiro.criarCategoria(dados);
   }
@@ -68,16 +66,12 @@ export class LancamentosController {
   // seria interpretado como um id e o ParseUUIDPipe recusaria a requisição.
 
   @Get('fluxo-de-caixa')
-  fluxoDeCaixa(
-    @Query(new ZodValidationPipe(periodoQuerySchema)) query: PeriodoQuery,
-  ): Promise<FluxoDeCaixa> {
+  fluxoDeCaixa(@QueryValidada(periodoQuerySchema) query: PeriodoQuery): Promise<FluxoDeCaixa> {
     return this.financeiro.fluxoDeCaixa(query);
   }
 
   @Get('margem')
-  margem(
-    @Query(new ZodValidationPipe(periodoQuerySchema)) query: PeriodoQuery,
-  ): Promise<RelatorioMargem> {
+  margem(@QueryValidada(periodoQuerySchema) query: PeriodoQuery): Promise<RelatorioMargem> {
     return this.financeiro.margemPorServico(query);
   }
 
@@ -85,7 +79,7 @@ export class LancamentosController {
 
   @Get('lancamentos')
   listar(
-    @Query(new ZodValidationPipe(lancamentosQuerySchema)) query: LancamentosQuery,
+    @QueryValidada(lancamentosQuerySchema) query: LancamentosQuery,
   ): Promise<Paginado<Lancamento>> {
     return this.financeiro.listar(query);
   }
@@ -96,16 +90,14 @@ export class LancamentosController {
   }
 
   @Post('lancamentos')
-  criar(
-    @Body(new ZodValidationPipe(lancamentoFormSchema)) dados: LancamentoFormInput,
-  ): Promise<Lancamento> {
+  criar(@CorpoValidado(lancamentoFormSchema) dados: LancamentoFormInput): Promise<Lancamento> {
     return this.financeiro.criar(dados);
   }
 
   @Patch('lancamentos/:id')
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(lancamentoFormSchema)) dados: LancamentoFormInput,
+    @CorpoValidado(lancamentoFormSchema) dados: LancamentoFormInput,
   ): Promise<Lancamento> {
     return this.financeiro.atualizar(id, dados);
   }

@@ -14,7 +14,7 @@ import { ClientesModule } from './modules/crm/clientes/clientes.module';
 import { FunilModule } from './modules/crm/funil/funil.module';
 import { OrcamentosModule } from './modules/crm/orcamentos/orcamentos.module';
 import { ServicosModule } from './modules/crm/servicos/servicos.module';
-import { FinanceiroModule } from './modules/financeiro/lancamentos/lancamentos.module';
+import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { HealthModule } from './modules/health/health.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 

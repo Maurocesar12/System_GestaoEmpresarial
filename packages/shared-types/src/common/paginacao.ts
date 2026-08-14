@@ -20,3 +20,22 @@ export interface Paginado<T> {
   dados: T[];
   meta: PaginacaoMeta;
 }
+
+/**
+ * Monta o envelope de uma listagem paginada.
+ *
+ * Existe para que o cálculo de `totalPaginas` more num lugar só. O
+ * `Math.max(1, ...)` garante que uma listagem vazia informe "página 1 de 1", e
+ * não "de 0" — que a tela exibiria como um paginador sem páginas.
+ */
+export function paginar<T>(dados: T[], total: number, query: PaginacaoQuery): Paginado<T> {
+  return {
+    dados,
+    meta: {
+      pagina: query.pagina,
+      porPagina: query.porPagina,
+      total,
+      totalPaginas: Math.max(1, Math.ceil(total / query.porPagina)),
+    },
+  };
+}

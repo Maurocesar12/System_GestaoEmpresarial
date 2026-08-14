@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { opcional, textoOpcional } from '../common/opcional';
-import { paginacaoQuerySchema } from '../common/pagination';
+import { paginacaoQuerySchema } from '../common/paginacao';
 import { statusAgendamentoSchema, type StatusAgendamento } from '../enums';
 
 /**

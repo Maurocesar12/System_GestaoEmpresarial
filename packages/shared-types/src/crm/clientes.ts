@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { opcional } from '../common/opcional';
-import { paginacaoQuerySchema } from '../common/pagination';
+import { paginacaoQuerySchema } from '../common/paginacao';
 
 /**
  * Contrato de clientes (arquitetura §6, §7).

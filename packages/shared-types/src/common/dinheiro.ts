@@ -17,12 +17,22 @@ export const dinheiroSchema = z
 
 export type Dinheiro = z.infer<typeof dinheiroSchema>;
 
+/**
+ * Construído uma vez, no módulo.
+ *
+ * Montar um `Intl.NumberFormat` custa resolução de locale — ordens de grandeza
+ * mais caro que formatar um número com ele pronto. Como `formatarBRL` é chamada
+ * dentro de `.map()` de tabelas e cartões, criar um formatador por valor
+ * significaria dezenas de construções por tela.
+ */
+const FORMATADOR_BRL = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
+
 /** Formata um valor monetário para exibição em pt-BR (R$ 1.234,56). */
 export function formatarBRL(valor: Dinheiro): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(Number(valor));
+  return FORMATADOR_BRL.format(Number(valor));
 }
 
 /**
