@@ -74,8 +74,16 @@ export const clientesQuerySchema = paginacaoQuerySchema.extend({
 
 export type ClientesQuery = z.infer<typeof clientesQuerySchema>;
 
-/** Cliente como o frontend o recebe. */
+/**
+ * Cliente como o frontend o recebe.
+ *
+ * `etapaFunil` vem preenchido apenas na busca por id — é o que evita a ficha do
+ * cliente precisar baixar o quadro inteiro só para descobrir em qual coluna ele
+ * está. Nas listagens, onde o dado não é usado, ele fica ausente.
+ */
 export interface Cliente {
+  /** Posição no funil. Só vem preenchido em `GET /clientes/:id`. */
+  etapaFunil?: { id: string; nome: string } | null;
   id: string;
   nome: string;
   email: string | null;

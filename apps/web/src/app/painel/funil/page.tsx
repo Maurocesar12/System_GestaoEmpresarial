@@ -18,6 +18,12 @@ export default async function PaginaFunil() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-2xl font-semibold tracking-tight">Funil</h1>
+          <Link
+            href="/painel/funil/etapas"
+            className="text-muted-foreground hover:text-foreground order-last w-fit text-xs underline-offset-4 hover:underline"
+          >
+            configurar etapas
+          </Link>
           <p className="text-muted-foreground text-sm">
             {totalNoFunil === 0
               ? 'Nenhum cliente no funil ainda.'

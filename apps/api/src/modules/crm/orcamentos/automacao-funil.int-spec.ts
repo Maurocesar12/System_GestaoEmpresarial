@@ -92,11 +92,16 @@ describe('automação entre orçamentos e funil (HTTP)', () => {
     await app.close();
   });
 
-  it('emitir orçamento coloca o cliente na etapa de orçamento enviado', async () => {
-    const clienteId = await criarCliente(`Cliente Auto ${marca}`);
+  it('cliente novo já entra na primeira etapa do funil', async () => {
+    // Todo cadastro é uma oportunidade em potencial. Um funil que só recebe
+    // quem alguém lembrou de arrastar mostra menos do que a realidade.
+    const clienteId = await criarCliente(`Cliente Entrada ${marca}`);
 
-    // Antes: cadastrado, mas fora do funil — cadastrar não é negociar.
-    expect(await etapaDoCliente(clienteId)).toBeNull();
+    expect(await etapaDoCliente(clienteId)).toBe('Novo contato');
+  });
+
+  it('emitir orçamento move o cliente para a etapa de orçamento enviado', async () => {
+    const clienteId = await criarCliente(`Cliente Auto ${marca}`);
 
     await req().post('/api/orcamentos').send({ clienteId, valor: '800,00' }).expect(201);
 
@@ -177,7 +182,8 @@ describe('automação entre orçamentos e funil (HTTP)', () => {
 
     await req().post('/api/orcamentos').send({ clienteId, valor: '300,00' }).expect(201);
 
-    // Orçamento criado, cliente simplesmente não entrou no funil.
-    expect(await etapaDoCliente(clienteId)).toBeNull();
+    // Orçamento criado normalmente. O cliente ficou onde estava — na primeira
+    // etapa, onde o cadastro o colocou —, sem avançar.
+    expect(await etapaDoCliente(clienteId)).toBe('Novo contato');
   });
 });

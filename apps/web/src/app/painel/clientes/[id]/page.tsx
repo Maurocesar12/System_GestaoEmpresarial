@@ -8,7 +8,6 @@ import {
   type EtapaFunil,
   type Orcamento,
   type Paginado,
-  type QuadroFunil,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
 import { FormularioCliente } from '../formulario-cliente';
@@ -38,16 +37,19 @@ interface Props {
 export default async function PaginaCliente({ params }: Props) {
   const { id } = await params;
 
-  const [cliente, etapas, quadro, orcamentos, atendimentos] = await Promise.all([
+  // Quatro chamadas em paralelo, não cinco em sequência.
+  //
+  // A quinta era o quadro do funil inteiro, baixado só para descobrir em qual
+  // etapa este cliente está. Hoje `GET /clientes/:id` já devolve essa posição,
+  // o que elimina a consulta mais pesada da tela.
+  const [cliente, etapas, orcamentos, atendimentos] = await Promise.all([
     apiComSessao<Cliente>(`/clientes/${id}`),
     apiComSessao<EtapaFunil[]>('/funil/etapas'),
-    apiComSessao<QuadroFunil>('/funil'),
     apiComSessao<Paginado<Orcamento>>(`/orcamentos?clienteId=${id}&porPagina=50`),
     apiComSessao<Atendimento[]>(`/clientes/${id}/atendimentos`),
   ]);
 
-  const etapaAtual =
-    quadro.colunas.find((coluna) => coluna.clientes.some((c) => c.id === id))?.etapa.id ?? null;
+  const etapaAtual = cliente.etapaFunil?.id ?? null;
 
   const totalAprovado = orcamentos.dados
     .filter((orcamento) => orcamento.status === 'aprovado')

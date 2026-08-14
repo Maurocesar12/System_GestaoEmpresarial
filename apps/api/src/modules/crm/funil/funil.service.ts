@@ -213,6 +213,50 @@ export class FunilService {
     return etapa.nome;
   }
 
+  /**
+   * Coloca o cliente na primeira etapa do funil.
+   *
+   * Chamado quando um cliente é cadastrado: todo cadastro é uma oportunidade em
+   * potencial, e o quadro reflete isso desde o início — sem depender de alguém
+   * lembrar de arrastar o cartão.
+   *
+   * Usa `upsert` para ser seguro em qualquer situação: se o cliente já estiver
+   * no funil, nada muda. Um cadastro reprocessado não devolve ninguém para o
+   * começo da negociação.
+   *
+   * @param tx Transação de quem chamou, para que a entrada no funil e a criação
+   *   do cliente sejam atômicas.
+   */
+  async colocarNaPrimeiraEtapa(
+    tx: TransacaoComTenant,
+    clienteId: string,
+  ): Promise<{ id: string; nome: string } | null> {
+    const primeira = await tx.etapaFunil.findFirst({ orderBy: { ordem: 'asc' } });
+
+    // Empresa sem etapas (alguém apagou todas) simplesmente não tem funil. O
+    // cadastro do cliente não pode falhar por causa disso.
+    if (!primeira) {
+      return null;
+    }
+
+    const jaEstaNoFunil = await tx.clienteFunil.findUnique({
+      where: { clienteId },
+      include: { etapa: { select: { id: true, nome: true } } },
+    });
+
+    if (jaEstaNoFunil) {
+      return jaEstaNoFunil.etapa;
+    }
+
+    await tx.clienteFunil.create({
+      data: { id: uuidv7(), tenantId: tenantAtual(), clienteId, etapaId: primeira.id },
+    });
+
+    // Devolve a etapa para que quem chamou possa incluí-la na resposta, sem
+    // uma segunda consulta ao banco.
+    return { id: primeira.id, nome: primeira.nome };
+  }
+
   /** Define qual etapa cumpre determinado marco, tirando-o de qualquer outra. */
   async definirMarco(etapaId: string, marco: MarcoFunil | null): Promise<EtapaFunil> {
     return this.prisma.comTenant(async (tx) => {

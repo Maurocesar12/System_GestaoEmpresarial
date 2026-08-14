@@ -10,6 +10,7 @@ import { uuidv7 } from '../../../common/uuid';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
+import { FunilService } from '../funil/funil.service';
 
 /**
  * Clientes da empresa.
@@ -21,7 +22,10 @@ import type { Prisma } from '../../../generated/prisma/client';
  */
 @Injectable()
 export class ClientesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly funil: FunilService,
+  ) {}
 
   async listar(query: ClientesQuery): Promise<Paginado<Cliente>> {
     const { pagina, porPagina, busca, origem } = query;
@@ -55,7 +59,22 @@ export class ClientesService {
   }
 
   async buscarPorId(id: string): Promise<Cliente> {
-    const cliente = await this.prisma.comTenant((tx) => tx.cliente.findUnique({ where: { id } }));
+    const cliente = await this.prisma.comTenant((tx) =>
+      tx.cliente.findUnique({
+        where: { id },
+        // A posição no funil vem junto, numa consulta só.
+        //
+        // Antes, a ficha do cliente baixava o **quadro inteiro** — todas as
+        // etapas, todos os clientes, todos os orçamentos em aberto — apenas
+        // para descobrir em qual coluna este cliente estava. Com cinquenta
+        // clientes no funil, era uma consulta pesada para extrair um campo.
+        include: {
+          posicaoFunil: {
+            select: { etapa: { select: { id: true, nome: true } } },
+          },
+        },
+      }),
+    );
 
     // Cliente de outra empresa cai aqui como "não encontrado", e não como "sem
     // permissão". A diferença importa: responder 403 confirmaria que aquele id
@@ -67,17 +86,35 @@ export class ClientesService {
       });
     }
 
-    return this.paraResposta(cliente);
+    return {
+      ...this.paraResposta(cliente),
+      etapaFunil: cliente.posicaoFunil
+        ? { id: cliente.posicaoFunil.etapa.id, nome: cliente.posicaoFunil.etapa.nome }
+        : null,
+    };
   }
 
   async criar(dados: ClienteFormInput): Promise<Cliente> {
-    const cliente = await this.prisma.comTenant((tx) =>
-      tx.cliente.create({
+    const { cliente, etapa } = await this.prisma.comTenant(async (tx) => {
+      const criado = await tx.cliente.create({
         data: { id: uuidv7(), tenantId: tenantAtual(), ...dados },
-      }),
-    );
+      });
 
-    return this.paraResposta(cliente);
+      // Todo cliente novo entra no funil, na primeira etapa. O cadastro é o
+      // início da relação comercial, e um funil que só recebe quem alguém
+      // lembrou de arrastar mostra menos do que a realidade.
+      //
+      // Na mesma transação: se a entrada no funil falhar, o cadastro é desfeito
+      // junto — nada de cliente existindo pela metade.
+      const etapa = await this.funil.colocarNaPrimeiraEtapa(tx, criado.id);
+
+      return { cliente: criado, etapa };
+    });
+
+    // A etapa vai na resposta para o contrato ficar igual ao do `GET /clientes/:id`.
+    // Sem isso, a tela precisaria de uma segunda requisição só para saber onde o
+    // cliente caiu no funil.
+    return { ...this.paraResposta(cliente), etapaFunil: etapa };
   }
 
   async atualizar(id: string, dados: ClienteFormInput): Promise<Cliente> {
