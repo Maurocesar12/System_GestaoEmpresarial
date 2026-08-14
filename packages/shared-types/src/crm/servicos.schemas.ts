@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { dinheiroSchema } from '../common/dinheiro';
+import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/pagination';
 
 /**
@@ -13,31 +14,12 @@ import { paginacaoQuerySchema } from '../common/pagination';
  * Sem esse número, o sistema saberia quanto entrou, mas não quanto sobrou.
  */
 
-/**
- * Valor monetário digitado por gente.
- *
- * O formulário recebe "1.234,56" ou "1234,56"; o banco e a API trabalham com
- * "1234.56". A conversão acontece aqui, uma vez só, em vez de espalhada pelas
- * telas.
- */
-const dinheiroDigitadoSchema = z
-  .string()
-  .trim()
-  .transform((valor) => valor.replace(/\./g, '').replace(',', '.'))
-  .pipe(dinheiroSchema);
-
 /** Campo de dinheiro opcional: vazio vira `null`, não zero. */
-const dinheiroOpcionalSchema = z
-  .union([dinheiroDigitadoSchema, z.literal('')])
-  .optional()
-  .transform((valor) => (valor === '' || valor === undefined ? null : valor));
+const dinheiroOpcionalSchema = opcional(dinheiroDigitadoSchema);
 
 export const servicoFormSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome do serviço').max(120),
-  categoria: z
-    .union([z.string().trim().max(60), z.literal('')])
-    .optional()
-    .transform((valor) => (valor === '' || valor === undefined ? null : valor)),
+  categoria: textoOpcional(60),
 
   /**
    * Obrigatório, e pode ser zero.

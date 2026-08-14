@@ -37,25 +37,57 @@ export class FunilService {
   constructor(private readonly prisma: PrismaService) {}
 
   async montarQuadro(): Promise<QuadroFunil> {
-    const { etapas, posicoes, totalForaDoFunil } = await this.prisma.comTenant(async (tx) => {
-      const etapas = await tx.etapaFunil.findMany({ orderBy: { ordem: 'asc' } });
+    const { etapas, posicoes, orcamentos, totalForaDoFunil } = await this.prisma.comTenant(
+      async (tx) => {
+        const etapas = await tx.etapaFunil.findMany({ orderBy: { ordem: 'asc' } });
 
-      const posicoes = await tx.clienteFunil.findMany({
-        include: {
-          cliente: {
-            select: { id: true, nome: true, telefone: true, email: true, origem: true },
+        const posicoes = await tx.clienteFunil.findMany({
+          include: {
+            cliente: {
+              select: { id: true, nome: true, telefone: true, email: true, origem: true },
+            },
           },
-        },
-        orderBy: { atualizadoEm: 'desc' },
-      });
+          orderBy: { atualizadoEm: 'desc' },
+        });
 
-      // Clientes cadastrados que ainda não entraram no funil.
-      const totalForaDoFunil = await tx.cliente.count({
-        where: { posicaoFunil: { is: null } },
-      });
+        // Os orçamentos em aberto de todos os clientes do quadro, numa consulta
+        // só. Buscar por cliente faria uma ida ao banco por cartão — com
+        // cinquenta clientes no funil, cinquenta consultas para montar uma tela.
+        const clientesNoFunil = posicoes.map((posicao) => posicao.clienteId);
 
-      return { etapas, posicoes, totalForaDoFunil };
-    });
+        const orcamentos =
+          clientesNoFunil.length === 0
+            ? []
+            : await tx.orcamento.findMany({
+                where: { status: 'aberto', clienteId: { in: clientesNoFunil } },
+                select: {
+                  id: true,
+                  clienteId: true,
+                  valor: true,
+                  servico: { select: { nome: true } },
+                },
+                // Mais recente primeiro: é a proposta que está valendo.
+                orderBy: { criadoEm: 'desc' },
+              });
+
+        // Clientes cadastrados que ainda não entraram no funil.
+        const totalForaDoFunil = await tx.cliente.count({
+          where: { posicaoFunil: { is: null } },
+        });
+
+        return { etapas, posicoes, orcamentos, totalForaDoFunil };
+      },
+    );
+
+    // Um orçamento por cliente: o primeiro de cada, que a ordenação garante ser
+    // o mais recente.
+    const orcamentoPorCliente = new Map<string, (typeof orcamentos)[number]>();
+
+    for (const orcamento of orcamentos) {
+      if (!orcamentoPorCliente.has(orcamento.clienteId)) {
+        orcamentoPorCliente.set(orcamento.clienteId, orcamento);
+      }
+    }
 
     // Agrupa em memória: os dados já vieram do banco, e um `Map` evita
     // percorrer a lista inteira de posições uma vez por etapa.
@@ -65,6 +97,8 @@ export class FunilService {
       const lista = porEtapa.get(posicao.etapaId) ?? [];
 
       if (lista.length < this.LIMITE_POR_ETAPA) {
+        const orcamento = orcamentoPorCliente.get(posicao.clienteId);
+
         lista.push({
           id: posicao.cliente.id,
           nome: posicao.cliente.nome,
@@ -72,6 +106,15 @@ export class FunilService {
           email: posicao.cliente.email,
           origem: posicao.cliente.origem,
           atualizadoEm: posicao.atualizadoEm.toISOString(),
+          orcamentoAberto: orcamento
+            ? {
+                id: orcamento.id,
+                // Decimal vira string, nunca number: é o que preserva os
+                // centavos que o NUMERIC do banco guarda.
+                valor: orcamento.valor.toFixed(2),
+                servicoNome: orcamento.servico?.nome ?? null,
+              }
+            : null,
         });
       }
 

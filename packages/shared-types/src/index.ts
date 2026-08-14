@@ -4,6 +4,7 @@
 
 export * from './enums';
 export * from './common/dinheiro';
+export * from './common/opcional';
 export * from './common/pagination';
 export * from './common/api-response';
 export * from './auth/auth.schemas';

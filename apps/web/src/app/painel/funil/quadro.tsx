@@ -15,6 +15,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import {
   diasNaEtapa,
+  formatarBRL,
   formatarTelefone,
   type ClienteNoFunil,
   type QuadroFunil,
@@ -215,6 +216,21 @@ function Cartao({
 
         {cliente.telefone && (
           <p className="text-muted-foreground text-xs">{formatarTelefone(cliente.telefone)}</p>
+        )}
+
+        {/* O valor em negociação, quando há proposta em aberto. É o que permite
+            ler o quadro como visão de negócio, e não como lista de nomes. */}
+        {cliente.orcamentoAberto && (
+          <p className="mt-1.5 flex items-baseline gap-1.5">
+            <span className="text-sm font-semibold tabular-nums">
+              {formatarBRL(cliente.orcamentoAberto.valor)}
+            </span>
+            {cliente.orcamentoAberto.servicoNome && (
+              <span className="text-muted-foreground truncate text-xs">
+                {cliente.orcamentoAberto.servicoNome}
+              </span>
+            )}
+          </p>
         )}
 
         <p className="text-muted-foreground mt-1 text-xs">

@@ -24,3 +24,53 @@ export function formatarBRL(valor: Dinheiro): string {
     currency: 'BRL',
   }).format(Number(valor));
 }
+
+/**
+ * Converte um valor monetário digitado por gente para o formato decimal.
+ *
+ * Aceita as duas formas em que o valor pode chegar:
+ *
+ * - `"1.234,56"` — como a pessoa digita, à brasileira
+ * - `"1234.56"` — como o schema já devolveu numa validação anterior
+ *
+ * ## Por que reconhecer as duas
+ *
+ * Estes schemas são validados **duas vezes**: no formulário e na Server Action.
+ * A versão anterior desta função só entendia o formato brasileiro, e removia
+ * todos os pontos por considerá-los separadores de milhar. Na segunda passada,
+ * o `"250.00"` que ela mesma havia produzido virava `"25000"` — **R$ 250,00
+ * transformado em R$ 25.000,00**, sem erro nenhum, direto para o banco.
+ *
+ * A regra de desambiguação: se há vírgula, é formato brasileiro. Sem vírgula,
+ * um ponto seguido de exatamente uma ou duas casas é separador decimal
+ * (`"1234.56"`); qualquer outro arranjo de pontos é separador de milhar
+ * (`"1.234"` são mil duzentos e trinta e quatro).
+ */
+export function normalizarDinheiro(valor: string): string {
+  const texto = valor.trim();
+
+  if (texto.includes(',')) {
+    // Formato brasileiro: pontos são milhar, a vírgula é o decimal.
+    return texto.replace(/\./g, '').replace(',', '.');
+  }
+
+  // Sem vírgula: um único ponto com 1 ou 2 casas depois já é o decimal.
+  if (/^-?\d+\.\d{1,2}$/.test(texto)) {
+    return texto;
+  }
+
+  // Qualquer outro ponto é separador de milhar.
+  return texto.replace(/\./g, '');
+}
+
+/**
+ * Valor monetário digitado em formulário, normalizado e validado.
+ *
+ * É idempotente: validar o resultado de uma validação devolve o mesmo valor.
+ * Há teste garantindo isso — `schemas-idempotentes.spec.ts`.
+ */
+export const dinheiroDigitadoSchema = z
+  .string()
+  .trim()
+  .transform(normalizarDinheiro)
+  .pipe(dinheiroSchema);

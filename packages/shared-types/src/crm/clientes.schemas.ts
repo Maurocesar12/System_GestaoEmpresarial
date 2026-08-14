@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { opcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/pagination';
 
 /**
@@ -32,20 +33,6 @@ const documentoSchema = z
   .refine((valor) => valor.length === 0 || valor.length === 11 || valor.length === 14, {
     message: 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos)',
   });
-
-/**
- * Campo opcional que chega vazio do formulário.
- *
- * Um `<input>` não preenchido envia `""`, não `undefined`. Sem esta conversão,
- * o banco guardaria string vazia em vez de `NULL` — e aí "sem telefone" e
- * "telefone vazio" viram coisas diferentes nas consultas.
- */
-function opcional<T extends z.ZodType>(schema: T) {
-  return z
-    .union([schema, z.literal('')])
-    .optional()
-    .transform((valor) => (valor === '' || valor === undefined ? null : valor));
-}
 
 export const clienteFormSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome do cliente').max(120),

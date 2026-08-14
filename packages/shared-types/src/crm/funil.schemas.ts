@@ -53,6 +53,19 @@ export interface EtapaFunil {
   ordem: number;
 }
 
+/**
+ * A proposta em jogo numa negociação.
+ *
+ * É o orçamento em aberto mais recente do cliente. Se houver mais de um, o
+ * mais recente é o que vale — os anteriores continuam na ficha do cliente.
+ */
+export interface OrcamentoDoCartao {
+  id: string;
+  /** String decimal, como todo valor monetário do sistema. */
+  valor: string;
+  servicoNome: string | null;
+}
+
 /** Cliente como aparece num cartão do quadro. */
 export interface ClienteNoFunil {
   id: string;
@@ -62,6 +75,13 @@ export interface ClienteNoFunil {
   origem: string | null;
   /** Quando entrou nesta etapa — o que revela oportunidade parada. */
   atualizadoEm: string;
+  /**
+   * Proposta em aberto, quando existe.
+   *
+   * É o que transforma o quadro de lista de nomes em visão de negócio: dá para
+   * ver quanto vale cada negociação sem abrir a ficha de ninguém.
+   */
+  orcamentoAberto: OrcamentoDoCartao | null;
 }
 
 /** Uma coluna do quadro: a etapa e quem está nela. */

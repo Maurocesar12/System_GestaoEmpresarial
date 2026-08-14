@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { dinheiroSchema } from '../common/dinheiro';
+import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/pagination';
 import { statusOrcamentoSchema, type StatusOrcamento } from '../enums';
 
@@ -32,34 +33,18 @@ import { statusOrcamentoSchema, type StatusOrcamento } from '../enums';
  * possível a partir do estado atual — e não silenciosamente ignoradas.
  */
 
-/** Valor digitado por gente: "1.234,56" vira "1234.56". */
-const dinheiroDigitadoSchema = z
-  .string()
-  .trim()
-  .transform((valor) => valor.replace(/\./g, '').replace(',', '.'))
-  .pipe(dinheiroSchema);
-
 export const orcamentoFormSchema = z.object({
   clienteId: z.uuid('Selecione o cliente'),
 
   /** Opcional: nem todo orçamento se encaixa num serviço do catálogo. */
-  servicoId: z
-    .union([z.uuid(), z.literal('')])
-    .optional()
-    .transform((valor) => (valor === '' || valor === undefined ? null : valor)),
+  servicoId: opcional(z.uuid()),
 
-  descricao: z
-    .union([z.string().trim().max(2000), z.literal('')])
-    .optional()
-    .transform((valor) => (valor === '' || valor === undefined ? null : valor)),
+  descricao: textoOpcional(2000),
 
   valor: dinheiroDigitadoSchema,
 
   /** Data limite da proposta, no formato AAAA-MM-DD. */
-  validoAte: z
-    .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'), z.literal('')])
-    .optional()
-    .transform((valor) => (valor === '' || valor === undefined ? null : valor)),
+  validoAte: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')),
 });
 
 export type OrcamentoFormInput = z.infer<typeof orcamentoFormSchema>;
