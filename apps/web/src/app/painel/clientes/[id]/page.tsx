@@ -1,16 +1,23 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
+  ROTULO_CANAL_LEMBRETE,
   ROTULO_STATUS,
   formatarBRL,
   type Atendimento,
   type Cliente,
   type EtapaFunil,
+  type LembreteFollowUp,
   type Orcamento,
   type Paginado,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
-import { formatarDataCompleta, formatarDataLonga } from '@/lib/formatacao';
+import {
+  formatarDataCompleta,
+  formatarDataLonga,
+  formatarDiaAgenda,
+  formatarHora,
+} from '@/lib/formatacao';
 import { FormularioCliente } from '../formulario-cliente';
 import { Atendimentos } from './atendimentos';
 import { BotaoRemover } from './botao-remover';
@@ -28,26 +35,22 @@ interface Props {
  * Ficha do cliente.
  *
  * É a tela que junta os setores: cadastro, posição no funil, orçamentos e
- * histórico de atendimento, tudo do mesmo cliente, em um lugar só. Sem ela, uma
- * pergunta simples como "qual a situação desse cliente?" exigiria abrir três
- * telas e cruzar as informações de cabeça.
+ * histórico de atendimento, tudo do mesmo cliente, em um lugar só.
  *
- * As cinco consultas rodam em paralelo: em sequência, a página esperaria a soma
- * dos tempos em vez do mais lento deles.
+ * As consultas rodam em paralelo: em sequência, a página esperaria a soma dos
+ * tempos em vez do mais lento deles.
  */
 export default async function PaginaCliente({ params }: Props) {
   const { id } = await params;
 
-  // Quatro chamadas em paralelo, não cinco em sequência.
-  //
-  // A quinta era o quadro do funil inteiro, baixado só para descobrir em qual
-  // etapa este cliente está. Hoje `GET /clientes/:id` já devolve essa posição,
-  // o que elimina a consulta mais pesada da tela.
-  const [cliente, etapas, orcamentos, atendimentos] = await Promise.all([
+  const [cliente, etapas, orcamentos, atendimentos, lembretes] = await Promise.all([
     apiComSessao<Cliente>(`/clientes/${id}`),
     apiComSessao<EtapaFunil[]>('/funil/etapas'),
     apiComSessao<Paginado<Orcamento>>(`/orcamentos?clienteId=${id}&porPagina=50`),
     apiComSessao<Atendimento[]>(`/clientes/${id}/atendimentos`),
+    apiComSessao<Paginado<LembreteFollowUp>>(
+      `/lembretes?clienteId=${id}&status=pendente&porPagina=5`,
+    ),
   ]);
 
   const etapaAtual = cliente.etapaFunil?.id ?? null;
@@ -75,7 +78,7 @@ export default async function PaginaCliente({ params }: Props) {
 
       {/* Resumo antes do formulário: quem abre a ficha quase sempre quer saber
           a situação do cliente, não editar o cadastro. */}
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-4">
         <Indicador
           titulo="Fechado com este cliente"
           valor={formatarBRL(totalAprovado.toFixed(2))}
@@ -92,9 +95,44 @@ export default async function PaginaCliente({ params }: Props) {
             atendimentos[0] ? `último em ${formatarDataCompleta(atendimentos[0].data)}` : undefined
           }
         />
+        <Indicador
+          titulo="Lembretes"
+          valor={String(lembretes.meta.total)}
+          detalhe={lembretes.dados[0] ? `próximo ${formatarQuando(lembretes.dados[0])}` : undefined}
+        />
       </section>
 
       <EntrarNoFunil clienteId={cliente.id} etapas={etapas} etapaAtual={etapaAtual} />
+
+      <section className="flex flex-col gap-3 rounded-lg border p-4">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-sm font-medium">Lembretes pendentes</h2>
+          <Link
+            href={`/painel/lembretes/novo?cliente=${cliente.id}`}
+            className="text-sm underline underline-offset-4"
+          >
+            Novo lembrete
+          </Link>
+        </div>
+
+        {lembretes.dados.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Nenhum follow-up pendente.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {lembretes.dados.map((lembrete) => (
+              <li
+                key={lembrete.id}
+                className="flex items-center justify-between gap-4 border-t py-2 first:border-t-0"
+              >
+                <span className="text-sm">{formatarQuando(lembrete)}</span>
+                <span className="text-muted-foreground text-xs">
+                  {ROTULO_CANAL_LEMBRETE[lembrete.canal]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <div className="flex items-center justify-between gap-4">
@@ -161,6 +199,12 @@ export default async function PaginaCliente({ params }: Props) {
       </section>
     </div>
   );
+}
+
+function formatarQuando(lembrete: LembreteFollowUp): string {
+  return `${formatarDiaAgenda(lembrete.dataEnvio.slice(0, 10)).toLowerCase()} às ${formatarHora(
+    lembrete.dataEnvio,
+  )}`;
 }
 
 function Indicador({
