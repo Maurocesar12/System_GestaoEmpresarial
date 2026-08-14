@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   type ColunaFunil,
@@ -9,7 +9,8 @@ import {
   type ReordenarEtapasInput,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
-import { PrismaService } from '../../../infra/prisma/prisma.service';
+import type { MarcoFunil } from '../../../generated/prisma/client';
+import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 
 /**
@@ -22,6 +23,8 @@ import { tenantAtual } from '../../../infra/tenant/tenant-context';
  */
 @Injectable()
 export class FunilService {
+  private readonly logger = new Logger(FunilService.name);
+
   /**
    * Teto de clientes carregados por etapa no quadro.
    *
@@ -126,6 +129,75 @@ export class FunilService {
   /** Tira o cliente do funil, sem apagar o cadastro dele. */
   async removerDoFunil(clienteId: string): Promise<void> {
     await this.prisma.comTenant((tx) => tx.clienteFunil.deleteMany({ where: { clienteId } }));
+  }
+
+  /**
+   * Move o cliente para a etapa que cumpre determinado papel no processo.
+   *
+   * É o que liga os módulos: quando um orçamento é emitido, o cliente vai para
+   * a etapa marcada como `orcamento_enviado`; quando aprovado, para a
+   * `fechado`. A busca é pelo **marco**, não pelo nome — assim renomear a etapa
+   * não quebra a automação.
+   *
+   * **Nunca falha a operação que a chamou.** Se a empresa apagou a etapa com
+   * aquele marco, ou nunca a teve, o método simplesmente não faz nada. Um
+   * orçamento não pode deixar de ser aprovado porque o funil está configurado
+   * de outro jeito — a automação é conveniência, não requisito.
+   *
+   * @param tx Transação de quem chamou. Receber a transação em vez de abrir uma
+   *   nova mantém a movimentação e a operação de origem atômicas: ou as duas
+   *   acontecem, ou nenhuma.
+   * @returns O nome da etapa de destino, ou `null` se não houve movimento.
+   */
+  async moverParaMarco(
+    tx: TransacaoComTenant,
+    clienteId: string,
+    marco: MarcoFunil,
+  ): Promise<string | null> {
+    const etapa = await tx.etapaFunil.findFirst({ where: { marco } });
+
+    if (!etapa) {
+      this.logger.debug(`Nenhuma etapa marcada como "${marco}" — cliente não foi movido.`);
+      return null;
+    }
+
+    await tx.clienteFunil.upsert({
+      where: { clienteId },
+      create: { id: uuidv7(), tenantId: tenantAtual(), clienteId, etapaId: etapa.id },
+      update: { etapaId: etapa.id },
+    });
+
+    return etapa.nome;
+  }
+
+  /** Define qual etapa cumpre determinado marco, tirando-o de qualquer outra. */
+  async definirMarco(etapaId: string, marco: MarcoFunil | null): Promise<EtapaFunil> {
+    return this.prisma.comTenant(async (tx) => {
+      const etapa = await tx.etapaFunil.findUnique({ where: { id: etapaId } });
+
+      if (!etapa) {
+        throw new NotFoundException({
+          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+          mensagem: 'Etapa não encontrada.',
+        });
+      }
+
+      // Só uma etapa por marco (o banco garante com índice único). Liberar a
+      // anterior antes evita colidir com essa restrição.
+      if (marco) {
+        await tx.etapaFunil.updateMany({
+          where: { marco, id: { not: etapaId } },
+          data: { marco: null },
+        });
+      }
+
+      const atualizada = await tx.etapaFunil.update({
+        where: { id: etapaId },
+        data: { marco },
+      });
+
+      return { id: atualizada.id, nome: atualizada.nome, ordem: atualizada.ordem };
+    });
   }
 
   async listarEtapas(): Promise<EtapaFunil[]> {

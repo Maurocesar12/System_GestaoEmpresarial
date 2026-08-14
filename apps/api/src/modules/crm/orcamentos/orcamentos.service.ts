@@ -16,6 +16,7 @@ import {
 import { uuidv7 } from '../../../common/uuid';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { FunilService } from '../funil/funil.service';
 // Import de valor, e não `import type`: além dos tipos, o `Prisma.Decimal` é
 // usado em tempo de execução para representar o zero quando não há orçamentos
 // somados.
@@ -36,9 +37,28 @@ type OrcamentoBanco = {
   servico: { nome: string } | null;
 };
 
+/**
+ * Orçamentos.
+ *
+ * ## Ligação com o funil
+ *
+ * Emitir um orçamento e aprová-lo movem o cliente no funil automaticamente —
+ * para a etapa marcada como `orcamento_enviado` e `fechado`, respectivamente
+ * (arquitetura §12, "movimentação automática").
+ *
+ * A movimentação acontece **dentro da mesma transação** da operação que a
+ * disparou. Se o orçamento for gravado e a movimentação falhar, as duas são
+ * desfeitas — nada de orçamento aprovado com o cliente parado na etapa errada.
+ *
+ * E se a empresa não tiver etapa com aquele marco, o orçamento é criado ou
+ * aprovado do mesmo jeito: a automação é conveniência, não requisito.
+ */
 @Injectable()
 export class OrcamentosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly funil: FunilService,
+  ) {}
 
   async listar(query: OrcamentosQuery): Promise<Paginado<Orcamento>> {
     const { pagina, porPagina, status, clienteId } = query;
@@ -133,7 +153,7 @@ export class OrcamentosService {
     const orcamento = await this.prisma.comTenant(async (tx) => {
       await this.garantirVinculosValidos(tx, dados);
 
-      return tx.orcamento.create({
+      const criado = await tx.orcamento.create({
         data: {
           id: uuidv7(),
           tenantId: tenantAtual(),
@@ -145,6 +165,11 @@ export class OrcamentosService {
         },
         include: { cliente: { select: { nome: true } }, servico: { select: { nome: true } } },
       });
+
+      // Quem recebeu proposta está em negociação: o funil reflete isso sozinho.
+      await this.funil.moverParaMarco(tx, dados.clienteId, 'orcamento_enviado');
+
+      return criado;
     });
 
     return this.paraResposta(orcamento);
@@ -212,8 +237,8 @@ export class OrcamentosService {
       });
     }
 
-    const orcamento = await this.prisma.comTenant((tx) =>
-      tx.orcamento.update({
+    const orcamento = await this.prisma.comTenant(async (tx) => {
+      const atualizado = await tx.orcamento.update({
         where: { id },
         data: {
           status: novoStatus,
@@ -222,8 +247,17 @@ export class OrcamentosService {
           respondidoEm: novoStatus === 'aberto' ? null : new Date(),
         },
         include: { cliente: { select: { nome: true } }, servico: { select: { nome: true } } },
-      }),
-    );
+      });
+
+      // Venda fechada move o cliente para a etapa de fechamento. Recusar não
+      // move nada: a negociação pode continuar, e tirar a pessoa do lugar
+      // esconderia justamente o que precisa de atenção.
+      if (novoStatus === 'aprovado') {
+        await this.funil.moverParaMarco(tx, atualizado.clienteId, 'fechado');
+      }
+
+      return atualizado;
+    });
 
     return this.paraResposta(orcamento);
   }

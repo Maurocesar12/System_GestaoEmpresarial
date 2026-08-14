@@ -8,6 +8,7 @@ import { validateEnv, type Env } from './config/env.schema';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { TenantMiddleware } from './infra/tenant/tenant.middleware';
 import { AuthModule } from './modules/auth/auth.module';
+import { AtendimentosModule } from './modules/crm/atendimentos/atendimentos.module';
 import { ClientesModule } from './modules/crm/clientes/clientes.module';
 import { FunilModule } from './modules/crm/funil/funil.module';
 import { OrcamentosModule } from './modules/crm/orcamentos/orcamentos.module';
@@ -50,6 +51,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     AuthModule,
     OnboardingModule,
     ClientesModule,
+    AtendimentosModule,
     FunilModule,
     ServicosModule,
     OrcamentosModule,

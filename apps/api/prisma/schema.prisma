@@ -107,6 +107,21 @@ enum TipoCusto {
   @@map("tipo_custo")
 }
 
+/// Papel que uma etapa cumpre no processo comercial.
+///
+/// Serve para o sistema saber para onde mover o cliente sozinho, sem depender
+/// do **nome** da etapa — que cada empresa pode renomear como quiser. Uma
+/// oficina pode chamar "Fechado" de "Serviço vendido"; o marco continua sendo
+/// `fechado`, e a automação continua funcionando.
+enum MarcoFunil {
+  /// Para onde o cliente vai quando recebe um orçamento.
+  orcamento_enviado
+  /// Para onde vai quando um orçamento é aprovado.
+  fechado
+
+  @@map("marco_funil")
+}
+
 // ============================================================================
 //  Plataforma
 // ============================================================================
@@ -398,11 +413,18 @@ model EtapaFunil {
   nome  String @db.VarChar(60)
   ordem Int
 
+  /// Papel da etapa na automação. Só uma etapa por marco, por empresa.
+  /// `null` significa etapa comum, sem comportamento automático.
+  marco MarcoFunil?
+
   criadoEm DateTime @default(now()) @map("criado_em")
 
   clientes ClienteFunil[]
 
   @@unique([tenantId, ordem])
+  /// Garante uma única etapa por marco: sem isso, duas etapas marcadas como
+  /// "fechado" tornariam o destino da automação imprevisível.
+  @@unique([tenantId, marco])
   @@map("etapa_funil")
 }
 

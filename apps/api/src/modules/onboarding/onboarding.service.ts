@@ -12,15 +12,20 @@ import { SenhaService } from '../auth/senha.service';
  *
  * A ordem importa: é ela que define a sequência do kanban. São só o ponto de
  * partida — cada empresa pode renomear, reordenar ou remover depois.
+ *
+ * Duas delas carregam um **marco**, que é o que permite ao sistema mover o
+ * cliente sozinho: ao emitir um orçamento ele vai para a etapa marcada como
+ * `orcamento_enviado`, e ao aprová-lo vai para a `fechado`. O marco viaja com
+ * a etapa, então renomear "Fechado" para "Serviço vendido" não quebra nada.
  */
 export const ETAPAS_FUNIL_PADRAO = [
-  'Novo contato',
-  'Diagnóstico',
-  'Orçamento enviado',
-  'Follow-up',
-  'Fechado',
-  'Serviço executado',
-  'Pós-venda',
+  { nome: 'Novo contato', marco: null },
+  { nome: 'Diagnóstico', marco: null },
+  { nome: 'Orçamento enviado', marco: 'orcamento_enviado' },
+  { nome: 'Follow-up', marco: null },
+  { nome: 'Fechado', marco: 'fechado' },
+  { nome: 'Serviço executado', marco: null },
+  { nome: 'Pós-venda', marco: null },
 ] as const;
 
 /**
@@ -77,11 +82,12 @@ export class OnboardingService {
         });
 
         await tx.etapaFunil.createMany({
-          data: ETAPAS_FUNIL_PADRAO.map((nome, indice) => ({
+          data: ETAPAS_FUNIL_PADRAO.map((etapa, indice) => ({
             id: uuidv7(),
             tenantId,
-            nome,
+            nome: etapa.nome,
             ordem: indice + 1,
+            marco: etapa.marco,
           })),
         });
 
