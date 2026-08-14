@@ -3,25 +3,32 @@ import { NextResponse, type NextRequest } from 'next/server';
 /**
  * Guarda de rota e renovação de sessão.
  *
- * Faz duas coisas, ambas antes da página começar a renderizar.
+ * Roda antes de qualquer página começar a renderizar e faz duas coisas.
  *
  * **1. Renova a sessão quando o access token expira.** Ele dura 15 minutos de
  * propósito (arquitetura §9.1): se vazar, a janela de uso é curta. Mas ninguém
  * aceitaria fazer login a cada 15 minutos, então quando o cookie curto some e o
- * refresh token ainda vale, este middleware pede uma sessão nova e grava os
+ * refresh token ainda vale, este arquivo pede uma sessão nova e grava os
  * cookies na resposta. Para quem está usando o sistema, nada acontece.
  *
- * O middleware é o lugar certo para isso porque **só ele pode gravar cookies
- * antes da renderização**. Um Server Component consegue ler cookies, mas não
- * escrever — o Next bloqueia, já que a resposta HTTP pode já ter começado.
+ * Este é o lugar certo para isso porque **só aqui dá para gravar cookies antes
+ * da renderização**. Um Server Component consegue lê-los, mas não escrevê-los —
+ * o Next bloqueia, já que a resposta HTTP pode já ter começado.
  *
- * **2. Redireciona quem não tem sessão.** E aqui ele *não* valida o token —
- * apenas confere se o cookie existe. A validação da assinatura acontece sempre
- * no NestJS, a cada requisição. Duplicá-la aqui significaria manter o segredo
- * em dois lugares e sincronizar duas regras de expiração; e quem forjar o
- * cookie passa por este ponto, mas é barrado pela API no instante em que a tela
- * pedir qualquer dado — sem token válido não há contexto de tenant, então a RLS
- * também não devolveria nada.
+ * **2. Redireciona quem não tem sessão.** E aqui o token *não* é validado —
+ * apenas se confere que o cookie existe. A validação da assinatura acontece
+ * sempre no NestJS, a cada requisição. Duplicá-la aqui significaria manter o
+ * segredo em dois lugares e sincronizar duas regras de expiração; e quem forjar
+ * o cookie passa por este ponto, mas é barrado pela API no instante em que a
+ * tela pedir qualquer dado — sem token válido não há contexto de tenant, então
+ * a RLS também não devolveria nada.
+ *
+ * ## Sobre o nome do arquivo
+ *
+ * Chamava-se `middleware.ts` até o Next 16, que renomeou a convenção para
+ * `proxy.ts` e a função exportada de `middleware` para `proxy`. O comportamento
+ * é o mesmo; o nome antigo ainda funciona, mas emite aviso de depreciação e
+ * será removido.
  */
 
 const COOKIE_ACCESS = 'gestao_access';
@@ -39,7 +46,7 @@ interface SessaoRenovada {
   expiraEm: number;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const accessToken = request.cookies.get(COOKIE_ACCESS)?.value;
   const refreshToken = request.cookies.get(COOKIE_REFRESH)?.value;
 
@@ -130,8 +137,8 @@ function gravarCookies(resposta: NextResponse, sessao: SessaoRenovada, seguro: b
 
 export const config = {
   /**
-   * Ignora arquivos estáticos e imagens: rodar o middleware neles seria
-   * trabalho por requisição sem nenhum efeito.
+   * Ignora arquivos estáticos e imagens: rodar isto neles seria trabalho por
+   * requisição sem nenhum efeito.
    */
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
