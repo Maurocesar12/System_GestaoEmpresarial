@@ -1,195 +1,341 @@
 # Gestão Empresarial
 
-SaaS multi-tenant de gestão para PME de serviço. CRM e financeiro no mesmo banco —
-o que torna possível calcular margem por serviço ligando receita e custo ao
-atendimento que os gerou.
+SaaS multi-tenant de gestão para pequenas e médias empresas de serviço. O
+produto une CRM e financeiro no mesmo sistema para acompanhar clientes,
+orçamentos, agenda, follow-ups, entradas, saídas e margem por serviço.
 
-A arquitetura completa está em [`docs/arquitetura.md`](docs/arquitetura.md). Este
-README cobre só o que é preciso para rodar e continuar o desenvolvimento.
+O diferencial do projeto é ligar operação e dinheiro: um serviço vendido,
+agendado, executado e lançado no financeiro pode alimentar relatórios de caixa e
+margem sem depender de planilhas paralelas.
+
+## Sumário
+
+- [Stack](#stack)
+- [Funcionalidades](#funcionalidades)
+- [Arquitetura](#arquitetura)
+- [Pré-requisitos](#pré-requisitos)
+- [Como Rodar Localmente](#como-rodar-localmente)
+- [Comandos Úteis](#comandos-úteis)
+- [Banco e Multi-tenancy](#banco-e-multi-tenancy)
+- [Estrutura do Projeto](#estrutura-do-projeto)
+- [Variáveis de Ambiente](#variáveis-de-ambiente)
+- [Testes](#testes)
+- [Deploy](#deploy)
+- [Documentação](#documentação)
+
+## Stack
+
+| Camada           | Tecnologia                                          |
+| ---------------- | --------------------------------------------------- |
+| Monorepo         | pnpm workspaces + Turborepo                         |
+| Backend          | NestJS, TypeScript, Prisma                          |
+| Frontend         | Next.js 16 App Router, React 19, Tailwind CSS       |
+| Banco            | PostgreSQL com Row-Level Security                   |
+| Validação        | Zod compartilhado entre API e web                   |
+| Autenticação     | JWT curto + refresh token com rotação               |
+| Segurança        | Helmet, CORS restrito, rate limit, cookies httpOnly |
+| UI e formulários | React Hook Form, Zod Resolver                       |
+| Drag and drop    | dnd-kit                                             |
+| Gráficos         | Recharts                                            |
+
+## Funcionalidades
+
+Já implementado:
+
+- Cadastro e login com sessão segura.
+- Onboarding self-service criando tenant, usuário admin e dados-semente.
+- Isolamento multi-tenant com contexto por requisição, Prisma extension e RLS.
+- Clientes, histórico de atendimentos e origem/UTM.
+- Funil de vendas com etapas configuráveis e movimentação por kanban.
+- Catálogo de serviços.
+- Orçamentos com status e movimentação automática no funil.
+- Agendamentos com máquina de estados.
+- Lembretes de follow-up manuais.
+- Financeiro com categorias, lançamentos, fluxo de caixa e margem por serviço.
+- Guards por papel: `admin`, `financeiro`, `atendente`, `tecnico`.
+
+Ainda planejado:
+
+- Worker BullMQ para envio automático de lembretes.
+- Notificações por e-mail e WhatsApp utility.
+- Billing com Asaas, limites de plano e webhooks.
+- Painel interno administrativo.
+- Marketing beta e formulário embedável.
+
+## Arquitetura
+
+O frontend nunca acessa o banco diretamente. O fluxo principal é:
+
+```text
+Next.js Web -> API NestJS -> Prisma -> PostgreSQL + RLS
+```
+
+O projeto usa banco compartilhado com schema compartilhado. Cada tabela de
+negócio possui `tenant_id`, e o isolamento entre empresas acontece em três
+camadas:
+
+| Camada           | Onde                                            | Função                                       |
+| ---------------- | ----------------------------------------------- | -------------------------------------------- |
+| Contexto         | `apps/api/src/infra/tenant`                     | Guarda o tenant atual em `AsyncLocalStorage` |
+| Prisma extension | `apps/api/src/infra/prisma/tenant.extension.ts` | Injeta filtros e valida gravações            |
+| RLS              | migrations SQL do Prisma                        | O PostgreSQL bloqueia linhas de outro tenant |
+
+A arquitetura completa está em [docs/arquitetura.md](docs/arquitetura.md).
 
 ## Pré-requisitos
 
-- Node.js 22 (ver [`.nvmrc`](.nvmrc))
-- pnpm 11 — `npm install -g pnpm`
-- PostgreSQL 15+ rodando localmente
+- Node.js 22, conforme [.nvmrc](.nvmrc).
+- pnpm 11.
+- PostgreSQL 15 ou superior.
+- PowerShell para usar os scripts de banco no Windows.
 
-## Rodando
+Instale o pnpm, se necessário:
+
+```bash
+npm install -g pnpm
+```
+
+## Como Rodar Localmente
+
+### 1. Instale as dependências
 
 ```bash
 pnpm install
 ```
 
-Copie os arquivos de ambiente e ajuste o que precisar:
+### 2. Crie os arquivos de ambiente
+
+No Windows PowerShell:
+
+```powershell
+Copy-Item apps/api/.env.example apps/api/.env
+Copy-Item apps/web/.env.example apps/web/.env.local
+```
+
+Em macOS/Linux/Git Bash:
 
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-O `JWT_SECRET` precisa de no mínimo 32 caracteres — gere um:
+Gere um `JWT_SECRET` seguro e coloque em `apps/api/.env`:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Prepare o banco. O script cria os bancos, os dois roles e preenche as
-connection strings no `.env` — ele pede a senha do superusuário `postgres`:
+### 3. Prepare o PostgreSQL local
 
-```bash
+O script cria:
+
+- Banco de desenvolvimento: `gestao_dev`.
+- Banco de testes: `gestao_test`.
+- Role da aplicação: `gestao_app`, sem `BYPASSRLS`.
+- Role administrativo: `gestao_admin`, com `BYPASSRLS`.
+- Connection strings em `apps/api/.env`.
+
+Rode:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup-database.ps1
 ```
 
-Se você esqueceu a senha do `postgres`, há um script para redefini-la — precisa
+O script vai pedir a senha do superusuário `postgres`. Ela não é gravada.
+
+Se você esqueceu a senha do `postgres`, existe um script auxiliar. Ele precisa
 ser executado como Administrador:
 
-```bash
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts\resetar-senha-postgres.ps1
 ```
 
-Aplique as migrations e popule os planos:
+### 4. Aplique migrations e seed
 
 ```bash
 pnpm --filter @gestao/api db:migrate
 pnpm --filter @gestao/api db:seed
 ```
 
-Suba tudo:
+O seed cria planos iniciais usados pelo onboarding.
+
+### 5. Suba API e web
 
 ```bash
 pnpm dev
 ```
 
-- API: <http://localhost:3333> — health check em `/health`
-- Web: <http://localhost:3000>
+Serviços locais:
 
-A página inicial mostra o status da API. Verde significa que frontend e API se
-enxergam, o CORS está certo e o contrato compartilhado casa nos dois lados.
+| Serviço      | URL                          |
+| ------------ | ---------------------------- |
+| Web          | http://localhost:3000        |
+| API          | http://localhost:3333        |
+| Health check | http://localhost:3333/health |
 
-## Comandos
+Depois de subir, acesse `http://localhost:3000/cadastro` para criar uma empresa
+e entrar no painel.
 
-Todos rodam na raiz e atravessam o monorepo via Turborepo:
+## Comandos Úteis
 
-| Comando          | O que faz                    |
-| ---------------- | ---------------------------- |
-| `pnpm dev`       | Sobe API e web em modo watch |
-| `pnpm build`     | Build de produção de tudo    |
-| `pnpm lint`      | ESLint                       |
-| `pnpm typecheck` | Checagem de tipos sem emitir |
-| `pnpm test`      | Testes unitários             |
-| `pnpm format`    | Prettier                     |
+Todos os comandos abaixo rodam na raiz do repositório.
 
-Para rodar em um pacote só: `pnpm --filter @gestao/api test`.
+| Comando             | O que faz                              |
+| ------------------- | -------------------------------------- |
+| `pnpm dev`          | Sobe API e web em modo desenvolvimento |
+| `pnpm build`        | Gera build de produção dos pacotes     |
+| `pnpm lint`         | Executa ESLint                         |
+| `pnpm typecheck`    | Executa TypeScript sem emitir arquivos |
+| `pnpm test`         | Roda testes unitários                  |
+| `pnpm format`       | Formata arquivos com Prettier          |
+| `pnpm format:check` | Verifica formatação                    |
 
-Os testes de isolamento entre empresas precisam de banco e rodam à parte:
+Comandos por pacote:
+
+```bash
+pnpm --filter @gestao/api dev
+pnpm --filter @gestao/web dev
+pnpm --filter @gestao/api db:migrate
+pnpm --filter @gestao/api db:seed
+pnpm --filter @gestao/api test:db
+```
+
+## Banco e Multi-tenancy
+
+O projeto foi pensado para SaaS desde a primeira migration. Todas as tabelas de
+negócio são isoladas por tenant e protegidas por RLS.
+
+Pontos importantes:
+
+- A aplicação deve usar `DATABASE_URL` com o role `gestao_app`.
+- O role `gestao_app` não pode ter `BYPASSRLS`.
+- A conexão administrativa (`ADMIN_DATABASE_URL`) é separada e só deve ser usada
+  pelo futuro painel interno.
+- Todo acesso de negócio deve passar por `prisma.comTenant()`.
+- Dinheiro trafega como string decimal no JSON e fica como `Decimal(14, 2)` no
+  banco. Não use `number`/`float` para valores monetários.
+
+## Estrutura do Projeto
+
+```text
+apps/
+  api/
+    prisma/              schema e migrations
+    src/
+      common/            filters, guards, decorators, pipes
+      config/            validação de ambiente
+      infra/
+        prisma/          PrismaService e tenant extension
+        tenant/          contexto multi-tenant
+      modules/
+        auth/            login, refresh token, sessão
+        onboarding/      cadastro inicial do tenant
+        crm/             clientes, funil, serviços, orçamentos, agenda, lembretes
+        financeiro/      categorias, lançamentos, relatórios
+        health/          health check
+
+  web/
+    src/
+      app/               rotas do Next.js App Router
+      components/        componentes de UI
+      lib/               cliente HTTP, sessão, env, helpers
+
+packages/
+  shared-types/          schemas Zod, enums e tipos compartilhados
+  tsconfig/              configurações TypeScript compartilhadas
+
+docs/
+  arquitetura.md         arquitetura do produto
+  status.md              histórico/status técnico do desenvolvimento
+```
+
+## Variáveis de Ambiente
+
+### API
+
+Arquivo local: `apps/api/.env`.
+
+Principais variáveis:
+
+| Variável                  | Descrição                                      |
+| ------------------------- | ---------------------------------------------- |
+| `DATABASE_URL`            | Conexão da aplicação com PostgreSQL            |
+| `TEST_DATABASE_URL`       | Conexão usada pelos testes de integração       |
+| `ADMIN_DATABASE_URL`      | Conexão administrativa futura                  |
+| `JWT_SECRET`              | Segredo para assinar JWT, mínimo 32 caracteres |
+| `CORS_ORIGINS`            | Origens liberadas, separadas por vírgula       |
+| `ONBOARDING_PLANO_PADRAO` | Plano usado no cadastro inicial                |
+| `ONBOARDING_TRIAL_DIAS`   | Duração do trial                               |
+| `REDIS_URL`               | Reservado para BullMQ/Upstash                  |
+
+Veja o modelo completo em [apps/api/.env.example](apps/api/.env.example).
+
+### Web
+
+Arquivo local: `apps/web/.env.local`.
+
+| Variável              | Descrição                 |
+| --------------------- | ------------------------- |
+| `NEXT_PUBLIC_API_URL` | URL pública da API NestJS |
+
+Veja o modelo em [apps/web/.env.example](apps/web/.env.example).
+
+## Testes
+
+Testes unitários:
+
+```bash
+pnpm test
+```
+
+Testes de integração com PostgreSQL:
 
 ```bash
 pnpm --filter @gestao/api test:db
 ```
 
-## Como o isolamento entre empresas funciona
+Os testes de integração usam `gestao_test` e verificam regras importantes, como:
 
-Todas as empresas dividem as mesmas tabelas, separadas pela coluna `tenant_id`.
-O risco desse modelo é um `WHERE tenant_id` esquecido devolver dado da empresa
-errada — e isso vaza em silêncio, sem erro nenhum no log. A defesa tem três
-camadas:
+- autenticação e refresh token;
+- isolamento entre tenants;
+- CRUDs do CRM;
+- estados de orçamento e agendamento;
+- financeiro e margem por serviço;
+- lembretes de follow-up.
 
-| Camada                | Onde                                                                            | O que faz                                                             |
-| --------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 1. Contexto           | [`tenant-context.ts`](apps/api/src/infra/tenant/tenant-context.ts)              | Guarda o tenant da requisição em `AsyncLocalStorage`                  |
-| 2. Extensão do Prisma | [`tenant.extension.ts`](apps/api/src/infra/prisma/tenant.extension.ts)          | Injeta o filtro nas consultas e recusa gravação com tenant divergente |
-| 3. Row-Level Security | [migration de RLS](apps/api/prisma/migrations/20260812120100_rls/migration.sql) | O banco não devolve nem aceita linha de outra empresa                 |
+## Deploy
 
-Na prática, todo acesso a dado passa por `prisma.comTenant()`, que abre uma
-transação e define `app.current_tenant_id` nela — é essa variável que as
-políticas de RLS consultam.
+O alvo de produção previsto é:
 
-```ts
-const clientes = await this.prisma.comTenant((tx) =>
-  tx.cliente.findMany({ orderBy: { nome: 'asc' } }),
-);
-```
+| Parte      | Serviço |
+| ---------- | ------- |
+| Frontend   | Vercel  |
+| API        | Render  |
+| PostgreSQL | Render  |
+| Redis      | Upstash |
 
-Duas coisas que não são óbvias e estão documentadas no código:
+Checklist de produção:
 
-- A conexão da aplicação usa um role **sem** `BYPASSRLS`. Com ele, as políticas
-  seriam ignoradas em silêncio e os testes passariam sem provar nada.
-- As tabelas usam `FORCE ROW LEVEL SECURITY`, e não só `ENABLE`. O dono da
-  tabela ignora as políticas por padrão — e o dono é justamente quem roda as
-  migrations.
+- Definir variáveis de ambiente no painel da Vercel e Render.
+- Usar `DATABASE_URL` de produção com SSL.
+- Rodar migrations com `pnpm --filter @gestao/api db:deploy`.
+- Nunca usar `CORS_ORIGINS=*`.
+- Usar `JWT_SECRET` forte e diferente do ambiente local.
+- Configurar `REDIS_URL` apenas quando o worker de lembretes estiver ativo.
 
-## Estrutura
+## Documentação
 
-```
-apps/
-  api/                  NestJS — backend
-    src/
-      common/           filtros, pipes, guards, decorators transversais
-      config/           validação das variáveis de ambiente
-      infra/
-        prisma/         acesso ao banco (entra na próxima fatia)
-        queue/          BullMQ
-        tenant/         contexto de tenant (AsyncLocalStorage)
-      modules/
-        auth/ tenant/ onboarding/ usuarios/ billing/ admin/
-        crm/            clientes, funil, servicos, orcamentos,
-                        agendamentos, lembretes, notificacoes
-        financeiro/     lancamentos, custos, relatorios
-        marketing/      módulo beta
-        health/         health check
-  web/                  Next.js — aplicação do assinante
-    src/
-      app/              rotas (App Router)
-      components/       componentes de UI
-      lib/              cliente HTTP, env, utilitários
-packages/
-  shared-types/         enums, schemas Zod e tipos usados pelos dois lados
-  tsconfig/             configurações de TypeScript compartilhadas
-docs/
-  arquitetura.md        documento de arquitetura
-```
+- [Arquitetura](docs/arquitetura.md)
+- [Status técnico](docs/status.md)
+- [Schema Prisma](apps/api/prisma/schema.prisma)
+- [Migrations](apps/api/prisma/migrations)
 
-As pastas de módulo estão criadas e vazias de propósito: elas marcam onde cada
-fatia entra, na ordem do roadmap.
+## Notas de Desenvolvimento
 
-O app `admin` (painel interno) ainda não existe — entra junto com o
-`AdminModule`, que depende da conexão `BYPASSRLS` separada.
-
-## Estado atual
-
-**Pronto** — fundação e isolamento de dados (arquitetura §11, itens 1 e 2):
-
-- Monorepo Turborepo com pnpm workspaces
-- API NestJS subindo com CORS restrito, `helmet`, rate limiting e formato único de erro
-- Variáveis de ambiente validadas na subida — a API se recusa a iniciar mal configurada
-- Schema completo: plataforma, CRM e financeiro, com dinheiro em `Decimal` e
-  índices compostos começando por `tenant_id`
-- Isolamento em três camadas, com 11 testes que tentam ativamente atravessar a
-  fronteira entre duas empresas
-- `@gestao/shared-types` compartilhado entre API e frontend
-- Next.js 16 + Tailwind 4, pronto para receber componentes do shadcn/ui
-- CI no GitHub Actions: lint, tipos, testes, build, isolamento contra um
-  PostgreSQL real e auditoria de dependências
-
-**Próxima fatia** — autenticação:
-
-1. Login com Argon2id, JWT de vida curta e refresh com rotação
-2. Guards de papel (`admin`, `financeiro`, `atendente`, `tecnico`)
-3. Middleware que popula o contexto de tenant a partir do JWT
-4. Tenant + Onboarding — signup self-service e dados-semente
-
-## Decisões tomadas nesta fundação
-
-Pontos onde a implementação difere ou especifica o documento de arquitetura:
-
-- **Zod como validação única da API**, no lugar de `class-validator`. O documento
-  previa `class-validator` para os DTOs, mas isso obrigaria a declarar cada
-  payload duas vezes — uma no DTO da API, outra no schema que o formulário do
-  frontend usa. Com o `ZodValidationPipe`, os dois lados consomem o mesmo schema
-  de `@gestao/shared-types` e não há como divergirem. Trocar de volta nesta fase
-  é barato, se preferir.
-- **Dinheiro trafega como string decimal** no JSON, nunca `number`. O banco guarda
-  em `NUMERIC` (arquitetura §7), e `JSON.parse` de um número devolveria float de
-  64 bits — o erro de arredondamento voltaria pela porta dos fundos.
-- **TypeScript fixado em 5.9** e **ESLint em 9** em todo o monorepo. As versões
-  mais novas de ambos (TS 7, ESLint 10) ainda quebram com os decorators do Nest e
-  com o `eslint-plugin-react` que o Next puxa.
+- Prefira schemas Zod em `packages/shared-types` para contratos usados pela API
+  e pelo frontend.
+- Evite duplicar tipos de payload entre backend e web.
+- Mantenha cada fatia vertical funcionando de ponta a ponta antes de iniciar a
+  próxima.
+- Código de domínio deve ficar em módulos claros: controller recebe HTTP,
+  service aplica regra de negócio, shared-types define contrato.
