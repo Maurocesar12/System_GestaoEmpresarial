@@ -12,6 +12,7 @@ import { AgendamentosModule } from './modules/crm/agendamentos/agendamentos.modu
 import { AtendimentosModule } from './modules/crm/atendimentos/atendimentos.module';
 import { ClientesModule } from './modules/crm/clientes/clientes.module';
 import { FunilModule } from './modules/crm/funil/funil.module';
+import { LembretesModule } from './modules/crm/lembretes/lembretes.module';
 import { OrcamentosModule } from './modules/crm/orcamentos/orcamentos.module';
 import { ServicosModule } from './modules/crm/servicos/servicos.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
@@ -58,6 +59,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     ServicosModule,
     OrcamentosModule,
     AgendamentosModule,
+    LembretesModule,
     FinanceiroModule,
     HealthModule,
   ],

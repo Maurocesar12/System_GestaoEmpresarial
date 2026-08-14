@@ -13,6 +13,7 @@ export * from './crm/agendamentos';
 export * from './crm/atendimentos';
 export * from './crm/clientes';
 export * from './crm/funil';
+export * from './crm/lembretes';
 export * from './crm/orcamentos';
 export * from './crm/servicos';
 export * from './financeiro/lancamentos';
