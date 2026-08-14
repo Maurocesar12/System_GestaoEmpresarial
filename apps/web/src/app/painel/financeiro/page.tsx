@@ -11,6 +11,7 @@ import {
   type RelatorioMargem,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
+import { formatarDataCurta, formatarPeriodo } from '@/lib/formatacao';
 
 export const metadata: Metadata = {
   title: 'Financeiro — Gestão Empresarial',
@@ -188,7 +189,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
                 {lancamentos.dados.map((lancamento) => (
                   <tr key={lancamento.id} className="hover:bg-muted/30 border-t transition-colors">
                     <td className="text-muted-foreground px-4 py-3 tabular-nums">
-                      {formatarData(lancamento.data)}
+                      {formatarDataCurta(lancamento.data)}
                     </td>
                     <td className="px-4 py-3">
                       <Link
@@ -254,17 +255,4 @@ function Indicador({
       {detalhe && <p className="text-muted-foreground text-xs">{detalhe}</p>}
     </div>
   );
-}
-
-/** Formata sem `new Date`, que leria a string como UTC e voltaria um dia. */
-function formatarData(iso: string): string {
-  const [, mes, dia] = iso.split('-');
-  return `${dia}/${mes}`;
-}
-
-function formatarPeriodo(de: string, ate: string): string {
-  const [anoDe, mesDe, diaDe] = de.split('-');
-  const [anoAte, mesAte, diaAte] = ate.split('-');
-
-  return `${diaDe}/${mesDe}/${anoDe} a ${diaAte}/${mesAte}/${anoAte}`;
 }

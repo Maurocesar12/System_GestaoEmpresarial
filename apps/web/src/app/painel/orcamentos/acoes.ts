@@ -8,13 +8,10 @@ import {
   type Orcamento,
   type OrcamentoFormInput,
 } from '@gestao/shared-types';
-import { ApiRequestError } from '@/lib/api';
+import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export interface ResultadoAcao {
-  erro?: string;
-  campos?: Record<string, string[]>;
-}
+export type { ResultadoAcao } from '@/lib/acoes';
 
 export async function salvarOrcamento(
   id: string | null,
@@ -23,7 +20,7 @@ export async function salvarOrcamento(
   const validacao = orcamentoFormSchema.safeParse(dados);
 
   if (!validacao.success) {
-    return { erro: 'Confira os dados informados.', campos: agruparErros(validacao.error.issues) };
+    return erroDeValidacao(validacao.error.issues);
   }
 
   try {
@@ -32,7 +29,7 @@ export async function salvarOrcamento(
       body: JSON.stringify(validacao.data),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidatePath('/painel/orcamentos');
@@ -52,7 +49,7 @@ export async function mudarStatus(id: string, acao: AcaoOrcamento): Promise<Resu
       body: JSON.stringify({ acao }),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidatePath('/painel/orcamentos');
@@ -63,28 +60,9 @@ export async function removerOrcamento(id: string): Promise<ResultadoAcao> {
   try {
     await apiComSessao<void>(`/orcamentos/${id}`, { method: 'DELETE' });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidatePath('/painel/orcamentos');
   return {};
-}
-
-function traduzirErro(erro: unknown): ResultadoAcao {
-  if (erro instanceof ApiRequestError) {
-    return { erro: erro.erro.mensagem, campos: erro.erro.detalhes };
-  }
-
-  return { erro: 'Não foi possível completar a ação. Tente novamente.' };
-}
-
-function agruparErros(issues: { path: PropertyKey[]; message: string }[]) {
-  const campos: Record<string, string[]> = {};
-
-  for (const issue of issues) {
-    const campo = issue.path.join('.') || '_';
-    (campos[campo] ??= []).push(issue.message);
-  }
-
-  return campos;
 }

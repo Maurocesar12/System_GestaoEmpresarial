@@ -15,7 +15,7 @@ import {
 } from '@gestao/shared-types';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
@@ -56,9 +56,9 @@ export function FormularioLancamento({
 
   const {
     register,
+    control,
     handleSubmit,
     setError,
-    watch,
     formState: { errors },
   } = useForm<LancamentoFormEntrada, unknown, LancamentoFormInput>({
     resolver: zodResolver(lancamentoFormSchema),
@@ -74,7 +74,7 @@ export function FormularioLancamento({
     },
   });
 
-  const tipo = watch('tipo');
+  const tipo = useWatch({ control, name: 'tipo' });
 
   const aoEnviar = (dados: LancamentoFormInput) => {
     setFalha(undefined);

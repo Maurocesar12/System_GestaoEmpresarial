@@ -9,6 +9,7 @@ import {
   type Servico,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
+import { formatarDataCompleta } from '@/lib/formatacao';
 import { AcoesStatus } from '../acoes-status';
 import { FormularioOrcamento } from '../formulario-orcamento';
 
@@ -77,11 +78,7 @@ export default async function PaginaOrcamento({ params }: Props) {
             <dd className="whitespace-pre-wrap">{orcamento.descricao ?? '—'}</dd>
 
             <dt className="text-muted-foreground">Respondido em</dt>
-            <dd>
-              {orcamento.respondidoEm
-                ? new Date(orcamento.respondidoEm).toLocaleDateString('pt-BR')
-                : '—'}
-            </dd>
+            <dd>{orcamento.respondidoEm ? formatarDataCompleta(orcamento.respondidoEm) : '—'}</dd>
           </dl>
 
           <Link

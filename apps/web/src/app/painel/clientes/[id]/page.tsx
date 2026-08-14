@@ -10,6 +10,7 @@ import {
   type Paginado,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
+import { formatarDataCompleta, formatarDataLonga } from '@/lib/formatacao';
 import { FormularioCliente } from '../formulario-cliente';
 import { Atendimentos } from './atendimentos';
 import { BotaoRemover } from './botao-remover';
@@ -68,13 +69,7 @@ export default async function PaginaCliente({ params }: Props) {
         <h1 className="text-2xl font-semibold tracking-tight">{cliente.nome}</h1>
 
         <p className="text-muted-foreground text-sm">
-          Cliente desde{' '}
-          {new Date(cliente.criadoEm).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-          })}
-          .
+          Cliente desde {formatarDataLonga(cliente.criadoEm)}.
         </p>
       </div>
 
@@ -93,7 +88,9 @@ export default async function PaginaCliente({ params }: Props) {
         <Indicador
           titulo="Atendimentos"
           valor={String(atendimentos.length)}
-          detalhe={atendimentos[0] ? `último em ${formatarData(atendimentos[0].data)}` : undefined}
+          detalhe={
+            atendimentos[0] ? `último em ${formatarDataCompleta(atendimentos[0].data)}` : undefined
+          }
         />
       </section>
 
@@ -182,10 +179,4 @@ function Indicador({
       {detalhe && <p className="text-muted-foreground text-xs">{detalhe}</p>}
     </div>
   );
-}
-
-/** Formata sem `new Date`, que interpretaria a data como UTC e voltaria um dia. */
-function formatarData(iso: string): string {
-  const [ano, mes, dia] = iso.split('-');
-  return `${dia}/${mes}/${ano}`;
 }

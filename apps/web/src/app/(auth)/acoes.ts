@@ -8,7 +8,8 @@ import {
   type LoginInput,
   type SessaoResponse,
 } from '@gestao/shared-types';
-import { apiFetch, ApiRequestError } from '@/lib/api';
+import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { apiFetch } from '@/lib/api';
 import { gravarSessao, lerRefreshToken, limparSessao } from '@/lib/sessao';
 
 /**
@@ -22,12 +23,7 @@ import { gravarSessao, lerRefreshToken, limparSessao } from '@/lib/sessao';
  * daqui ele vai direto para o cookie.
  */
 
-/** O que a tela recebe de volta quando algo dá errado. */
-export interface ResultadoAcao {
-  erro?: string;
-  /** Erros por campo, para destacar o input correspondente. */
-  campos?: Record<string, string[]>;
-}
+export type { ResultadoAcao } from '@/lib/acoes';
 
 export async function entrar(dados: LoginInput): Promise<ResultadoAcao> {
   // Valida no servidor também, e não só no formulário: validação de cliente é
@@ -35,7 +31,7 @@ export async function entrar(dados: LoginInput): Promise<ResultadoAcao> {
   const validacao = loginSchema.safeParse(dados);
 
   if (!validacao.success) {
-    return { erro: 'Confira os dados informados.', campos: agruparErros(validacao.error) };
+    return erroDeValidacao(validacao.error.issues);
   }
 
   try {
@@ -46,7 +42,7 @@ export async function entrar(dados: LoginInput): Promise<ResultadoAcao> {
 
     await gravarSessao(sessao);
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   // `redirect` fica fora do try: por dentro ele funciona lançando uma exceção
@@ -58,7 +54,7 @@ export async function cadastrar(dados: CadastroInput): Promise<ResultadoAcao> {
   const validacao = cadastroSchema.safeParse(dados);
 
   if (!validacao.success) {
-    return { erro: 'Confira os dados informados.', campos: agruparErros(validacao.error) };
+    return erroDeValidacao(validacao.error.issues);
   }
 
   try {
@@ -69,7 +65,7 @@ export async function cadastrar(dados: CadastroInput): Promise<ResultadoAcao> {
 
     await gravarSessao(sessao);
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   redirect('/painel');
@@ -92,30 +88,4 @@ export async function sair(): Promise<void> {
 
   await limparSessao();
   redirect('/entrar');
-}
-
-/**
- * Converte o erro da API em algo que a tela sabe exibir.
- *
- * Mensagens vindas da API são escritas para o usuário final e podem ser
- * mostradas como estão. Qualquer outra coisa vira uma mensagem genérica — não
- * faz sentido exibir detalhe de rede para quem só quer entrar no sistema.
- */
-function traduzirErro(erro: unknown): ResultadoAcao {
-  if (erro instanceof ApiRequestError) {
-    return { erro: erro.erro.mensagem, campos: erro.erro.detalhes };
-  }
-
-  return { erro: 'Não foi possível completar a ação. Tente novamente.' };
-}
-
-function agruparErros(erro: { issues: { path: PropertyKey[]; message: string }[] }) {
-  const campos: Record<string, string[]> = {};
-
-  for (const issue of erro.issues) {
-    const campo = issue.path.join('.') || '_';
-    (campos[campo] ??= []).push(issue.message);
-  }
-
-  return campos;
 }

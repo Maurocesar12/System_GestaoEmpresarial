@@ -6,12 +6,10 @@ import {
   type Atendimento,
   type AtendimentoFormInput,
 } from '@gestao/shared-types';
-import { ApiRequestError } from '@/lib/api';
+import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export interface ResultadoAcao {
-  erro?: string;
-}
+export type { ResultadoAcao } from '@/lib/acoes';
 
 export async function registrarAtendimento(
   clienteId: string,
@@ -20,7 +18,7 @@ export async function registrarAtendimento(
   const validacao = atendimentoFormSchema.safeParse(dados);
 
   if (!validacao.success) {
-    return { erro: validacao.error.issues[0]?.message ?? 'Dados inválidos.' };
+    return primeiroErro(validacao.error.issues);
   }
 
   try {
@@ -29,7 +27,7 @@ export async function registrarAtendimento(
       body: JSON.stringify(validacao.data),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro, 'Não foi possível registrar. Tente novamente.');
   }
 
   // Sem `revalidatePath`, o atendimento recém-criado não apareceria na lista:
@@ -49,17 +47,9 @@ export async function removerAtendimento(
       method: 'DELETE',
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro, 'Não foi possível registrar. Tente novamente.');
   }
 
   revalidatePath(`/painel/clientes/${clienteId}`);
   return {};
-}
-
-function traduzirErro(erro: unknown): ResultadoAcao {
-  if (erro instanceof ApiRequestError) {
-    return { erro: erro.erro.mensagem };
-  }
-
-  return { erro: 'Não foi possível registrar. Tente novamente.' };
 }

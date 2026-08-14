@@ -11,7 +11,6 @@ import {
   type AgendamentoFormInput,
   type AgendamentosQuery,
   type Paginado,
-  type StatusAgendamento,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
@@ -63,15 +62,11 @@ export class AgendamentosService {
       ]),
     );
 
-    return {
-      dados: registros.map((registro) => this.paraResposta(registro)),
-      meta: {
-        pagina,
-        porPagina,
-        total,
-        totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
-      },
-    };
+    return paginar(
+      registros.map((registro) => this.paraResposta(registro)),
+      total,
+      query,
+    );
   }
 
   async buscarPorId(id: string): Promise<Agendamento> {
@@ -234,7 +229,6 @@ export class AgendamentosService {
       },
     });
   }
-
 
   private paraResposta(registro: AgendamentoBanco): Agendamento {
     return {

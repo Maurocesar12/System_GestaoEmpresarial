@@ -9,6 +9,7 @@ import {
   type Paginado,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
+import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
 import { AcoesAgendamento } from './acoes-agendamento';
 
 export const metadata: Metadata = {
@@ -99,7 +100,7 @@ export default async function PaginaAgenda({ searchParams }: Props) {
           {porDia.map(({ dia, itens }) => (
             <section key={dia} className="flex flex-col gap-2">
               <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                {formatarDia(dia)}
+                {formatarDiaAgenda(dia)}
               </h2>
 
               <ul className="flex flex-col rounded-lg border">
@@ -194,39 +195,4 @@ function agruparPorDia(agendamentos: Agendamento[]): { dia: string; itens: Agend
   }
 
   return [...grupos.entries()].map(([dia, itens]) => ({ dia, itens }));
-}
-
-/**
- * Nomeia o dia em vez de só datá-lo.
- *
- * "Hoje" e "Amanhã" são o que a pessoa procura ao abrir a agenda; uma data
- * exige traduzir mentalmente para saber se é isso.
- */
-function formatarDia(iso: string): string {
-  const hoje = new Date();
-  const amanha = new Date(hoje);
-  amanha.setDate(hoje.getDate() + 1);
-
-  const paraISO = (data: Date) =>
-    `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(
-      data.getDate(),
-    ).padStart(2, '0')}`;
-
-  if (iso === paraISO(hoje)) return 'Hoje';
-  if (iso === paraISO(amanha)) return 'Amanhã';
-
-  const [ano, mes, dia] = iso.split('-').map(Number);
-  // Construído por componentes, e não por `new Date(iso)`, que interpretaria a
-  // string como UTC e voltaria um dia no fuso do Brasil.
-  const data = new Date(ano!, mes! - 1, dia!);
-
-  return data.toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-  });
-}
-
-function formatarHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }

@@ -10,13 +10,10 @@ import {
   type Lancamento,
   type LancamentoFormInput,
 } from '@gestao/shared-types';
-import { ApiRequestError } from '@/lib/api';
+import { erroDeValidacao, primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export interface ResultadoAcao {
-  erro?: string;
-  campos?: Record<string, string[]>;
-}
+export type { ResultadoAcao } from '@/lib/acoes';
 
 export async function salvarLancamento(
   id: string | null,
@@ -25,7 +22,7 @@ export async function salvarLancamento(
   const validacao = lancamentoFormSchema.safeParse(dados);
 
   if (!validacao.success) {
-    return { erro: 'Confira os dados informados.', campos: agruparErros(validacao.error.issues) };
+    return erroDeValidacao(validacao.error.issues);
   }
 
   try {
@@ -34,7 +31,7 @@ export async function salvarLancamento(
       { method: id ? 'PATCH' : 'POST', body: JSON.stringify(validacao.data) },
     );
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   // Todo relatório do financeiro deriva dos lançamentos: um valor novo muda o
@@ -47,7 +44,7 @@ export async function removerLancamento(id: string): Promise<ResultadoAcao> {
   try {
     await apiComSessao<void>(`/financeiro/lancamentos/${id}`, { method: 'DELETE' });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidatePath('/painel/financeiro', 'layout');
@@ -58,7 +55,7 @@ export async function criarCategoria(dados: CategoriaFormInput): Promise<Resulta
   const validacao = categoriaFormSchema.safeParse(dados);
 
   if (!validacao.success) {
-    return { erro: validacao.error.issues[0]?.message ?? 'Dados inválidos.' };
+    return primeiroErro(validacao.error.issues);
   }
 
   try {
@@ -67,7 +64,7 @@ export async function criarCategoria(dados: CategoriaFormInput): Promise<Resulta
       body: JSON.stringify(validacao.data),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidatePath('/painel/financeiro', 'layout');
@@ -79,28 +76,9 @@ export async function removerCategoria(id: string): Promise<ResultadoAcao> {
     await apiComSessao<void>(`/financeiro/categorias/${id}`, { method: 'DELETE' });
   } catch (erro) {
     // A API recusa categoria em uso e diz quantos lançamentos dependem dela.
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidatePath('/painel/financeiro', 'layout');
   return {};
-}
-
-function traduzirErro(erro: unknown): ResultadoAcao {
-  if (erro instanceof ApiRequestError) {
-    return { erro: erro.erro.mensagem, campos: erro.erro.detalhes };
-  }
-
-  return { erro: 'Não foi possível completar a ação. Tente novamente.' };
-}
-
-function agruparErros(issues: { path: PropertyKey[]; message: string }[]) {
-  const campos: Record<string, string[]> = {};
-
-  for (const issue of issues) {
-    const campo = issue.path.join('.') || '_';
-    (campos[campo] ??= []).push(issue.message);
-  }
-
-  return campos;
 }

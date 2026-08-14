@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
+import { formatarDataCompleta } from '@/lib/formatacao';
 import { registrarAtendimento, removerAtendimento } from './acoes-atendimento';
 
 /**
@@ -124,7 +125,7 @@ export function Atendimentos({
                   dateTime={atendimento.data}
                   className="text-muted-foreground text-xs tabular-nums"
                 >
-                  {formatarData(atendimento.data)}
+                  {formatarDataCompleta(atendimento.data)}
                 </time>
               </div>
 
@@ -150,15 +151,4 @@ function BotaoExcluir({ clienteId, atendimentoId }: { clienteId: string; atendim
       Excluir
     </button>
   );
-}
-
-/**
- * Formata a data sem passar por `new Date(string)`.
- *
- * `new Date('2026-08-13')` é interpretado como UTC e, no fuso do Brasil,
- * exibiria 12/08 — um dia a menos do que a pessoa registrou.
- */
-function formatarData(iso: string): string {
-  const [ano, mes, dia] = iso.split('-');
-  return `${dia}/${mes}/${ano}`;
 }

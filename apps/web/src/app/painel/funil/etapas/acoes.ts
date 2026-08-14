@@ -7,18 +7,16 @@ import {
   type EtapaFormInput,
   type EtapaFunil,
 } from '@gestao/shared-types';
-import { ApiRequestError } from '@/lib/api';
+import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export interface ResultadoAcao {
-  erro?: string;
-}
+export type { ResultadoAcao } from '@/lib/acoes';
 
 export async function criarEtapa(dados: EtapaFormInput): Promise<ResultadoAcao> {
   const validacao = etapaFormSchema.safeParse(dados);
 
   if (!validacao.success) {
-    return { erro: validacao.error.issues[0]?.message ?? 'Dados inválidos.' };
+    return primeiroErro(validacao.error.issues);
   }
 
   try {
@@ -27,7 +25,7 @@ export async function criarEtapa(dados: EtapaFormInput): Promise<ResultadoAcao> 
       body: JSON.stringify(validacao.data),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidar();
@@ -38,7 +36,7 @@ export async function renomearEtapa(id: string, nome: string): Promise<Resultado
   const validacao = etapaFormSchema.safeParse({ nome });
 
   if (!validacao.success) {
-    return { erro: validacao.error.issues[0]?.message ?? 'Dados inválidos.' };
+    return primeiroErro(validacao.error.issues);
   }
 
   try {
@@ -47,7 +45,7 @@ export async function renomearEtapa(id: string, nome: string): Promise<Resultado
       body: JSON.stringify(validacao.data),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidar();
@@ -60,7 +58,7 @@ export async function excluirEtapa(id: string): Promise<ResultadoAcao> {
   } catch (erro) {
     // A API recusa etapa com clientes dentro, e a mensagem dela diz quantos
     // são — bem mais útil que um "não foi possível excluir".
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidar();
@@ -71,7 +69,7 @@ export async function reordenarEtapas(etapaIds: string[]): Promise<ResultadoAcao
   const validacao = reordenarEtapasSchema.safeParse({ etapaIds });
 
   if (!validacao.success) {
-    return { erro: validacao.error.issues[0]?.message ?? 'Ordem inválida.' };
+    return primeiroErro(validacao.error.issues, 'Ordem inválida.');
   }
 
   try {
@@ -80,7 +78,7 @@ export async function reordenarEtapas(etapaIds: string[]): Promise<ResultadoAcao
       body: JSON.stringify(validacao.data),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro);
   }
 
   revalidar();
@@ -96,12 +94,4 @@ export async function reordenarEtapas(etapaIds: string[]): Promise<ResultadoAcao
 function revalidar(): void {
   revalidatePath('/painel/funil');
   revalidatePath('/painel/funil/etapas');
-}
-
-function traduzirErro(erro: unknown): ResultadoAcao {
-  if (erro instanceof ApiRequestError) {
-    return { erro: erro.erro.mensagem };
-  }
-
-  return { erro: 'Não foi possível completar a ação. Tente novamente.' };
 }

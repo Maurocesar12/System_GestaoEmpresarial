@@ -2,12 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import type { MoverClienteInput } from '@gestao/shared-types';
-import { ApiRequestError } from '@/lib/api';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export interface ResultadoAcao {
-  erro?: string;
-}
+export type { ResultadoAcao } from '@/lib/acoes';
 
 /**
  * Move um cliente de etapa.
@@ -23,7 +21,7 @@ export async function moverCliente(dados: MoverClienteInput): Promise<ResultadoA
       body: JSON.stringify(dados),
     });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro, 'Não foi possível mover o cliente. Tente novamente.');
   }
 
   revalidatePath('/painel/funil');
@@ -34,17 +32,9 @@ export async function removerDoFunil(clienteId: string): Promise<ResultadoAcao> 
   try {
     await apiComSessao<void>(`/funil/clientes/${clienteId}`, { method: 'DELETE' });
   } catch (erro) {
-    return traduzirErro(erro);
+    return traduzirErroAcao(erro, 'Não foi possível mover o cliente. Tente novamente.');
   }
 
   revalidatePath('/painel/funil');
   return {};
-}
-
-function traduzirErro(erro: unknown): ResultadoAcao {
-  if (erro instanceof ApiRequestError) {
-    return { erro: erro.erro.mensagem };
-  }
-
-  return { erro: 'Não foi possível mover o cliente. Tente novamente.' };
 }
