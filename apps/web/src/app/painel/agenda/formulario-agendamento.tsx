@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
+import { paraCampoDatetimeLocal, proximaHoraCheia } from '@/lib/formatacao';
 import { salvarAgendamento, type ResultadoAcao } from './acoes';
 
 const CAMPOS = ['clienteId', 'servicoId', 'dataHora', 'observacoes'] as const;
@@ -45,7 +46,7 @@ export function FormularioAgendamento({
       servicoId: agendamento?.servicoId ?? '',
       // O `<input type="datetime-local">` espera "AAAA-MM-DDTHH:mm" sem fuso.
       // Cortar o ISO em 16 caracteres entrega exatamente esse formato.
-      dataHora: agendamento ? paraCampoLocal(agendamento.dataHora) : proximaHoraCheia(),
+      dataHora: agendamento ? paraCampoDatetimeLocal(agendamento.dataHora) : proximaHoraCheia(),
       observacoes: agendamento?.observacoes ?? '',
     },
   });
@@ -152,31 +153,4 @@ export function FormularioAgendamento({
       </div>
     </form>
   );
-}
-
-/** Converte o ISO da API para o formato do `datetime-local`. */
-function paraCampoLocal(iso: string): string {
-  const data = new Date(iso);
-  const p = (n: number) => String(n).padStart(2, '0');
-
-  return `${data.getFullYear()}-${p(data.getMonth() + 1)}-${p(data.getDate())}T${p(
-    data.getHours(),
-  )}:${p(data.getMinutes())}`;
-}
-
-/**
- * Próxima hora cheia como valor inicial.
- *
- * Um campo de data vazio obriga a pessoa a preencher tudo. Começar na próxima
- * hora cheia acerta a maioria dos casos e deixa o ajuste para quem precisa.
- */
-function proximaHoraCheia(): string {
-  const data = new Date();
-  data.setHours(data.getHours() + 1, 0, 0, 0);
-
-  const p = (n: number) => String(n).padStart(2, '0');
-
-  return `${data.getFullYear()}-${p(data.getMonth() + 1)}-${p(data.getDate())}T${p(
-    data.getHours(),
-  )}:${p(data.getMinutes())}`;
 }

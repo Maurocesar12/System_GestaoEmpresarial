@@ -23,6 +23,7 @@ const MENU: readonly ItemMenu[] = [
   { href: '/painel/funil', rotulo: 'Funil', papeis: ['admin', 'atendente', 'tecnico'] },
   { href: '/painel/orcamentos', rotulo: 'Orçamentos', papeis: ['admin', 'atendente', 'tecnico'] },
   { href: '/painel/agenda', rotulo: 'Agenda', papeis: ['admin', 'atendente', 'tecnico'] },
+  { href: '/painel/lembretes', rotulo: 'Lembretes', papeis: ['admin', 'atendente', 'tecnico'] },
   {
     href: '/painel/servicos',
     rotulo: 'Serviços',

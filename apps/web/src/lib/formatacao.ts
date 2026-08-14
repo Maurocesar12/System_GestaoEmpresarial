@@ -21,6 +21,19 @@ export function formatarHora(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+export function paraCampoDatetimeLocal(iso: string): string {
+  const data = new Date(iso);
+  return `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(
+    data.getDate(),
+  )}T${doisDigitos(data.getHours())}:${doisDigitos(data.getMinutes())}`;
+}
+
+export function proximaHoraCheia(): string {
+  const data = new Date();
+  data.setHours(data.getHours() + 1, 0, 0, 0);
+  return paraCampoDatetimeLocal(data.toISOString());
+}
+
 export function formatarDataLonga(iso: string): string {
   return dataLocalDeISO(iso).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -50,7 +63,9 @@ function dataLocalDeISO(iso: string): Date {
 }
 
 function paraISO(data: Date): string {
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(
-    data.getDate(),
-  ).padStart(2, '0')}`;
+  return `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(data.getDate())}`;
+}
+
+function doisDigitos(valor: number): string {
+  return String(valor).padStart(2, '0');
 }
