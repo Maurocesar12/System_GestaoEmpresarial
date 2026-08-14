@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { CODIGOS_ERRO } from '@gestao/shared-types';
 import { AppModule } from '../../../app.module';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 
@@ -19,12 +20,15 @@ describe('clientes (HTTP)', () => {
 
   const marca = randomUUID().slice(0, 8);
   const tenantsCriados: string[] = [];
+  const planosCriados: string[] = [];
 
   /** Sessões de duas empresas diferentes, para os testes de isolamento. */
   let tokenA: string;
   let tokenB: string;
 
-  async function criarEmpresa(sufixo: string): Promise<string> {
+  async function cadastrarEmpresa(
+    sufixo: string,
+  ): Promise<{ accessToken: string; tenantId: string }> {
     const { body } = await request(app.getHttpServer())
       .post('/api/onboarding/cadastro')
       .send({
@@ -36,7 +40,12 @@ describe('clientes (HTTP)', () => {
       .expect(201);
 
     tenantsCriados.push(body.usuario.tenantId);
-    return body.accessToken;
+    return { accessToken: body.accessToken, tenantId: body.usuario.tenantId };
+  }
+
+  async function criarEmpresa(sufixo: string): Promise<string> {
+    const empresa = await cadastrarEmpresa(sufixo);
+    return empresa.accessToken;
   }
 
   beforeAll(async () => {
@@ -67,6 +76,8 @@ describe('clientes (HTTP)', () => {
         tx.tenant.deleteMany({ where: { id: tenantId } }),
       );
     }
+
+    await prisma.plano.deleteMany({ where: { slug: { in: planosCriados } } });
     await app.close();
   });
 
@@ -125,6 +136,34 @@ describe('clientes (HTTP)', () => {
         .post('/api/clientes')
         .send({ nome: 'Cliente Teste', telefone: '123' })
         .expect(400);
+    });
+
+    it('recusa novo cliente quando o plano atingiu o limite', async () => {
+      const { accessToken, tenantId } = await cadastrarEmpresa('empresa-limite-clientes');
+      const slug = `limite-clientes-${marca}`;
+      planosCriados.push(slug);
+
+      const plano = await prisma.plano.upsert({
+        where: { slug },
+        create: {
+          nome: 'Plano com limite zero',
+          slug,
+          preco: '0.00',
+          limiteClientes: 0,
+        },
+        update: { limiteClientes: 0 },
+      });
+
+      await prisma.comTenantExplicito(tenantId, (tx) =>
+        tx.tenant.update({ where: { id: tenantId }, data: { planoId: plano.id } }),
+      );
+
+      const resposta = await comToken(accessToken)
+        .post('/api/clientes')
+        .send({ nome: 'Cliente Bloqueado' })
+        .expect(403);
+
+      expect(resposta.body.codigo).toBe(CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO);
     });
 
     it('atualiza os dados de um cliente', async () => {

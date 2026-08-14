@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -8,7 +8,7 @@ import {
   type Paginado,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
-import { PrismaService } from '../../../infra/prisma/prisma.service';
+import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
 import { FunilService } from '../funil/funil.service';
@@ -91,6 +91,8 @@ export class ClientesService {
 
   async criar(dados: ClienteFormInput): Promise<Cliente> {
     const { cliente, etapa } = await this.prisma.comTenant(async (tx) => {
+      await this.garantirLimiteClientes(tx);
+
       const criado = await tx.cliente.create({
         data: { id: uuidv7(), tenantId: tenantAtual(), ...dados },
       });
@@ -140,9 +142,7 @@ export class ClientesService {
     // `deleteMany` em vez de `delete`: a RLS já garante o escopo, e assim uma
     // corrida (dois pedidos de exclusão ao mesmo tempo) não vira erro 500.
     // Contar o resultado dispensa a consulta prévia de existência.
-    const { count } = await this.prisma.comTenant((tx) =>
-      tx.cliente.deleteMany({ where: { id } }),
-    );
+    const { count } = await this.prisma.comTenant((tx) => tx.cliente.deleteMany({ where: { id } }));
 
     if (count === 0) {
       throw new NotFoundException({
@@ -178,6 +178,42 @@ export class ClientesService {
     }
 
     return where;
+  }
+
+  private async garantirLimiteClientes(tx: TransacaoComTenant): Promise<void> {
+    const tenantId = tenantAtual();
+
+    // Serializa criações concorrentes do mesmo tenant: sem o lock, duas
+    // requisições simultâneas poderiam contar "499" e ambas criar o cliente
+    // número 500/501.
+    await tx.$executeRaw`SELECT id FROM tenant WHERE id = ${tenantId}::uuid FOR UPDATE`;
+
+    const tenant = await tx.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plano: { select: { limiteClientes: true, nome: true } } },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Empresa não encontrada.',
+      });
+    }
+
+    const limite = tenant.plano.limiteClientes;
+
+    if (limite === null) {
+      return;
+    }
+
+    const total = await tx.cliente.count();
+
+    if (total >= limite) {
+      throw new ForbiddenException({
+        codigo: CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO,
+        mensagem: `O plano ${tenant.plano.nome} permite até ${limite} cliente(s). Faça upgrade para cadastrar mais.`,
+      });
+    }
   }
 
   /**
