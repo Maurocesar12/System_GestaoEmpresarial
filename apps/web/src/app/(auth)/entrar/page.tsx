@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { FormularioLogin } from './formulario-login';
 
 export const metadata: Metadata = {
-  title: 'Entrar — Gestão Empresarial',
+  title: 'Entrar',
 };
 
 export default function PaginaEntrar() {

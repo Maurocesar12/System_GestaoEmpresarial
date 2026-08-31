@@ -5,7 +5,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { FormularioLembrete } from '../formulario-lembrete';
 
 export const metadata: Metadata = {
-  title: 'Novo lembrete — Gestão Empresarial',
+  title: 'Novo lembrete',
 };
 
 interface Props {

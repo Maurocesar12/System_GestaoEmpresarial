@@ -10,7 +10,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { CampoBusca } from './campo-busca';
 
 export const metadata: Metadata = {
-  title: 'Clientes — Gestão Empresarial',
+  title: 'Clientes',
 };
 
 interface Props {

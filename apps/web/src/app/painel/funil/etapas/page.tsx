@@ -5,7 +5,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { GerenciadorEtapas } from './gerenciador';
 
 export const metadata: Metadata = {
-  title: 'Etapas do funil — Gestão Empresarial',
+  title: 'Etapas do funil',
 };
 
 /**

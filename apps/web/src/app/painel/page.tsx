@@ -17,7 +17,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
 
 export const metadata: Metadata = {
-  title: 'Painel — Gestão Empresarial',
+  title: 'Painel',
 };
 
 /** Dias parado numa etapa a partir do qual a negociação merece atenção. */

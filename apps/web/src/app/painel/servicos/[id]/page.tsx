@@ -6,7 +6,7 @@ import { FormularioServico } from '../formulario-servico';
 import { BotaoDesativar } from './botao-desativar';
 
 export const metadata: Metadata = {
-  title: 'Serviço — Gestão Empresarial',
+  title: 'Serviço',
 };
 
 interface Props {

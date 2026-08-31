@@ -13,7 +13,7 @@ import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
 import { AcoesAgendamento } from './acoes-agendamento';
 
 export const metadata: Metadata = {
-  title: 'Agenda — Gestão Empresarial',
+  title: 'Agenda',
 };
 
 interface Props {

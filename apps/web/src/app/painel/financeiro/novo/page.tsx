@@ -4,7 +4,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { FormularioLancamento } from '../formulario-lancamento';
 
 export const metadata: Metadata = {
-  title: 'Novo lançamento — Gestão Empresarial',
+  title: 'Novo lançamento',
 };
 
 export default async function PaginaNovoLancamento() {

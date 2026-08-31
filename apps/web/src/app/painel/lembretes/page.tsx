@@ -13,7 +13,7 @@ import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
 import { AcoesLembrete } from './acoes-lembrete';
 
 export const metadata: Metadata = {
-  title: 'Lembretes — Gestão Empresarial',
+  title: 'Lembretes',
 };
 
 interface Props {

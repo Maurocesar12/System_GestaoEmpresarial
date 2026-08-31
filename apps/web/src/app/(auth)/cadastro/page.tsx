@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { FormularioCadastro } from './formulario-cadastro';
 
 export const metadata: Metadata = {
-  title: 'Cadastrar empresa — Gestão Empresarial',
+  title: 'Cadastrar empresa',
 };
 
 export default function PaginaCadastro() {

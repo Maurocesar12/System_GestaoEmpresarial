@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { FormularioServico } from '../formulario-servico';
 
 export const metadata: Metadata = {
-  title: 'Novo serviço — Gestão Empresarial',
+  title: 'Novo serviço',
 };
 
 export default function PaginaNovoServico() {

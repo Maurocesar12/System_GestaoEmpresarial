@@ -4,7 +4,7 @@ import { formatarBRL, margemPercentual, type Paginado, type Servico } from '@ges
 import { apiComSessao } from '@/lib/api-servidor';
 
 export const metadata: Metadata = {
-  title: 'Serviços — Gestão Empresarial',
+  title: 'Serviços',
 };
 
 export default async function PaginaServicos() {

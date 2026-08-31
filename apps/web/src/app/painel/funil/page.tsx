@@ -5,7 +5,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { Quadro } from './quadro';
 
 export const metadata: Metadata = {
-  title: 'Funil — Gestão Empresarial',
+  title: 'Funil',
 };
 
 export default async function PaginaFunil() {

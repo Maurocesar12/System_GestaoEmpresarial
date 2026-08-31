@@ -13,7 +13,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { AcoesStatus } from './acoes-status';
 
 export const metadata: Metadata = {
-  title: 'Orçamentos — Gestão Empresarial',
+  title: 'Orçamentos',
 };
 
 interface Props {

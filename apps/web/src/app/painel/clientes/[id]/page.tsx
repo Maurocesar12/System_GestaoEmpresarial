@@ -24,7 +24,7 @@ import { BotaoRemover } from './botao-remover';
 import { EntrarNoFunil } from './entrar-no-funil';
 
 export const metadata: Metadata = {
-  title: 'Cliente — Gestão Empresarial',
+  title: 'Cliente',
 };
 
 interface Props {

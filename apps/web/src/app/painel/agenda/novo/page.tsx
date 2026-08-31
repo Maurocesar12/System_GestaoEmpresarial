@@ -5,7 +5,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { FormularioAgendamento } from '../formulario-agendamento';
 
 export const metadata: Metadata = {
-  title: 'Novo agendamento — Gestão Empresarial',
+  title: 'Novo agendamento',
 };
 
 interface Props {

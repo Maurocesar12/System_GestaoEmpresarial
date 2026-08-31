@@ -12,7 +12,7 @@ import { FormularioLancamento } from '../formulario-lancamento';
 import { BotaoRemoverLancamento } from './botao-remover';
 
 export const metadata: Metadata = {
-  title: 'Lançamento — Gestão Empresarial',
+  title: 'Lançamento',
 };
 
 interface Props {

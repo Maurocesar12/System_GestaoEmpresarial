@@ -5,7 +5,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { FormularioOrcamento } from '../formulario-orcamento';
 
 export const metadata: Metadata = {
-  title: 'Novo orçamento — Gestão Empresarial',
+  title: 'Novo orçamento',
 };
 
 interface Props {

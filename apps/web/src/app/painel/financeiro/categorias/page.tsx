@@ -5,7 +5,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { GerenciadorCategorias } from './gerenciador';
 
 export const metadata: Metadata = {
-  title: 'Categorias — Gestão Empresarial',
+  title: 'Categorias',
 };
 
 export default async function PaginaCategorias() {

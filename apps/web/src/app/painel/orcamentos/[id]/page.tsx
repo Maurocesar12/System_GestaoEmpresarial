@@ -14,7 +14,7 @@ import { AcoesStatus } from '../acoes-status';
 import { FormularioOrcamento } from '../formulario-orcamento';
 
 export const metadata: Metadata = {
-  title: 'Orçamento — Gestão Empresarial',
+  title: 'Orçamento',
 };
 
 interface Props {

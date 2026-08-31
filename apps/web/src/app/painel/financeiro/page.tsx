@@ -14,7 +14,7 @@ import { apiComSessao } from '@/lib/api-servidor';
 import { formatarDataCurta, formatarPeriodo } from '@/lib/formatacao';
 
 export const metadata: Metadata = {
-  title: 'Financeiro — Gestão Empresarial',
+  title: 'Financeiro',
 };
 
 interface Props {

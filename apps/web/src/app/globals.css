@@ -4,13 +4,22 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  Tokens de tema no padrão shadcn/ui (Tailwind v4).
-  Alterar cor de marca aqui reflete em todo componente — nunca hardcode cor
-  dentro de componente.
+  Sistema visual do produto.
+
+  Regra que vale para o projeto inteiro: cor, raio e sombra saem daqui, nunca
+  de dentro de um componente. Trocar a cor de marca deve ser uma linha alterada
+  neste arquivo, e não uma busca por hexadecimal espalhado pelo código.
+
+  As cores estão em OKLCH, e não em HEX, porque a escala é perceptual: dois
+  tons com a mesma clareza (o primeiro número) parecem igualmente claros ao
+  olho. É isso que permite montar variação de estado — hover, ativo,
+  desabilitado — mexendo em um valor só, sem a cor "pular" de intensidade.
 */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-superficie: var(--superficie);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -28,63 +37,214 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Cores de significado — usadas em selos de status e avisos. */
+  --color-sucesso: var(--sucesso);
+  --color-sucesso-suave: var(--sucesso-suave);
+  --color-atencao: var(--atencao);
+  --color-atencao-suave: var(--atencao-suave);
+  --color-info: var(--info);
+  --color-info-suave: var(--info-suave);
+  --color-destrutivo-suave: var(--destrutivo-suave);
+
+  /* Série de gráficos, na ordem em que deve ser consumida. */
+  --color-grafico-1: var(--grafico-1);
+  --color-grafico-2: var(--grafico-2);
+  --color-grafico-3: var(--grafico-3);
+  --color-grafico-4: var(--grafico-4);
+  --color-grafico-5: var(--grafico-5);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--fonte-sans);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  /*
+    Raio menor que o padrão do shadcn (0.625rem). Canto muito arredondado passa
+    sensação de aplicativo de consumo; este é um sistema de trabalho, onde o
+    usuário passa horas lendo tabela e formulário.
+  */
+  --radius: 0.5rem;
+
+  /*
+    O fundo não é branco puro, e o cartão é. Essa diferença de um passo é o que
+    cria camada: o conteúdo "sobe" sem precisar de sombra pesada. Sombra forte
+    em interface densa cansa a vista e envelhece rápido.
+  */
+  --background: oklch(0.983 0.002 250);
+  --superficie: oklch(0.968 0.003 250);
+  --foreground: oklch(0.21 0.021 260);
+
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
+  --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --popover-foreground: var(--foreground);
+
+  /*
+    Marca: um azul-petróleo. A escolha é deliberada — o índigo e o violeta
+    viraram assinatura de template pronto, e o azul corporativo puro é
+    indistinguível de qualquer concorrente. Este tom tem verde suficiente para
+    conversar com dinheiro e resultado sem virar "verde de banco".
+
+    Usado com parcimônia: ação principal, item de menu ativo e anel de foco.
+    Cor que aparece em tudo deixa de destacar qualquer coisa.
+  */
+  --primary: oklch(0.47 0.083 205);
+  --primary-foreground: oklch(0.99 0.002 250);
+
+  --secondary: oklch(0.968 0.003 250);
+  --secondary-foreground: var(--foreground);
+
+  --muted: oklch(0.968 0.003 250);
+  /*
+    Contraste de 4.6:1 sobre o fundo. Texto secundário costuma ser clareado até
+    ficar bonito e ilegível; este é o ponto em que ainda passa na WCAG AA.
+  */
+  --muted-foreground: oklch(0.508 0.019 258);
+
+  --accent: oklch(0.958 0.004 250);
+  --accent-foreground: var(--foreground);
+
+  --border: oklch(0.918 0.005 255);
+  --input: oklch(0.895 0.006 255);
+  --ring: var(--primary);
+
+  --destructive: oklch(0.553 0.209 27.3);
+  --destructive-foreground: oklch(0.99 0.002 250);
+  --destrutivo-suave: oklch(0.958 0.026 27.3);
+
+  --sucesso: oklch(0.508 0.114 158);
+  --sucesso-suave: oklch(0.955 0.032 158);
+  --atencao: oklch(0.55 0.115 65);
+  --atencao-suave: oklch(0.96 0.042 78);
+  --info: oklch(0.52 0.106 245);
+  --info-suave: oklch(0.955 0.025 245);
+
+  /*
+    Série de gráficos. Começa na marca e se afasta em matiz a cada passo, para
+    as fatias continuarem distinguíveis lado a lado — inclusive para quem tem
+    daltonismo, já que a clareza também varia entre elas.
+  */
+  --grafico-1: oklch(0.47 0.083 205);
+  --grafico-2: oklch(0.63 0.115 155);
+  --grafico-3: oklch(0.7 0.13 75);
+  --grafico-4: oklch(0.55 0.115 285);
+  --grafico-5: oklch(0.62 0.14 20);
+
+  /*
+    Sombras curtas e de baixa opacidade. A elevação vem principalmente da borda
+    fina; a sombra só reforça.
+  */
+  --sombra-sutil: 0 1px 2px 0 oklch(0.21 0.021 260 / 0.05);
+  --sombra-media:
+    0 4px 12px -2px oklch(0.21 0.021 260 / 0.08), 0 2px 4px -2px oklch(0.21 0.021 260 / 0.04);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
+  /*
+    O escuro não é o claro invertido. Preto puro com texto branco vibra e
+    cansa: o fundo aqui é um cinza-azulado profundo, e as camadas sobem em vez
+    de descer — o cartão é mais claro que o fundo, como no mundo físico.
+  */
+  --background: oklch(0.168 0.014 258);
+  --superficie: oklch(0.148 0.014 258);
+  --foreground: oklch(0.968 0.004 250);
+
+  --card: oklch(0.208 0.016 258);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.208 0.016 258);
+  --popover-foreground: var(--foreground);
+
+  /*
+    A marca clareia no escuro. O tom do tema claro tem clareza 0.47 e ficaria
+    quase invisível sobre fundo escuro — cor de marca precisa de leitura, não
+    de fidelidade ao valor original.
+  */
+  --primary: oklch(0.72 0.094 197);
+  --primary-foreground: oklch(0.168 0.014 258);
+
+  --secondary: oklch(0.262 0.018 258);
+  --secondary-foreground: var(--foreground);
+
+  --muted: oklch(0.262 0.018 258);
+  --muted-foreground: oklch(0.706 0.018 256);
+
+  --accent: oklch(0.272 0.019 258);
+  --accent-foreground: var(--foreground);
+
+  /* Borda por transparência: acompanha a camada em que estiver apoiada. */
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
+  --input: oklch(1 0 0 / 16%);
+  --ring: var(--primary);
+
+  --destructive: oklch(0.68 0.176 25);
+  --destructive-foreground: oklch(0.168 0.014 258);
+  --destrutivo-suave: oklch(0.32 0.075 25);
+
+  --sucesso: oklch(0.72 0.128 158);
+  --sucesso-suave: oklch(0.29 0.055 158);
+  --atencao: oklch(0.79 0.132 78);
+  --atencao-suave: oklch(0.32 0.058 68);
+  --info: oklch(0.72 0.109 245);
+  --info-suave: oklch(0.3 0.058 245);
+
+  --grafico-1: oklch(0.72 0.094 197);
+  --grafico-2: oklch(0.74 0.115 155);
+  --grafico-3: oklch(0.8 0.125 75);
+  --grafico-4: oklch(0.7 0.115 285);
+  --grafico-5: oklch(0.72 0.13 20);
+
+  --sombra-sutil: 0 1px 2px 0 oklch(0 0 0 / 0.3);
+  --sombra-media: 0 4px 12px -2px oklch(0 0 0 / 0.4), 0 2px 4px -2px oklch(0 0 0 / 0.3);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
+    /*
+      Ligaduras e formas alternativas desligadas: em interface de sistema elas
+      atrapalham a leitura de código de documento e de identificador.
+    */
+    font-feature-settings:
+      'liga' 1,
+      'calt' 1;
+  }
+
+  /*
+    Todo número que o usuário compara em coluna — valor, data, quantidade —
+    precisa de dígito de largura fixa, senão a coluna "dança" entre as linhas.
+    Aplicado por utilitário nas tabelas; aqui fica o padrão para moeda.
+  */
+  .numerico {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+    Um único estilo de foco no sistema inteiro, visível nos dois temas. Foco é
+    acessibilidade, não detalhe estético: quem navega por teclado depende dele
+    para saber onde está.
+  */
+  :focus-visible {
+    @apply ring-ring ring-offset-background outline-none ring-2 ring-offset-2;
+  }
+
+  /* Respeita quem pediu menos movimento no sistema operacional. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

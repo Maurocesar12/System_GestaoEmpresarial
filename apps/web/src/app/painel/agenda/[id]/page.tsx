@@ -14,7 +14,7 @@ import { AcoesAgendamento } from '../acoes-agendamento';
 import { FormularioAgendamento } from '../formulario-agendamento';
 
 export const metadata: Metadata = {
-  title: 'Agendamento — Gestão Empresarial',
+  title: 'Agendamento',
 };
 
 interface Props {
