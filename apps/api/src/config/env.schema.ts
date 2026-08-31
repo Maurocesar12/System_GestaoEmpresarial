@@ -62,6 +62,25 @@ export const envSchema = z.object({
   /** Redis do BullMQ (Upstash). Obrigatório quando a fila de lembretes entrar. */
   REDIS_URL: z.string().optional(),
 
+  /**
+   * Servidor SMTP usado para enviar e-mail transacional, no formato
+   * `smtp://usuario:senha@host:587` (ou `smtps://` para TLS na conexão).
+   *
+   * Opcional de propósito. Quando está vazia, a API troca o envio real por um
+   * envio de mentira que só escreve a mensagem no log — assim o fluxo inteiro
+   * roda em desenvolvimento sem exigir uma conta de e-mail de verdade, e
+   * ninguém dispara mensagem para cliente real durante um teste manual.
+   */
+  SMTP_URL: z.string().optional(),
+
+  /**
+   * Remetente das mensagens, no formato `Nome <endereco@dominio>`.
+   *
+   * Precisa ser um endereço do domínio verificado no provedor de e-mail: um
+   * remetente que não confere é o motivo mais comum de a mensagem cair em spam.
+   */
+  EMAIL_REMETENTE: z.string().default('Gestão Empresarial <nao-responda@localhost>'),
+
   /** Rate limit global: janela em milissegundos e teto de requisições. */
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),

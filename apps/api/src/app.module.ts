@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PapeisGuard } from './common/guards/papeis.guard';
 import { validateEnv, type Env } from './config/env.schema';
+import { NotificacoesModule } from './infra/notificacoes/notificacoes.module';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { TenantMiddleware } from './infra/tenant/tenant.middleware';
 import { AuthModule } from './modules/auth/auth.module';
@@ -51,6 +52,10 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     }),
 
     PrismaModule,
+    // Registrado desde já para que a escolha entre envio real e envio simulado
+    // aconteça na subida da aplicação: um SMTP mal configurado aparece no log
+    // do boot, e não no primeiro lembrete que deixar de sair.
+    NotificacoesModule,
     AuthModule,
     OnboardingModule,
     ClientesModule,
