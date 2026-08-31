@@ -36,7 +36,12 @@ export async function apiComSessao<T>(caminho: string, init: RequestInit = {}): 
     });
   } catch (erro) {
     if (erro instanceof ApiRequestError && erro.status === 401) {
-      redirect('/entrar');
+      // Para `/sair`, e não direto para `/entrar`. O cookie ainda existe neste
+      // ponto — a API é que recusou o token (usuário removido, segredo trocado,
+      // sessão revogada). Mandar para `/entrar` com o cookie no lugar faria o
+      // `proxy.ts` devolver para `/painel`, que recusaria de novo: laço infinito.
+      // A rota `/sair` apaga os cookies antes de encaminhar.
+      redirect('/sair');
     }
     throw erro;
   }

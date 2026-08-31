@@ -84,3 +84,37 @@ export const dinheiroDigitadoSchema = z
   .trim()
   .transform(normalizarDinheiro)
   .pipe(dinheiroSchema);
+
+/**
+ * Converte para centavos inteiros.
+ *
+ * O `Decimal(14,2)` do banco cabe em 99999999999999 centavos, bem abaixo do
+ * inteiro seguro do JavaScript (9.007.199.254.740.991) — não há risco de perder
+ * precisão no caminho.
+ */
+function paraCentavos(valor: Dinheiro): number {
+  const negativo = valor.startsWith('-');
+  const [inteiros = '0', decimais = ''] = valor.replace('-', '').split('.');
+  const centavos = Number(inteiros) * 100 + Number(decimais.padEnd(2, '0').slice(0, 2));
+
+  return negativo ? -centavos : centavos;
+}
+
+/**
+ * Soma valores monetários sem passar por ponto flutuante.
+ *
+ * `0.1 + 0.2` em ponto flutuante dá `0.30000000000000004`. Num total de coluna
+ * do funil, com dezenas de propostas somadas, esse resíduo chega à tela como
+ * centavo a mais ou a menos — e o usuário confere na calculadora.
+ *
+ * A soma acontece em centavos inteiros, onde a aritmética é exata, e só depois
+ * volta para o formato decimal.
+ */
+export function somarDinheiro(valores: Dinheiro[]): Dinheiro {
+  const total = valores.reduce((soma, valor) => soma + paraCentavos(valor), 0);
+
+  const sinal = total < 0 ? '-' : '';
+  const absoluto = Math.abs(total);
+
+  return `${sinal}${Math.floor(absoluto / 100)}.${String(absoluto % 100).padStart(2, '0')}`;
+}
