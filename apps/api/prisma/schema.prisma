@@ -472,6 +472,10 @@ model LembreteFollowUp {
   /// que mantém essa varredura barata conforme a tabela cresce.
   @@index([tenantId, status, dataEnvio])
   @@index([tenantId, clienteId])
+  /// Sem `tenant_id` na frente, de propósito: a varredura do agendador procura
+  /// vencidos de **todas** as empresas de uma vez, e o índice acima só serve a
+  /// buscas que já sabem o tenant. Ver a migration `lembrete_varredura`.
+  @@index([status, dataEnvio])
   @@map("lembrete_follow_up")
 }
 

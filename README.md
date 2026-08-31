@@ -51,13 +51,15 @@ Já implementado:
 - Orçamentos com status e movimentação automática no funil.
 - Agendamentos com máquina de estados.
 - Lembretes de follow-up manuais.
+- Envio automático dos lembretes por e-mail: varredura agendada, fila BullMQ e
+  worker. Depende de `REDIS_URL`; sem ela os lembretes ficam pendentes.
 - Financeiro com categorias, lançamentos, fluxo de caixa e margem por serviço.
 - Guards por papel: `admin`, `financeiro`, `atendente`, `tecnico`.
 
 Ainda planejado:
 
-- Worker BullMQ para envio automático de lembretes.
-- Notificações por e-mail e WhatsApp utility.
+- Lembrete por WhatsApp utility — depende de conta aprovada na Meta. Hoje o
+  worker marca esses lembretes como falhos, informando o motivo.
 - Billing com Asaas, limites de plano e webhooks.
 - Painel interno administrativo.
 - Marketing beta e formulário embedável.
@@ -301,7 +303,8 @@ Os testes de integração usam `gestao_test` e verificam regras importantes, com
 - CRUDs do CRM;
 - estados de orçamento e agendamento;
 - financeiro e margem por serviço;
-- lembretes de follow-up.
+- lembretes de follow-up;
+- alcance da política de RLS que a varredura de lembretes usa.
 
 ## Deploy
 
@@ -321,7 +324,9 @@ Checklist de produção:
 - Rodar migrations com `pnpm --filter @gestao/api db:deploy`.
 - Nunca usar `CORS_ORIGINS=*`.
 - Usar `JWT_SECRET` forte e diferente do ambiente local.
-- Configurar `REDIS_URL` apenas quando o worker de lembretes estiver ativo.
+- Configurar `REDIS_URL`, ou o envio automático de lembretes fica desligado.
+- Configurar `SMTP_URL` e `EMAIL_REMETENTE`; sem eles os lembretes são apenas
+  registrados no log, e nenhum e-mail chega ao cliente.
 
 ## Documentação
 
