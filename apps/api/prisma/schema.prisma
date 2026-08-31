@@ -514,7 +514,16 @@ model LancamentoFinanceiro {
 
   descricao String   @db.VarChar(180)
   valor     Decimal  @db.Decimal(14, 2)
+  /// Competência: a que dia o fato pertence, independente de quando o dinheiro
+  /// se move.
   data      DateTime @db.Date
+
+  /// Quando o valor é devido. Nulo em lançamento à vista.
+  vencimento DateTime? @db.Date
+
+  /// Quando o dinheiro efetivamente entrou ou saiu. Nulo enquanto está em
+  /// aberto — é este campo, e não `data`, que o fluxo de caixa soma.
+  pagoEm     DateTime? @map("pago_em") @db.Date
 
   categoriaId String?              @map("categoria_id") @db.Uuid
   categoria   CategoriaFinanceira? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
@@ -533,6 +542,12 @@ model LancamentoFinanceiro {
   @@index([tenantId, data])
   @@index([tenantId, tipo, data])
   @@index([tenantId, servicoId])
+  /// Fluxo de caixa e margem passaram a somar por `pago_em`; sem este índice
+  /// eles varreriam a tabela inteira a cada relatório.
+  @@index([tenantId, pagoEm])
+  /// A tela de contas em aberto busca exatamente por isto: o que ainda não foi
+  /// pago, ordenado por vencimento.
+  @@index([tenantId, pagoEm, vencimento])
   @@map("lancamento_financeiro")
 }
 

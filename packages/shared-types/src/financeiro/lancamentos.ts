@@ -61,8 +61,25 @@ export const lancamentoFormSchema = z.object({
   descricao: z.string().trim().min(2, 'Descreva o lançamento').max(180),
   valor: dinheiroDigitadoSchema,
 
-  /** Data do fato, `AAAA-MM-DD`. */
+  /** Data do fato — a competência, `AAAA-MM-DD`. Quando o serviço foi prestado. */
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
+
+  /**
+   * Quando o valor é devido. Vazio significa à vista.
+   *
+   * É o que transforma um lançamento em conta a receber ou a pagar: sem
+   * vencimento não há como dizer que algo está atrasado.
+   */
+  vencimento: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')),
+
+  /**
+   * Quando o dinheiro efetivamente entrou ou saiu. Vazio significa em aberto.
+   *
+   * Separado de `data` de propósito. Um serviço prestado em março e recebido em
+   * maio pertence a março na competência e a maio no caixa — misturar os dois
+   * é o que faz o saldo do mês mentir.
+   */
+  pagoEm: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')),
 
   categoriaId: opcional(z.uuid()),
 
@@ -81,9 +98,55 @@ export const lancamentoFormSchema = z.object({
 export type LancamentoFormInput = z.infer<typeof lancamentoFormSchema>;
 export type LancamentoFormEntrada = z.input<typeof lancamentoFormSchema>;
 
+/**
+ * Situação de pagamento de um lançamento.
+ *
+ * **Derivada, nunca gravada.** Fica de fora de `enums.ts` — que espelha os enums
+ * do Prisma — porque não existe coluna correspondente no banco. O motivo é
+ * simples: "atrasado" depende de que dia é hoje. Uma coluna com esse valor
+ * estaria errada na manhã seguinte, e alguém teria de sair atualizando linhas
+ * todo dia à meia-noite.
+ */
+export const STATUS_LANCAMENTO = ['pago', 'a_vencer', 'atrasado'] as const;
+export const statusLancamentoSchema = z.enum(STATUS_LANCAMENTO);
+export type StatusLancamento = z.infer<typeof statusLancamentoSchema>;
+
+export const ROTULO_STATUS_LANCAMENTO: Record<StatusLancamento, string> = {
+  pago: 'Pago',
+  a_vencer: 'A vencer',
+  atrasado: 'Atrasado',
+};
+
+/**
+ * Calcula a situação a partir das datas.
+ *
+ * Vive no contrato compartilhado para que API e tela cheguem sempre ao mesmo
+ * resultado. Duplicar essa regra nos dois lados é como um lançamento aparece
+ * "atrasado" na lista e "a vencer" no detalhe.
+ *
+ * @param hoje `AAAA-MM-DD`. Recebido em vez de lido do relógio para o cálculo
+ *   ser determinístico — e testável sem congelar o tempo.
+ */
+export function statusDoLancamento(
+  vencimento: string | null,
+  pagoEm: string | null,
+  hoje: string,
+): StatusLancamento {
+  if (pagoEm) return 'pago';
+
+  // Sem vencimento não há prazo a estourar: fica pendente, nunca atrasado.
+  // Comparação de texto basta porque `AAAA-MM-DD` ordena alfabeticamente igual
+  // ao calendário — e evita converter para Date, onde o fuso do servidor
+  // mudaria o dia.
+  if (vencimento && vencimento < hoje) return 'atrasado';
+
+  return 'a_vencer';
+}
+
 export const lancamentosQuerySchema = paginacaoQuerySchema.extend({
   tipo: tipoLancamentoSchema.optional(),
   natureza: naturezaLancamentoSchema.optional(),
+  status: statusLancamentoSchema.optional(),
   categoriaId: z.uuid().optional(),
   servicoId: z.uuid().optional(),
   de: z
@@ -106,6 +169,10 @@ export interface Lancamento {
   /** String decimal — nunca `number`, para não perder centavos. */
   valor: string;
   data: string;
+  vencimento: string | null;
+  pagoEm: string | null;
+  /** Calculado pela API com `statusDoLancamento`. Não existe coluna no banco. */
+  status: StatusLancamento;
   categoriaId: string | null;
   categoriaNome: string | null;
   servicoId: string | null;
@@ -113,6 +180,33 @@ export interface Lancamento {
   clienteId: string | null;
   clienteNome: string | null;
   criadoEm: string;
+}
+
+/** Dar baixa: registrar que o dinheiro entrou ou saiu. */
+export const baixaFormSchema = z.object({
+  /**
+   * Quando o valor foi pago ou recebido. Vazio usa o dia de hoje.
+   *
+   * Existe porque a baixa costuma ser lançada depois do fato — a pessoa confere
+   * o extrato na segunda e dá baixa em algo que caiu na sexta.
+   */
+  pagoEm: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')),
+});
+
+export type BaixaFormInput = z.infer<typeof baixaFormSchema>;
+
+/**
+ * Panorama do que está em aberto.
+ *
+ * Responde as duas perguntas que abrem o dia de quem administra: quanto tenho a
+ * receber, e o que já venceu.
+ */
+export interface ResumoContas {
+  aReceber: { total: string; quantidade: number };
+  aPagar: { total: string; quantidade: number };
+  /** Já venceu e não foi pago — o subconjunto que exige ação hoje. */
+  vencidoAReceber: { total: string; quantidade: number };
+  vencidoAPagar: { total: string; quantidade: number };
 }
 
 // --- Relatórios ------------------------------------------------------------

@@ -49,11 +49,18 @@ describe('financeiro (HTTP)', () => {
     return body.accessToken;
   }
 
-  /** Lança um valor e devolve a resposta. */
+  /**
+   * Lança um valor e devolve a resposta.
+   *
+   * Já vem com baixa (`pagoEm`) por padrão: fluxo de caixa e margem somam
+   * dinheiro que se moveu, e é isso que a maioria dos testes daqui quer dizer
+   * ao lançar. Quem está testando conta em aberto passa `pagoEm: undefined`
+   * explicitamente.
+   */
   const lancar = (dados: Record<string, unknown>) =>
     req(tokenA)
       .post('/api/financeiro/lancamentos')
-      .send({ data: '2026-08-10', ...dados });
+      .send({ data: '2026-08-10', pagoEm: '2026-08-10', ...dados });
 
   beforeAll(async () => {
     const modulo: TestingModule = await Test.createTestingModule({
@@ -177,6 +184,172 @@ describe('financeiro (HTTP)', () => {
         .expect(200);
 
       expect(body.meta.total).toBe(1);
+    });
+  });
+
+  describe('contas a receber e a pagar', () => {
+    /**
+     * Empresa própria para este bloco.
+     *
+     * Os testes daqui criam contas em aberto e dão baixa em datas espalhadas
+     * pelo calendário — se compartilhassem a empresa dos demais, esses valores
+     * apareceriam nas somas de fluxo de caixa e de margem e quebrariam
+     * asserções que nada têm a ver com contas a receber.
+     */
+    let token: string;
+
+    beforeAll(async () => {
+      token = await criarEmpresa('contas');
+    });
+
+    const lancarAqui = (dados: Record<string, unknown>) =>
+      req(token)
+        .post('/api/financeiro/lancamentos')
+        .send({ data: '2026-08-10', ...dados });
+
+    /** Cria uma conta em aberto: sem `pagoEm`, com vencimento. */
+    const lancarEmAberto = (vencimento: string, dados: Record<string, unknown> = {}) =>
+      lancarAqui({
+        tipo: 'entrada',
+        descricao: 'Serviço a receber',
+        valor: '500,00',
+        vencimento,
+        ...dados,
+      });
+
+    it('nasce em aberto quando não há data de pagamento', async () => {
+      const { body } = await lancarEmAberto('2099-12-31').expect(201);
+
+      expect(body.pagoEm).toBeNull();
+      expect(body.status).toBe('a_vencer');
+    });
+
+    it('marca como atrasado o que passou do vencimento', async () => {
+      const { body } = await lancarEmAberto('2020-01-01').expect(201);
+
+      expect(body.status).toBe('atrasado');
+    });
+
+    it('não entra no fluxo de caixa enquanto está em aberto', async () => {
+      // É a razão de existir da separação: promessa de pagamento não é caixa.
+      const { body: antes } = await req(token)
+        .get('/api/financeiro/fluxo-de-caixa?de=2026-08-01&ate=2026-08-31')
+        .expect(200);
+
+      await lancarAqui({
+        tipo: 'entrada',
+        descricao: 'Ainda não recebido',
+        valor: '999,00',
+        data: '2026-08-15',
+        vencimento: '2026-08-20',
+        pagoEm: undefined,
+      }).expect(201);
+
+      const { body: depois } = await req(token)
+        .get('/api/financeiro/fluxo-de-caixa?de=2026-08-01&ate=2026-08-31')
+        .expect(200);
+
+      expect(depois.entradas).toBe(antes.entradas);
+    });
+
+    it('passa a contar no caixa depois da baixa', async () => {
+      const { body: lancamento } = await lancarAqui({
+        tipo: 'entrada',
+        descricao: 'Recebido depois',
+        valor: '150,00',
+        data: '2026-09-10',
+        vencimento: '2026-09-15',
+        pagoEm: undefined,
+      }).expect(201);
+
+      const { body: baixado } = await req(token)
+        .post(`/api/financeiro/lancamentos/${lancamento.id}/baixa`)
+        .send({ pagoEm: '2026-09-20' })
+        .expect(201);
+
+      expect(baixado.status).toBe('pago');
+      expect(baixado.pagoEm).toBe('2026-09-20');
+
+      // Entra no caixa pela data da baixa (setembro), não pela competência.
+      const { body: caixa } = await req(token)
+        .get('/api/financeiro/fluxo-de-caixa?de=2026-09-16&ate=2026-09-30')
+        .expect(200);
+
+      expect(caixa.entradas).toBe('150.00');
+    });
+
+    it('usa hoje quando a baixa não informa data', async () => {
+      const { body: lancamento } = await lancarEmAberto('2099-12-31').expect(201);
+
+      const { body } = await req(token)
+        .post(`/api/financeiro/lancamentos/${lancamento.id}/baixa`)
+        .send({})
+        .expect(201);
+
+      expect(body.pagoEm).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(body.status).toBe('pago');
+    });
+
+    it('recusa dar baixa duas vezes', async () => {
+      // Protege contra o clique duplo virar pagamento duplicado e sobrescrever
+      // a data da primeira baixa em silêncio.
+      const { body: lancamento } = await lancarEmAberto('2099-12-31').expect(201);
+
+      await req(token)
+        .post(`/api/financeiro/lancamentos/${lancamento.id}/baixa`)
+        .send({})
+        .expect(201);
+
+      await req(token)
+        .post(`/api/financeiro/lancamentos/${lancamento.id}/baixa`)
+        .send({})
+        .expect(409);
+    });
+
+    it('estorna a baixa e devolve o lançamento para em aberto', async () => {
+      const { body: lancamento } = await lancarEmAberto('2099-12-31').expect(201);
+
+      await req(token)
+        .post(`/api/financeiro/lancamentos/${lancamento.id}/baixa`)
+        .send({})
+        .expect(201);
+
+      const { body } = await req(token)
+        .post(`/api/financeiro/lancamentos/${lancamento.id}/estornar-baixa`)
+        .expect(201);
+
+      expect(body.pagoEm).toBeNull();
+      expect(body.status).toBe('a_vencer');
+    });
+
+    it('recusa estornar o que está em aberto', async () => {
+      const { body: lancamento } = await lancarEmAberto('2099-12-31').expect(201);
+
+      await req(token)
+        .post(`/api/financeiro/lancamentos/${lancamento.id}/estornar-baixa`)
+        .expect(409);
+    });
+
+    it('filtra a lista pela situação', async () => {
+      // O filtro é traduzido para SQL sem existir coluna `status` — este teste
+      // é o que garante que a tradução concorda com o status calculado.
+      const { body } = await req(token)
+        .get('/api/financeiro/lancamentos?status=atrasado&porPagina=100')
+        .expect(200);
+
+      expect(body.dados.length).toBeGreaterThan(0);
+      for (const item of body.dados) {
+        expect(item.status).toBe('atrasado');
+      }
+    });
+
+    it('resume o que há em aberto e o que já venceu', async () => {
+      const { body } = await req(token).get('/api/financeiro/contas/resumo').expect(200);
+
+      expect(Number(body.aReceber.total)).toBeGreaterThan(0);
+      expect(body.aReceber.quantidade).toBeGreaterThan(0);
+      // O vencido é subconjunto do total em aberto — nunca maior.
+      expect(Number(body.vencidoAReceber.total)).toBeLessThanOrEqual(Number(body.aReceber.total));
     });
   });
 

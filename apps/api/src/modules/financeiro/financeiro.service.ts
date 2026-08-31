@@ -7,6 +7,8 @@ import {
 import {
   CODIGOS_ERRO,
   paginar,
+  statusDoLancamento,
+  type BaixaFormInput,
   type CategoriaFinanceira,
   type CategoriaFormInput,
   type FluxoDeCaixa,
@@ -17,6 +19,8 @@ import {
   type Paginado,
   type PeriodoQuery,
   type RelatorioMargem,
+  type ResumoContas,
+  type StatusLancamento,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
 import { Prisma } from '../../generated/prisma/client';
@@ -24,6 +28,52 @@ import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prism
 import { tenantAtual } from '../../infra/tenant/tenant-context';
 
 const ZERO = new Prisma.Decimal(0);
+
+/** Coluna `DATE` do banco para `AAAA-MM-DD`, preservando o nulo. */
+function paraDia(valor: Date | null): string | null {
+  return valor ? valor.toISOString().slice(0, 10) : null;
+}
+
+/**
+ * Hoje em `AAAA-MM-DD`, no fuso de Brasília.
+ *
+ * Não usa a data do servidor direto: em produção ele roda em UTC, e das 21h à
+ * meia-noite o UTC já está no dia seguinte. Uma conta venceria — e apareceria
+ * como atrasada para o usuário — três horas antes de vencer de verdade.
+ */
+function hojeEmDia(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+}
+
+/** `AAAA-MM-DD` para o `DATE` do banco, fixado em meia-noite UTC. */
+function paraData(dia: string | null | undefined): Date | null {
+  return dia ? new Date(`${dia}T00:00:00Z`) : null;
+}
+
+/**
+ * Traduz a situação — que é derivada — para um filtro que o banco entende.
+ *
+ * Precisa existir porque não há coluna `status` para o `where` apontar. A
+ * tradução é a mesma regra de `statusDoLancamento`, escrita na linguagem do
+ * Prisma; as duas são cobertas pelos testes de integração justamente para não
+ * divergirem.
+ */
+function filtroDeStatus(status: StatusLancamento): Prisma.LancamentoFinanceiroWhereInput {
+  if (status === 'pago') {
+    return { pagoEm: { not: null } };
+  }
+
+  if (status === 'atrasado') {
+    return { pagoEm: null, vencimento: { lt: new Date(`${hojeEmDia()}T00:00:00Z`) } };
+  }
+
+  // A vencer: em aberto e ainda no prazo — incluindo o que não tem vencimento,
+  // que nunca fica atrasado.
+  return {
+    pagoEm: null,
+    OR: [{ vencimento: null }, { vencimento: { gte: new Date(`${hojeEmDia()}T00:00:00Z`) } }],
+  };
+}
 
 const INCLUDE_PADRAO = {
   categoria: { select: { nome: true } },
@@ -213,6 +263,142 @@ export class FinanceiroService {
     }
   }
 
+  // --- Contas a receber e a pagar ------------------------------------------
+
+  /**
+   * Registra que o dinheiro entrou ou saiu.
+   *
+   * A partir daqui o lançamento passa a contar no fluxo de caixa e na margem —
+   * antes da baixa ele é só uma promessa.
+   */
+  async darBaixa(id: string, dados: BaixaFormInput): Promise<Lancamento> {
+    const lancamento = await this.prisma.comTenant(async (tx) => {
+      const atual = await tx.lancamentoFinanceiro.findUnique({
+        where: { id },
+        select: { pagoEm: true },
+      });
+
+      if (!atual) {
+        throw new NotFoundException({
+          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+          mensagem: 'Lançamento não encontrado.',
+        });
+      }
+
+      // Recusar a segunda baixa é o que evita o clique duplo virar pagamento
+      // duplicado — e a data da primeira baixa ser sobrescrita sem aviso.
+      if (atual.pagoEm) {
+        throw new ConflictException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem: 'Este lançamento já teve baixa. Estorne antes de lançar outra data.',
+        });
+      }
+
+      return tx.lancamentoFinanceiro.update({
+        where: { id },
+        // Sem data informada, hoje: é o caso comum, e poupa o usuário de
+        // digitar a data do dia.
+        data: { pagoEm: paraData(dados.pagoEm) ?? paraData(hojeEmDia()) },
+        include: INCLUDE_PADRAO,
+      });
+    });
+
+    return this.paraResposta(lancamento);
+  }
+
+  /**
+   * Desfaz a baixa, devolvendo o lançamento para "em aberto".
+   *
+   * Existe porque baixa errada acontece — conciliação de extrato costuma
+   * revelar que o pagamento era de outra conta. Sem estorno, a saída seria
+   * apagar e recriar, perdendo o vínculo com cliente e serviço.
+   */
+  async estornarBaixa(id: string): Promise<Lancamento> {
+    const lancamento = await this.prisma.comTenant(async (tx) => {
+      const atual = await tx.lancamentoFinanceiro.findUnique({
+        where: { id },
+        select: { pagoEm: true },
+      });
+
+      if (!atual) {
+        throw new NotFoundException({
+          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+          mensagem: 'Lançamento não encontrado.',
+        });
+      }
+
+      if (!atual.pagoEm) {
+        throw new ConflictException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem: 'Este lançamento está em aberto — não há baixa para estornar.',
+        });
+      }
+
+      return tx.lancamentoFinanceiro.update({
+        where: { id },
+        data: { pagoEm: null },
+        include: INCLUDE_PADRAO,
+      });
+    });
+
+    return this.paraResposta(lancamento);
+  }
+
+  /**
+   * Quanto há em aberto, e quanto disso já venceu.
+   *
+   * São quatro somas agregadas no banco, e não uma varredura de lançamentos:
+   * a tela precisa de oito números, não da lista inteira.
+   */
+  async resumoContas(): Promise<ResumoContas> {
+    const hoje = new Date(`${hojeEmDia()}T00:00:00Z`);
+    const emAberto: Prisma.LancamentoFinanceiroWhereInput = {
+      pagoEm: null,
+      natureza: 'empresa',
+    };
+    const vencido = { ...emAberto, vencimento: { lt: hoje } };
+
+    const [receber, pagar, receberVencido, pagarVencido] = await this.prisma.comTenant((tx) =>
+      Promise.all([
+        tx.lancamentoFinanceiro.aggregate({
+          where: { ...emAberto, tipo: 'entrada' },
+          _sum: { valor: true },
+          _count: { _all: true },
+        }),
+        tx.lancamentoFinanceiro.aggregate({
+          where: { ...emAberto, tipo: 'saida' },
+          _sum: { valor: true },
+          _count: { _all: true },
+        }),
+        tx.lancamentoFinanceiro.aggregate({
+          where: { ...vencido, tipo: 'entrada' },
+          _sum: { valor: true },
+          _count: { _all: true },
+        }),
+        tx.lancamentoFinanceiro.aggregate({
+          where: { ...vencido, tipo: 'saida' },
+          _sum: { valor: true },
+          _count: { _all: true },
+        }),
+      ]),
+    );
+
+    const totalizar = (grupo: {
+      _sum: { valor: Prisma.Decimal | null };
+      _count: { _all: number };
+    }) => ({
+      total: (grupo._sum.valor ?? ZERO).toFixed(2),
+      quantidade: grupo._count._all,
+    });
+
+    return {
+      aReceber: totalizar(receber),
+      aPagar: totalizar(pagar),
+      vencidoAReceber: totalizar(receberVencido),
+      vencidoAPagar: totalizar(pagarVencido),
+    };
+  }
+
   // --- Relatórios ----------------------------------------------------------
 
   /**
@@ -348,10 +534,20 @@ export class FinanceiroService {
 
   // --- Apoio ---------------------------------------------------------------
 
-  /** O recorte de período compartilhado pelos dois relatórios. */
+  /**
+   * O recorte de período compartilhado pelos dois relatórios.
+   *
+   * Filtra por `pagoEm`, e não por `data`. A diferença é o ponto inteiro das
+   * contas a receber: fluxo de caixa mede dinheiro que se moveu, e uma conta em
+   * aberto — por definição — não moveu. Somá-la faria o saldo do mês mostrar
+   * dinheiro que ainda não está na conta.
+   *
+   * Como consequência, `pagoEm: null` fica de fora: lançamento em aberto não
+   * entra em caixa nem em margem até a baixa.
+   */
   private filtroDePeriodo(query: PeriodoQuery): Prisma.LancamentoFinanceiroWhereInput {
     return {
-      data: {
+      pagoEm: {
         gte: new Date(`${query.de}T00:00:00Z`),
         lte: new Date(`${query.ate}T23:59:59.999Z`),
       },
@@ -366,6 +562,7 @@ export class FinanceiroService {
     if (query.natureza) where.natureza = query.natureza;
     if (query.categoriaId) where.categoriaId = query.categoriaId;
     if (query.servicoId) where.servicoId = query.servicoId;
+    if (query.status) Object.assign(where, filtroDeStatus(query.status));
 
     if (query.de || query.ate) {
       where.data = {
@@ -391,6 +588,8 @@ export class FinanceiroService {
       descricao: dados.descricao,
       valor: dados.valor,
       data: new Date(`${dados.data}T00:00:00Z`),
+      vencimento: paraData(dados.vencimento),
+      pagoEm: paraData(dados.pagoEm),
       categoriaId: dados.categoriaId,
       servicoId: dados.servicoId,
       clienteId: dados.clienteId,
@@ -398,7 +597,10 @@ export class FinanceiroService {
   }
 
   private async garantirExiste(tx: TransacaoComTenant, id: string): Promise<void> {
-    const existe = await tx.lancamentoFinanceiro.findUnique({ where: { id }, select: { id: true } });
+    const existe = await tx.lancamentoFinanceiro.findUnique({
+      where: { id },
+      select: { id: true },
+    });
 
     if (!existe) {
       throw new NotFoundException({
@@ -451,6 +653,9 @@ export class FinanceiroService {
   }
 
   private paraResposta(registro: LancamentoBanco): Lancamento {
+    const vencimento = paraDia(registro.vencimento);
+    const pagoEm = paraDia(registro.pagoEm);
+
     return {
       id: registro.id,
       tipo: registro.tipo,
@@ -458,6 +663,11 @@ export class FinanceiroService {
       descricao: registro.descricao,
       valor: registro.valor.toFixed(2),
       data: registro.data.toISOString().slice(0, 10),
+      vencimento,
+      pagoEm,
+      // Calculado na resposta, com a mesma função que a tela usa — em vez de
+      // gravado numa coluna que envelheceria à meia-noite.
+      status: statusDoLancamento(vencimento, pagoEm, hojeEmDia()),
       categoriaId: registro.categoriaId,
       categoriaNome: registro.categoria?.nome ?? null,
       servicoId: registro.servicoId,

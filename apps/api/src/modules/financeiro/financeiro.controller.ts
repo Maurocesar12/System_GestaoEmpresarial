@@ -10,10 +10,12 @@ import {
   Post,
 } from '@nestjs/common';
 import {
+  baixaFormSchema,
   categoriaFormSchema,
   lancamentoFormSchema,
   lancamentosQuerySchema,
   periodoQuerySchema,
+  type BaixaFormInput,
   type CategoriaFinanceira,
   type CategoriaFormInput,
   type FluxoDeCaixa,
@@ -23,6 +25,7 @@ import {
   type Paginado,
   type PeriodoQuery,
   type RelatorioMargem,
+  type ResumoContas,
 } from '@gestao/shared-types';
 import { Papeis } from '../../common/decorators/papeis.decorator';
 import { CorpoValidado, QueryValidada } from '../../common/decorators/validado.decorator';
@@ -75,6 +78,12 @@ export class FinanceiroController {
     return this.financeiro.margemPorServico(query);
   }
 
+  /** Quanto há a receber e a pagar em aberto, e quanto disso já venceu. */
+  @Get('contas/resumo')
+  resumoContas(): Promise<ResumoContas> {
+    return this.financeiro.resumoContas();
+  }
+
   // --- Lançamentos ---------------------------------------------------------
 
   @Get('lancamentos')
@@ -100,6 +109,26 @@ export class FinanceiroController {
     @CorpoValidado(lancamentoFormSchema) dados: LancamentoFormInput,
   ): Promise<Lancamento> {
     return this.financeiro.atualizar(id, dados);
+  }
+
+  /**
+   * Dar baixa: registrar que o dinheiro entrou ou saiu.
+   *
+   * `POST` numa sub-rota, e não um `PATCH` no lançamento, porque é uma ação de
+   * negócio com regra própria — recusa baixa repetida — e não a edição de um
+   * campo qualquer.
+   */
+  @Post('lancamentos/:id/baixa')
+  darBaixa(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CorpoValidado(baixaFormSchema) dados: BaixaFormInput,
+  ): Promise<Lancamento> {
+    return this.financeiro.darBaixa(id, dados);
+  }
+
+  @Post('lancamentos/:id/estornar-baixa')
+  estornarBaixa(@Param('id', ParseUUIDPipe) id: string): Promise<Lancamento> {
+    return this.financeiro.estornarBaixa(id);
   }
 
   @Delete('lancamentos/:id')
