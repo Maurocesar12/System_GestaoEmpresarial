@@ -40,6 +40,41 @@ export async function salvarLancamento(
   redirect('/painel/financeiro');
 }
 
+/**
+ * Registra que o dinheiro entrou ou saiu.
+ *
+ * Sem data, a API usa hoje — que é o caso comum de quem está conferindo o
+ * extrato e marcando o que caiu.
+ */
+export async function darBaixa(id: string, pagoEm?: string): Promise<ResultadoAcao> {
+  try {
+    await apiComSessao<Lancamento>(`/financeiro/lancamentos/${id}/baixa`, {
+      method: 'POST',
+      body: JSON.stringify({ pagoEm: pagoEm ?? null }),
+    });
+  } catch (erro) {
+    // A API recusa baixa repetida com 409 e explica o motivo.
+    return traduzirErroAcao(erro);
+  }
+
+  revalidatePath('/painel/financeiro', 'layout');
+  return {};
+}
+
+/** Desfaz a baixa, devolvendo o lançamento para em aberto. */
+export async function estornarBaixa(id: string): Promise<ResultadoAcao> {
+  try {
+    await apiComSessao<Lancamento>(`/financeiro/lancamentos/${id}/estornar-baixa`, {
+      method: 'POST',
+    });
+  } catch (erro) {
+    return traduzirErroAcao(erro);
+  }
+
+  revalidatePath('/painel/financeiro', 'layout');
+  return {};
+}
+
 export async function removerLancamento(id: string): Promise<ResultadoAcao> {
   try {
     await apiComSessao<void>(`/financeiro/lancamentos/${id}`, { method: 'DELETE' });

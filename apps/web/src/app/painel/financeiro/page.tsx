@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ROTULO_NATUREZA,
+  ROTULO_STATUS_LANCAMENTO,
   ROTULO_TIPO_LANCAMENTO,
   formatarBRL,
   mesCorrente,
@@ -9,13 +10,30 @@ import {
   type Lancamento,
   type Paginado,
   type RelatorioMargem,
+  type ResumoContas,
 } from '@gestao/shared-types';
+import { estilosBotao } from '@/components/ui/botao';
+import { Selo } from '@/components/ui/selo';
 import { apiComSessao } from '@/lib/api-servidor';
 import { formatarDataCurta, formatarPeriodo } from '@/lib/formatacao';
+import { SecaoContas } from './secao-contas';
 
 export const metadata: Metadata = {
   title: 'Financeiro',
 };
+
+/**
+ * Cor de cada situação.
+ *
+ * Verde é desfecho resolvido, vermelho é prazo estourado, âmbar é algo que
+ * ainda depende de alguém. O texto do selo acompanha sempre — cor sozinha não
+ * comunica para quem não distingue as duas primeiras.
+ */
+const TOM_DO_STATUS = {
+  pago: 'sucesso',
+  atrasado: 'perigo',
+  a_vencer: 'atencao',
+} as const;
 
 interface Props {
   searchParams: Promise<{ de?: string; ate?: string }>;
@@ -38,11 +56,19 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
 
   const periodo = `de=${de}&ate=${ate}`;
 
-  const [fluxo, margem, lancamentos] = await Promise.all([
+  // As contas em aberto são buscadas em duas chamadas porque o filtro da API
+  // aceita uma situação por vez. Vencidas vêm primeiro na lista final: são as
+  // que exigem ação hoje.
+  const [fluxo, margem, lancamentos, resumo, atrasadas, aVencer] = await Promise.all([
     apiComSessao<FluxoDeCaixa>(`/financeiro/fluxo-de-caixa?${periodo}`),
     apiComSessao<RelatorioMargem>(`/financeiro/margem?${periodo}`),
     apiComSessao<Paginado<Lancamento>>(`/financeiro/lancamentos?${periodo}&porPagina=20`),
+    apiComSessao<ResumoContas>('/financeiro/contas/resumo'),
+    apiComSessao<Paginado<Lancamento>>('/financeiro/lancamentos?status=atrasado&porPagina=10'),
+    apiComSessao<Paginado<Lancamento>>('/financeiro/lancamentos?status=a_vencer&porPagina=10'),
   ]);
+
+  const contasEmAberto = [...atrasadas.dados, ...aVencer.dados];
 
   const saldoNegativo = Number(fluxo.saldo) < 0;
 
@@ -59,14 +85,11 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
         <div className="flex gap-2">
           <Link
             href="/painel/financeiro/categorias"
-            className="hover:bg-accent inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors"
+            className={estilosBotao({ variante: 'secundario' })}
           >
             Categorias
           </Link>
-          <Link
-            href="/painel/financeiro/novo"
-            className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
-          >
+          <Link href="/painel/financeiro/novo" className={estilosBotao()}>
             Novo lançamento
           </Link>
         </div>
@@ -87,6 +110,8 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
           detalhe={`variável: ${formatarBRL(fluxo.custoVariavel)}`}
         />
       </section>
+
+      <SecaoContas resumo={resumo} contas={contasEmAberto} />
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -182,6 +207,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
                   <th className="px-4 py-3 font-medium">Data</th>
                   <th className="px-4 py-3 font-medium">Descrição</th>
                   <th className="px-4 py-3 font-medium">Categoria</th>
+                  <th className="px-4 py-3 font-medium">Situação</th>
                   <th className="px-4 py-3 text-right font-medium">Valor</th>
                 </tr>
               </thead>
@@ -206,6 +232,15 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
                     </td>
                     <td className="text-muted-foreground px-4 py-3">
                       {lancamento.categoriaNome ?? '—'}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {/* Só leitura aqui: dar baixa é ação da seção de contas
+                          em aberto, e repetir o botão nos dois lugares
+                          espalharia a mesma decisão por duas telas. */}
+                      <Selo tom={TOM_DO_STATUS[lancamento.status]}>
+                        {ROTULO_STATUS_LANCAMENTO[lancamento.status]}
+                      </Selo>
                     </td>
                     <td
                       className={`px-4 py-3 text-right font-medium tabular-nums ${

@@ -10,9 +10,11 @@ import {
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
+import { AreaTexto } from '@/components/ui/area-texto';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
+import { mascararDocumento, mascararTelefone } from '@/lib/mascaras';
 import { salvarCliente, type ResultadoAcao } from './acoes';
 
 /** Campos do formulário, para o `setError` saber quais existem. */
@@ -33,6 +35,7 @@ export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
     register,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors },
     // Três parâmetros porque o schema transforma os dados: o formulário
     // trabalha com `ClienteFormEntrada` (tudo string, campos vazios como ""),
@@ -46,12 +49,37 @@ export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
       // Campos nulos viram string vazia: um `<input>` com valor `null` fica
       // descontrolado e o React reclama no console.
       email: cliente?.email ?? '',
-      telefone: cliente?.telefone ?? '',
-      documento: cliente?.documento ?? '',
+      // Já mascarados na abertura: a API guarda só dígitos, e mostrar
+      // "11912345678" na edição obrigaria a pessoa a conferir número a número.
+      telefone: mascararTelefone(cliente?.telefone ?? ''),
+      documento: mascararDocumento(cliente?.documento ?? ''),
       observacoes: cliente?.observacoes ?? '',
       origem: cliente?.origem ?? '',
     },
   });
+
+  /**
+   * Formata o campo quando a pessoa sai dele.
+   *
+   * Encapsula os dois passos que precisam acontecer juntos: escrever o valor
+   * mascarado no formulário e continuar chamando o `onBlur` do próprio React
+   * Hook Form — sem o segundo, o campo nunca seria marcado como "tocado" e a
+   * validação no `blur` deixaria de rodar.
+   */
+  const aoSairFormatando = (
+    campo: 'telefone' | 'documento',
+    mascara: (valor: string) => string,
+  ) => {
+    const registro = register(campo);
+
+    return {
+      ...registro,
+      onBlur: async (evento: React.FocusEvent<HTMLInputElement>) => {
+        setValue(campo, mascara(evento.target.value));
+        await registro.onBlur(evento);
+      },
+    };
+  };
 
   const aoEnviar = (dados: ClienteFormInput) => {
     setFalha(undefined);
@@ -93,9 +121,12 @@ export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
         <Campo
           rotulo="Telefone"
           type="tel"
+          inputMode="numeric"
+          autoComplete="tel"
           placeholder="(11) 91234-5678"
+          ajuda="Pode digitar só os números."
           erro={errors.telefone?.message}
-          {...register('telefone')}
+          {...aoSairFormatando('telefone', mascararTelefone)}
         />
 
         <Campo
@@ -110,9 +141,11 @@ export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo
           rotulo="CPF ou CNPJ"
-          ajuda="Opcional."
+          inputMode="numeric"
+          placeholder="000.000.000-00"
+          ajuda="Opcional. Pode digitar só os números."
           erro={errors.documento?.message}
-          {...register('documento')}
+          {...aoSairFormatando('documento', mascararDocumento)}
         />
 
         <Campo
@@ -124,18 +157,12 @@ export function FormularioCliente({ cliente }: { cliente?: Cliente }) {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="observacoes" className="text-sm font-medium">
-          Observações
-        </label>
-        <textarea
-          id="observacoes"
-          rows={4}
-          placeholder="Preferências, histórico, o que for útil lembrar."
-          className="focus-visible:ring-ring focus-visible:border-ring rounded-md border bg-transparent px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-          {...register('observacoes')}
-        />
-      </div>
+      <AreaTexto
+        rotulo="Observações"
+        placeholder="Preferências, histórico, o que for útil lembrar."
+        erro={errors.observacoes?.message}
+        {...register('observacoes')}
+      />
 
       <div className="flex gap-3">
         <Botao type="submit" carregando={enviando}>

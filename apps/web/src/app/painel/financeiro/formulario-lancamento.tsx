@@ -17,8 +17,9 @@ import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
-import { Botao } from '@/components/ui/botao';
+import { Botao, estilosBotao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
+import { Selecao } from '@/components/ui/selecao';
 import { salvarLancamento, type ResultadoAcao } from './acoes';
 
 const CAMPOS = [
@@ -27,6 +28,8 @@ const CAMPOS = [
   'descricao',
   'valor',
   'data',
+  'vencimento',
+  'pagoEm',
   'categoriaId',
   'servicoId',
   'clienteId',
@@ -68,6 +71,11 @@ export function FormularioLancamento({
       descricao: lancamento?.descricao ?? '',
       valor: lancamento?.valor.replace('.', ',') ?? '',
       data: lancamento?.data ?? hojeISO(),
+      vencimento: lancamento?.vencimento ?? '',
+      // Lançamento novo nasce **pago**, com a data de hoje: o caso mais comum é
+      // registrar algo que acabou de acontecer. Quem está cadastrando uma conta
+      // a receber limpa este campo, e o formulário explica o efeito disso.
+      pagoEm: lancamento ? (lancamento.pagoEm ?? '') : hojeISO(),
       categoriaId: lancamento?.categoriaId ?? '',
       servicoId: lancamento?.servicoId ?? '',
       clienteId: lancamento?.clienteId ?? '',
@@ -75,6 +83,11 @@ export function FormularioLancamento({
   });
 
   const tipo = useWatch({ control, name: 'tipo' });
+  const pagoEm = useWatch({ control, name: 'pagoEm' });
+
+  // Sem data de pagamento o lançamento é uma promessa, não caixa. O formulário
+  // avisa disso na hora, em vez de a pessoa estranhar o saldo no fim do mês.
+  const emAberto = !pagoEm;
 
   const aoEnviar = (dados: LancamentoFormInput) => {
     setFalha(undefined);
@@ -104,37 +117,21 @@ export function FormularioLancamento({
       {falha?.erro && <AvisoErro mensagem={falha.erro} detalhes={falha.campos} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="tipo" className="text-sm font-medium">
-            Tipo
-          </label>
-          <select
-            id="tipo"
-            className="focus-visible:ring-ring h-10 rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-            {...register('tipo')}
-          >
-            <option value="entrada">{ROTULO_TIPO_LANCAMENTO.entrada}</option>
-            <option value="saida">{ROTULO_TIPO_LANCAMENTO.saida}</option>
-          </select>
-        </div>
+        <Selecao rotulo="Tipo" erro={errors.tipo?.message} {...register('tipo')}>
+          <option value="entrada">{ROTULO_TIPO_LANCAMENTO.entrada}</option>
+          <option value="saida">{ROTULO_TIPO_LANCAMENTO.saida}</option>
+        </Selecao>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="natureza" className="text-sm font-medium">
-            Natureza
-          </label>
-          <select
-            id="natureza"
-            className="focus-visible:ring-ring h-10 rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-            {...register('natureza')}
-          >
-            <option value="empresa">{ROTULO_NATUREZA.empresa}</option>
-            <option value="pessoal">{ROTULO_NATUREZA.pessoal}</option>
-          </select>
-          {/* A separação é o que impede o gasto pessoal de distorcer a margem. */}
-          <p className="text-muted-foreground text-xs">
-            Pessoal fica fora do caixa da empresa e dos relatórios.
-          </p>
-        </div>
+        <Selecao
+          rotulo="Natureza"
+          // A separação é o que impede o gasto pessoal de distorcer a margem.
+          ajuda="Pessoal fica fora do caixa da empresa e dos relatórios."
+          erro={errors.natureza?.message}
+          {...register('natureza')}
+        >
+          <option value="empresa">{ROTULO_NATUREZA.empresa}</option>
+          <option value="pessoal">{ROTULO_NATUREZA.pessoal}</option>
+        </Selecao>
       </div>
 
       <Campo
@@ -153,68 +150,88 @@ export function FormularioLancamento({
           {...register('valor')}
         />
 
-        <Campo rotulo="Data" type="date" erro={errors.data?.message} {...register('data')} />
+        <Campo
+          rotulo="Data"
+          type="date"
+          ajuda="Quando o serviço foi prestado."
+          erro={errors.data?.message}
+          {...register('data')}
+        />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="servicoId" className="text-sm font-medium">
-          Serviço
-        </label>
-        <select
-          id="servicoId"
-          className="focus-visible:ring-ring h-10 rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-          {...register('servicoId')}
-        >
-          <option value="">Não vincular</option>
-          {servicos.map((servico) => (
-            <option key={servico.id} value={servico.id}>
-              {servico.nome}
-            </option>
-          ))}
-        </select>
-        <p className="text-muted-foreground text-xs">
-          {tipo === 'entrada'
+      {/*
+        Pagamento em bloco separado: são os dois campos que decidem se isto é
+        dinheiro em caixa ou uma conta em aberto — a distinção mais importante
+        do formulário, e a que mais confunde quem está aprendendo o sistema.
+      */}
+      <fieldset className="border-t pt-4">
+        <legend className="sr-only">Pagamento</legend>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo
+            rotulo="Vencimento"
+            type="date"
+            ajuda="Opcional. Quando este valor é devido."
+            erro={errors.vencimento?.message}
+            {...register('vencimento')}
+          />
+
+          <Campo
+            rotulo="Pago em"
+            type="date"
+            ajuda="Deixe vazio se ainda não foi pago."
+            erro={errors.pagoEm?.message}
+            {...register('pagoEm')}
+          />
+        </div>
+
+        {emAberto && (
+          <p className="bg-atencao-suave text-atencao mt-3 rounded-md px-3 py-2 text-xs">
+            Sem data de pagamento, este lançamento fica{' '}
+            <strong className="font-semibold">
+              {tipo === 'entrada' ? 'a receber' : 'a pagar'}
+            </strong>{' '}
+            e não entra no fluxo de caixa nem na margem até você dar baixa.
+          </p>
+        )}
+      </fieldset>
+
+      <Selecao
+        rotulo="Serviço"
+        ajuda={
+          tipo === 'entrada'
             ? 'Vincular é o que permite saber quanto este serviço faturou e qual a margem dele.'
-            : 'Vincule custos ao serviço que os gerou para a margem sair correta.'}
-        </p>
-      </div>
+            : 'Vincule custos ao serviço que os gerou para a margem sair correta.'
+        }
+        erro={errors.servicoId?.message}
+        {...register('servicoId')}
+      >
+        <option value="">Não vincular</option>
+        {servicos.map((servico) => (
+          <option key={servico.id} value={servico.id}>
+            {servico.nome}
+          </option>
+        ))}
+      </Selecao>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="categoriaId" className="text-sm font-medium">
-            Categoria
-          </label>
-          <select
-            id="categoriaId"
-            className="focus-visible:ring-ring h-10 rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-            {...register('categoriaId')}
-          >
-            <option value="">Sem categoria</option>
-            {categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nome}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Selecao rotulo="Categoria" erro={errors.categoriaId?.message} {...register('categoriaId')}>
+          <option value="">Sem categoria</option>
+          {categorias.map((categoria) => (
+            <option key={categoria.id} value={categoria.id}>
+              {categoria.nome}
+            </option>
+          ))}
+        </Selecao>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="clienteId" className="text-sm font-medium">
-            Cliente
-          </label>
-          <select
-            id="clienteId"
-            className="focus-visible:ring-ring h-10 rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-            {...register('clienteId')}
-          >
-            <option value="">Não vincular</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nome}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Selecao rotulo="Cliente" erro={errors.clienteId?.message} {...register('clienteId')}>
+          <option value="">Não vincular</option>
+          {clientes.map((cliente) => (
+            <option key={cliente.id} value={cliente.id}>
+              {cliente.nome}
+            </option>
+          ))}
+        </Selecao>
       </div>
 
       <div className="flex gap-3">
@@ -222,10 +239,7 @@ export function FormularioLancamento({
           {lancamento ? 'Salvar alterações' : 'Lançar'}
         </Botao>
 
-        <Link
-          href="/painel/financeiro"
-          className="hover:bg-accent inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors"
-        >
+        <Link href="/painel/financeiro" className={estilosBotao({ variante: 'secundario' })}>
           Cancelar
         </Link>
       </div>
