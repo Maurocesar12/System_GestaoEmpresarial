@@ -4,8 +4,11 @@ import {
   paginar,
   type Cliente,
   type ClienteFormInput,
+  type ClienteIgnorado,
   type ClientesQuery,
+  type MotivoIgnorado,
   type Paginado,
+  type ResultadoImportacao,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
@@ -114,6 +117,88 @@ export class ClientesService {
     return { ...this.paraResposta(cliente), etapaFunil: etapa };
   }
 
+  /**
+   * Cria vários clientes de uma vez, a partir de uma planilha.
+   *
+   * ## Por que não é um laço chamando `criar()`
+   *
+   * `criar()` faz seis idas ao banco por cliente — trava do tenant, contagem do
+   * limite, inserção, busca da primeira etapa, checagem de funil e inserção no
+   * funil. Repetido 500 vezes seriam três mil consultas, e a transação ficaria
+   * aberta tempo suficiente para segurar outras requisições da mesma empresa.
+   *
+   * Este método faz **seis consultas no total**, independente de o lote ter uma
+   * linha ou quinhentas: trava, limite, busca de repetidos, inserção dos
+   * clientes, busca da primeira etapa e inserção no funil.
+   *
+   * ## O que ele recusa e o que ele pula
+   *
+   * Estourar o limite do plano **falha o lote inteiro**, sem gravar nada:
+   * importar 300 de 500 clientes e avisar depois deixaria o usuário sem saber
+   * quais entraram. Já uma linha repetida apenas é pulada e volta na resposta
+   * com o motivo — repetição é comum em planilha e não justifica descartar o
+   * trabalho todo.
+   */
+  async importar(clientes: ClienteFormInput[]): Promise<ResultadoImportacao> {
+    return this.prisma.comTenant(async (tx) => {
+      await this.garantirLimiteImportacao(tx, clientes.length);
+
+      const ignorados: ClienteIgnorado[] = [];
+      const aCriar: { indice: number; dados: ClienteFormInput }[] = [];
+
+      // Repetições dentro do próprio arquivo, resolvidas em memória: a primeira
+      // ocorrência entra, as seguintes são puladas.
+      const documentosVistos = new Set<string>();
+      const emailsVistos = new Set<string>();
+
+      // Uma consulta só para descobrir o que já existe. Uma por linha
+      // multiplicaria as idas ao banco pelo tamanho da planilha.
+      const { documentos: documentosExistentes, emails: emailsExistentes } =
+        await this.buscarRepetidos(tx, clientes);
+
+      clientes.forEach((dados, indice) => {
+        const motivo = this.motivoParaIgnorar(dados, {
+          documentosExistentes,
+          emailsExistentes,
+          documentosVistos,
+          emailsVistos,
+        });
+
+        if (motivo) {
+          ignorados.push({ indice, nome: dados.nome, motivo });
+          return;
+        }
+
+        if (dados.documento) documentosVistos.add(dados.documento);
+        if (dados.email) emailsVistos.add(dados.email);
+
+        aCriar.push({ indice, dados });
+      });
+
+      if (aCriar.length === 0) {
+        return { criados: 0, ignorados };
+      }
+
+      // O id é gerado aqui, e não pelo banco, porque as linhas do funil
+      // precisam apontar para esses clientes na mesma transação — sem os ids em
+      // mãos, seria preciso reler o que acabou de ser inserido.
+      const novos = aCriar.map(({ dados }) => ({
+        id: uuidv7(),
+        tenantId: tenantAtual(),
+        ...dados,
+      }));
+
+      await tx.cliente.createMany({ data: novos });
+
+      await this.colocarLoteNoFunil(
+        tx,
+        novos.map((cliente) => cliente.id),
+      );
+
+      return { criados: novos.length, ignorados };
+    });
+  }
+
   async atualizar(id: string, dados: ClienteFormInput): Promise<Cliente> {
     const cliente = await this.prisma.comTenant(async (tx) => {
       // Confere a existência dentro do escopo do tenant antes de alterar: sem
@@ -214,6 +299,151 @@ export class ClientesService {
         mensagem: `O plano ${tenant.plano.nome} permite até ${limite} cliente(s). Faça upgrade para cadastrar mais.`,
       });
     }
+  }
+
+  /**
+   * Confere se o lote inteiro cabe no plano.
+   *
+   * Diferente da versão de linha única, que pergunta "cabe mais um?", aqui a
+   * pergunta é "cabem mais trezentos?". A mensagem diz quantas vagas restam,
+   * porque "limite excedido" sem número deixa o usuário adivinhando quantas
+   * linhas apagar da planilha.
+   */
+  private async garantirLimiteImportacao(
+    tx: TransacaoComTenant,
+    quantidade: number,
+  ): Promise<void> {
+    const tenantId = tenantAtual();
+
+    // Mesma trava da criação individual: sem ela, duas importações simultâneas
+    // contariam o mesmo total e ambas caberiam no limite.
+    await tx.$executeRaw`SELECT id FROM tenant WHERE id = ${tenantId}::uuid FOR UPDATE`;
+
+    const tenant = await tx.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plano: { select: { limiteClientes: true, nome: true } } },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Empresa não encontrada.',
+      });
+    }
+
+    const limite = tenant.plano.limiteClientes;
+
+    if (limite === null) {
+      return;
+    }
+
+    const total = await tx.cliente.count();
+    const vagas = Math.max(limite - total, 0);
+
+    if (quantidade > vagas) {
+      throw new ForbiddenException({
+        codigo: CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO,
+        mensagem:
+          `O plano ${tenant.plano.nome} permite até ${limite} cliente(s) e ainda cabem ${vagas}. ` +
+          `A planilha tem ${quantidade}. Nada foi importado.`,
+      });
+    }
+  }
+
+  /**
+   * Documentos e e-mails que já existem entre os enviados.
+   *
+   * Consulta os dois campos de uma vez e devolve conjuntos, para a checagem por
+   * linha custar O(1) em memória em vez de uma ida ao banco.
+   */
+  private async buscarRepetidos(
+    tx: TransacaoComTenant,
+    clientes: ClienteFormInput[],
+  ): Promise<{ documentos: Set<string>; emails: Set<string> }> {
+    const documentos = clientes
+      .map((cliente) => cliente.documento)
+      .filter((valor): valor is string => Boolean(valor));
+
+    const emails = clientes
+      .map((cliente) => cliente.email)
+      .filter((valor): valor is string => Boolean(valor));
+
+    if (documentos.length === 0 && emails.length === 0) {
+      return { documentos: new Set(), emails: new Set() };
+    }
+
+    const existentes = await tx.cliente.findMany({
+      where: {
+        OR: [
+          ...(documentos.length > 0 ? [{ documento: { in: documentos } }] : []),
+          ...(emails.length > 0 ? [{ email: { in: emails } }] : []),
+        ],
+      },
+      select: { documento: true, email: true },
+    });
+
+    return {
+      documentos: new Set(
+        existentes.map((cliente) => cliente.documento).filter((valor) => valor !== null),
+      ),
+      emails: new Set(existentes.map((cliente) => cliente.email).filter((valor) => valor !== null)),
+    };
+  }
+
+  /**
+   * Decide se a linha deve ser pulada, e por quê.
+   *
+   * Cliente sem documento e sem e-mail nunca é considerado repetido: dois
+   * homônimos são duas pessoas diferentes até prova em contrário, e recusá-los
+   * pelo nome esconderia cadastros legítimos.
+   */
+  private motivoParaIgnorar(
+    dados: ClienteFormInput,
+    conjuntos: {
+      documentosExistentes: Set<string>;
+      emailsExistentes: Set<string>;
+      documentosVistos: Set<string>;
+      emailsVistos: Set<string>;
+    },
+  ): MotivoIgnorado | null {
+    const { documento, email } = dados;
+
+    if (documento && conjuntos.documentosVistos.has(documento)) return 'repetido_no_arquivo';
+    if (email && conjuntos.emailsVistos.has(email)) return 'repetido_no_arquivo';
+    if (documento && conjuntos.documentosExistentes.has(documento)) return 'documento_repetido';
+    if (email && conjuntos.emailsExistentes.has(email)) return 'email_repetido';
+
+    return null;
+  }
+
+  /**
+   * Coloca o lote inteiro na primeira etapa do funil.
+   *
+   * Duas consultas para qualquer quantidade, contra duas **por cliente** se
+   * `colocarNaPrimeiraEtapa` fosse chamado em laço. Os clientes acabaram de ser
+   * criados nesta transação, então não há como já estarem no funil — a
+   * verificação que a versão individual faz não é necessária aqui.
+   */
+  private async colocarLoteNoFunil(tx: TransacaoComTenant, clienteIds: string[]): Promise<void> {
+    const primeira = await tx.etapaFunil.findFirst({
+      orderBy: { ordem: 'asc' },
+      select: { id: true },
+    });
+
+    // Empresa sem etapas simplesmente não tem funil; a importação não pode
+    // falhar por isso.
+    if (!primeira) {
+      return;
+    }
+
+    await tx.clienteFunil.createMany({
+      data: clienteIds.map((clienteId) => ({
+        id: uuidv7(),
+        tenantId: tenantAtual(),
+        clienteId,
+        etapaId: primeira.id,
+      })),
+    });
   }
 
   /**

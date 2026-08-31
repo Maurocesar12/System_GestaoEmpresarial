@@ -127,3 +127,59 @@ export function formatarDocumento(documento: string | null): string {
 
   return documento;
 }
+
+// --- Importação em massa ---------------------------------------------------
+
+/**
+ * Teto de clientes por requisição.
+ *
+ * Não é um limite do produto: a tela quebra planilhas maiores em lotes e envia
+ * um atrás do outro. O teto existe para que uma requisição isolada tenha
+ * tamanho previsível — corpo de JSON, tempo de transação e memória do servidor
+ * crescem todos com este número.
+ */
+export const LIMITE_IMPORTACAO = 500;
+
+export const importacaoClientesSchema = z.object({
+  clientes: z
+    .array(clienteFormSchema)
+    .min(1, 'Envie ao menos um cliente')
+    .max(LIMITE_IMPORTACAO, `Envie no máximo ${LIMITE_IMPORTACAO} clientes por vez`),
+});
+
+export type ImportacaoClientesInput = z.infer<typeof importacaoClientesSchema>;
+export type ImportacaoClientesEntrada = z.input<typeof importacaoClientesSchema>;
+
+/**
+ * Por que uma linha não virou cliente.
+ *
+ * Importação silenciosa é pior do que importação que falha: o usuário acha que
+ * subiu 300 clientes e descobre semanas depois que 40 ficaram de fora. Cada
+ * linha ignorada volta com o motivo, e a tela mostra todos.
+ */
+export const MOTIVOS_IGNORADO = [
+  'documento_repetido',
+  'email_repetido',
+  'repetido_no_arquivo',
+] as const;
+
+export const motivoIgnoradoSchema = z.enum(MOTIVOS_IGNORADO);
+export type MotivoIgnorado = z.infer<typeof motivoIgnoradoSchema>;
+
+export const ROTULO_MOTIVO_IGNORADO: Record<MotivoIgnorado, string> = {
+  documento_repetido: 'Já existe um cliente com este CPF/CNPJ',
+  email_repetido: 'Já existe um cliente com este e-mail',
+  repetido_no_arquivo: 'Repetido dentro da própria planilha',
+};
+
+export interface ClienteIgnorado {
+  /** Posição dentro do lote enviado, começando em zero. */
+  indice: number;
+  nome: string;
+  motivo: MotivoIgnorado;
+}
+
+export interface ResultadoImportacao {
+  criados: number;
+  ignorados: ClienteIgnorado[];
+}

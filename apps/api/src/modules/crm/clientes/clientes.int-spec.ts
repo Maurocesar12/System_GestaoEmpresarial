@@ -279,4 +279,163 @@ describe('clientes (HTTP)', () => {
       await comToken(tokenA).get('/api/clientes/nao-e-um-uuid').expect(400);
     });
   });
+
+  describe('importação em massa', () => {
+    /**
+     * Empresa própria para este bloco: a importação cria dezenas de clientes e
+     * mexeria nas contagens dos testes de listagem se dividisse a empresa.
+     */
+    let token: string;
+    let tenantId: string;
+
+    beforeAll(async () => {
+      const empresa = await cadastrarEmpresa('importacao');
+      token = empresa.accessToken;
+      tenantId = empresa.tenantId;
+    });
+
+    const importar = (clientes: Record<string, unknown>[]) =>
+      comToken(token).post('/api/clientes/importar').send({ clientes });
+
+    it('cria o lote inteiro numa única requisição', async () => {
+      const { body } = await importar([
+        { nome: 'Lote Um', telefone: '11911111111' },
+        { nome: 'Lote Dois', telefone: '11922222222' },
+        { nome: 'Lote Três', email: 'lote3@exemplo.com' },
+      ]).expect(201);
+
+      expect(body.criados).toBe(3);
+      expect(body.ignorados).toEqual([]);
+    });
+
+    it('coloca os importados na primeira etapa do funil', async () => {
+      // O cadastro individual faz isso; a importação não pode deixar clientes
+      // fora do funil, senão eles somem do quadro de vendas.
+      await importar([{ nome: `Funil ${marca}` }]).expect(201);
+
+      const { body } = await comToken(token).get('/api/funil').expect(200);
+      const nomes = body.colunas.flatMap((coluna: { clientes: { nome: string }[] }) =>
+        coluna.clientes.map((cliente) => cliente.nome),
+      );
+
+      expect(nomes).toContain(`Funil ${marca}`);
+    });
+
+    it('normaliza telefone e documento como no cadastro individual', async () => {
+      await importar([
+        { nome: 'Com Máscara', telefone: '(11) 93333-3333', documento: '123.456.789-09' },
+      ]).expect(201);
+
+      const { body } = await comToken(token)
+        .get('/api/clientes?busca=Com%20M%C3%A1scara')
+        .expect(200);
+
+      expect(body.dados[0].telefone).toBe('11933333333');
+      expect(body.dados[0].documento).toBe('12345678909');
+    });
+
+    it('pula quem já existe no banco, dizendo o motivo', async () => {
+      await importar([{ nome: 'Já Existe', documento: '11122233344' }]).expect(201);
+
+      const { body } = await importar([
+        { nome: 'Já Existe de novo', documento: '11122233344' },
+        { nome: 'Esse é novo', documento: '55566677788' },
+      ]).expect(201);
+
+      expect(body.criados).toBe(1);
+      expect(body.ignorados).toEqual([
+        { indice: 0, nome: 'Já Existe de novo', motivo: 'documento_repetido' },
+      ]);
+    });
+
+    it('pula repetidos dentro da própria planilha', async () => {
+      const { body } = await importar([
+        { nome: 'Primeiro', email: 'repetido@exemplo.com' },
+        { nome: 'Segundo', email: 'repetido@exemplo.com' },
+      ]).expect(201);
+
+      expect(body.criados).toBe(1);
+      expect(body.ignorados[0]).toMatchObject({ indice: 1, motivo: 'repetido_no_arquivo' });
+    });
+
+    it('não trata homônimos sem documento como repetidos', async () => {
+      // Dois "João Silva" sem CPF são duas pessoas até prova em contrário.
+      const { body } = await importar([{ nome: 'João Silva' }, { nome: 'João Silva' }]).expect(201);
+
+      expect(body.criados).toBe(2);
+    });
+
+    it('recusa a planilha inteira quando ela não cabe no plano', async () => {
+      // Falha total, e não parcial: importar 300 de 500 e avisar depois deixaria
+      // o usuário sem saber quais entraram.
+      const empresa = await cadastrarEmpresa('importacao-limite');
+      const slug = `limite-importacao-${marca}`;
+      planosCriados.push(slug);
+
+      const plano = await prisma.plano.upsert({
+        where: { slug },
+        create: { nome: 'Plano com duas vagas', slug, preco: '0.00', limiteClientes: 2 },
+        update: { limiteClientes: 2 },
+      });
+
+      await prisma.comTenantExplicito(empresa.tenantId, (tx) =>
+        tx.tenant.update({ where: { id: empresa.tenantId }, data: { planoId: plano.id } }),
+      );
+
+      const resposta = await comToken(empresa.accessToken)
+        .post('/api/clientes/importar')
+        .send({ clientes: [{ nome: 'Um' }, { nome: 'Dois' }, { nome: 'Três' }] })
+        .expect(403);
+
+      expect(resposta.body.codigo).toBe(CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO);
+      expect(resposta.body.mensagem).toMatch(/cabem/i);
+
+      // Nada gravado: a transação inteira foi desfeita.
+      const { body } = await comToken(empresa.accessToken)
+        .get('/api/clientes?porPagina=1')
+        .expect(200);
+
+      expect(body.meta.total).toBe(0);
+    });
+
+    it('recusa lote acima do teto por requisição', async () => {
+      const enorme = Array.from({ length: 501 }, (_, i) => ({ nome: `Teto ${i}` }));
+
+      await importar(enorme).expect(400);
+    });
+
+    it('recusa lote vazio', async () => {
+      await importar([]).expect(400);
+    });
+
+    it('recusa linha inválida sem gravar as válidas', async () => {
+      // Validação é do lote: uma linha ruim é erro de planilha, e o usuário
+      // precisa corrigir antes — não descobrir depois que faltou gente.
+      await importar([{ nome: 'Válido' }, { nome: 'x' }]).expect(400);
+    });
+
+    it('não deixa atendente importar', async () => {
+      // Importar mil clientes de uma vez tem peso diferente de cadastrar um.
+      await prisma.comTenantExplicito(tenantId, (tx) =>
+        tx.usuario.updateMany({ where: { tenantId }, data: { papel: 'atendente' } }),
+      );
+
+      // Precisa entrar de novo: o papel vem do JWT, e o token emitido antes da
+      // troca continua dizendo "admin" até expirar.
+      const { body: sessao } = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: `importacao+${marca}@exemplo.com`, senha: 'senhaSegura123' })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/clientes/importar')
+        .set('Authorization', `Bearer ${sessao.accessToken}`)
+        .send({ clientes: [{ nome: 'Negado' }] })
+        .expect(403);
+
+      await prisma.comTenantExplicito(tenantId, (tx) =>
+        tx.usuario.updateMany({ where: { tenantId }, data: { papel: 'admin' } }),
+      );
+    });
+  });
 });

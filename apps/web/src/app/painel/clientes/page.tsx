@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Upload } from 'lucide-react';
 import Link from 'next/link';
 import {
   formatarDocumento,
@@ -6,6 +7,7 @@ import {
   type Cliente,
   type Paginado,
 } from '@gestao/shared-types';
+import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao } from '@/lib/api-servidor';
 import { CampoBusca } from './campo-busca';
 
@@ -50,12 +52,19 @@ export default async function PaginaClientes({ searchParams }: Props) {
           </p>
         </div>
 
-        <Link
-          href="/painel/clientes/novo"
-          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
-        >
-          Novo cliente
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/painel/clientes/importar"
+            className={estilosBotao({ variante: 'secundario' })}
+          >
+            <Upload aria-hidden />
+            Importar planilha
+          </Link>
+
+          <Link href="/painel/clientes/novo" className={estilosBotao()}>
+            Novo cliente
+          </Link>
+        </div>
       </header>
 
       <CampoBusca valorInicial={busca} />

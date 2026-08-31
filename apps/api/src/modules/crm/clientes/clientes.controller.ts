@@ -14,10 +14,13 @@ import {
 import {
   clienteFormSchema,
   clientesQuerySchema,
+  importacaoClientesSchema,
   type Cliente,
   type ClienteFormInput,
   type ClientesQuery,
+  type ImportacaoClientesInput,
   type Paginado,
+  type ResultadoImportacao,
 } from '@gestao/shared-types';
 import { Papeis } from '../../../common/decorators/papeis.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
@@ -56,6 +59,28 @@ export class ClientesController {
   @Post()
   criar(@Body(new ZodValidationPipe(clienteFormSchema)) dados: ClienteFormInput): Promise<Cliente> {
     return this.clientes.criar(dados);
+  }
+
+  /**
+   * Importa um lote vindo de planilha.
+   *
+   * Recebe JSON, e não o arquivo: quem lê a planilha é o navegador, o que
+   * permite mostrar a conferência antes de gravar qualquer coisa e poupa a API
+   * de lidar com upload, formato de arquivo e memória de arquivo grande.
+   *
+   * A validação roda aqui de novo, com o mesmo schema que a tela usou. O que a
+   * tela valida é conveniência para quem digita; garantia é o que acontece no
+   * servidor.
+   *
+   * Restrito a `admin`: importar mil clientes de uma vez tem peso diferente de
+   * cadastrar um.
+   */
+  @Post('importar')
+  @Papeis('admin')
+  importar(
+    @Body(new ZodValidationPipe(importacaoClientesSchema)) dados: ImportacaoClientesInput,
+  ): Promise<ResultadoImportacao> {
+    return this.clientes.importar(dados.clientes);
   }
 
   @Patch(':id')
