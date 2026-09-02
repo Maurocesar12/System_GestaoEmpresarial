@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Providers } from '@/components/providers';
 import { SCRIPT_TEMA } from '@/lib/tema';
 import './globals.css';
 
@@ -52,8 +51,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       </head>
+      {/*
+        Sem provider de cliente em volta da árvore.
+
+        Havia um `QueryClientProvider` aqui, mas nenhum componente do sistema
+        chama `useQuery`: os dados vêm de Server Components e as escritas de
+        Server Actions. O provider era JavaScript baixado, executado e hidratado
+        em toda página para não fazer nada — e, por ser um componente de
+        cliente, forçava uma fronteira de cliente na raiz da aplicação.
+
+        Se um dia houver busca incremental no navegador (rolagem infinita,
+        atualização em segundo plano), ele volta — envolvendo só a parte que
+        precisar, não o `<body>` inteiro.
+      */}
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        {children}
       </body>
     </html>
   );

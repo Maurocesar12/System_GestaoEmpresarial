@@ -3,6 +3,7 @@ import { ServerCrash } from 'lucide-react';
 import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
 import { ShellPainel } from '@/components/painel/shell-painel';
+import { ProvedorDeAvisos } from '@/components/ui/avisos';
 import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao } from '@/lib/api-servidor';
 import { sair } from '../(auth)/acoes';
@@ -43,9 +44,15 @@ export default async function LayoutPainel({ children }: { children: React.React
   }
 
   return (
-    <ShellPainel usuario={usuario} aoSair={sair}>
-      {children}
-    </ShellPainel>
+    // O provedor de avisos entra aqui, e não na raiz da aplicação: as telas
+    // públicas (site, entrar, cadastro) não disparam nenhum aviso, e envolver o
+    // `<body>` inteiro obrigaria toda visita anônima a baixar e hidratar este
+    // componente de cliente à toa.
+    <ProvedorDeAvisos>
+      <ShellPainel usuario={usuario} aoSair={sair}>
+        {children}
+      </ShellPainel>
+    </ProvedorDeAvisos>
   );
 }
 
