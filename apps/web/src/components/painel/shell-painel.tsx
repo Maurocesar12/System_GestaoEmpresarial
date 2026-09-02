@@ -181,7 +181,18 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
           de funil precisam de espaço horizontal. O limite existe só para o
           texto não virar linha longa demais em monitor ultrawide.
         */}
-        <main className="mx-auto w-full max-w-[88rem] px-4 py-6 md:px-8 md:py-8">{children}</main>
+        {/*
+          `key` no caminho: força o React a remontar a área de conteúdo a cada
+          navegação, e é isso que faz a animação de entrada rodar de novo. Sem
+          ela, o elemento é reaproveitado e a animação só toca uma vez, na
+          primeira carga.
+        */}
+        <main
+          key={caminho}
+          className="entrada-suave mx-auto w-full max-w-[88rem] px-4 py-6 md:px-8 md:py-8"
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

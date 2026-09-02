@@ -256,7 +256,113 @@
     @apply ring-ring ring-offset-background outline-none ring-2 ring-offset-2;
   }
 
-  /* Respeita quem pediu menos movimento no sistema operacional. */
+  /*
+    Barra de rolagem discreta.
+
+    A barra nativa do Windows é cinza-clara, larga e desenhada há vinte anos —
+    num sistema com quadro de funil e tabela larga, ela aparece em toda tela e
+    envelhece o produto sozinha. Aqui ela vira um traço fino que acompanha a
+    borda do tema e só ganha contraste quando o cursor passa por perto.
+
+    A cor vem por transparência (`--foreground` com alfa), e não por um cinza
+    fixo: assim funciona nos dois temas sem uma segunda declaração.
+
+    Firefox usa `scrollbar-width`/`scrollbar-color`; os demais usam os
+    pseudo-elementos `::-webkit-scrollbar`. As duas formas estão aqui porque
+    nenhuma cobre todos os navegadores.
+  */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  /* Trilho invisível: o espaço existe, a faixa cinza não. */
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklch, var(--foreground) 16%, transparent);
+    border-radius: 9999px;
+    /*
+      A borda transparente com `background-clip` é o truque que afina o polegar
+      sem estreitar a área de clique: visualmente ele tem 4px, mas continua
+      tendo 10px de alvo para o ponteiro.
+    */
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--foreground) 32%, transparent);
+  }
+
+  /* O quadradinho onde as duas barras se encontram, que fica cinza por padrão. */
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /*
+    Movimento do sistema, num lugar só.
+
+    Duas durações e uma curva. Interface de trabalho não pede variedade de
+    animação: pede que tudo se mova do mesmo jeito, rápido o bastante para não
+    atrasar quem já sabe onde vai clicar.
+
+    120ms é o limite em que uma transição ainda parece resposta imediata; acima
+    de ~200ms ela começa a parecer espera. A curva sai depressa e desacelera no
+    fim, que é como as coisas param no mundo físico.
+  */
+  :root {
+    --duracao-rapida: 120ms;
+    --duracao-normal: 180ms;
+    --curva: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  /*
+    Todo elemento interativo responde ao ponteiro com a mesma cadência. Só as
+    propriedades que de fato mudam entram na transição: `transition: all` anima
+    também `height` e `width`, obrigando o navegador a recalcular layout a cada
+    quadro.
+  */
+  a,
+  button,
+  [role='button'],
+  summary {
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: var(--duracao-rapida);
+    transition-timing-function: var(--curva);
+  }
+
+  /* O conteúdo entra suave quando a rota troca, em vez de aparecer seco. */
+  @keyframes entrada-suave {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .entrada-suave {
+    animation: entrada-suave var(--duracao-normal) var(--curva);
+  }
+
+  /*
+    Respeita quem pediu menos movimento no sistema operacional.
+
+    Vestíbulo sensível, enxaqueca e epilepsia fotossensível são motivos reais
+    para essa preferência existir. Aqui ela desliga o movimento inteiro —
+    inclusive o pulsar dos esqueletos de carregamento, que continuam visíveis
+    como blocos parados.
+  */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
