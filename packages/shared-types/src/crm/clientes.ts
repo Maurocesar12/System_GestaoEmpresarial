@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { opcional } from '../common/opcional';
+import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 
 /**
@@ -39,10 +39,10 @@ export const clienteFormSchema = z.object({
   email: opcional(z.string().trim().toLowerCase().pipe(z.email('E-mail inválido'))),
   telefone: opcional(telefoneSchema),
   documento: opcional(documentoSchema),
-  observacoes: opcional(z.string().trim().max(2000)),
+  observacoes: textoOpcional(2000),
 
   /** De onde veio o lead. Alimenta o relatório do módulo de marketing (§8.3). */
-  origem: opcional(z.string().trim().max(60)),
+  origem: textoOpcional(60),
   utmSource: opcional(z.string().trim().max(120)),
   utmMedium: opcional(z.string().trim().max(120)),
   utmCampaign: opcional(z.string().trim().max(120)),
@@ -148,7 +148,6 @@ export const importacaoClientesSchema = z.object({
 });
 
 export type ImportacaoClientesInput = z.infer<typeof importacaoClientesSchema>;
-export type ImportacaoClientesEntrada = z.input<typeof importacaoClientesSchema>;
 
 /**
  * Por que uma linha não virou cliente.

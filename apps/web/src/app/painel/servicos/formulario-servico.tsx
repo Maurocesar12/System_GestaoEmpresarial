@@ -14,7 +14,8 @@ import { useForm, useWatch } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
-import { salvarServico, type ResultadoAcao } from './acoes';
+import type { ResultadoAcao } from '@/lib/acoes';
+import { salvarServico } from './acoes';
 
 const CAMPOS = ['nome', 'categoria', 'custoBase', 'precoPadrao'] as const;
 

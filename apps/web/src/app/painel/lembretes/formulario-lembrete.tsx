@@ -16,7 +16,8 @@ import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import { proximaHoraCheia } from '@/lib/formatacao';
-import { salvarLembrete, type ResultadoAcao } from './acoes';
+import type { ResultadoAcao } from '@/lib/acoes';
+import { salvarLembrete } from './acoes';
 
 const CAMPOS = ['clienteId', 'canal', 'dataEnvio'] as const;
 

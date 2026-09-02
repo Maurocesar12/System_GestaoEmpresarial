@@ -11,8 +11,6 @@ import {
 import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 /** O que o cartão aberto mostra. */
 export interface DetalheCartao {
   cliente: Cliente;

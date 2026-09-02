@@ -16,7 +16,7 @@ import { uuidv7 } from '../../../common/uuid';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
-import { garantirClienteEServico } from '../vinculos';
+import { garantirVinculos } from '../../../common/vinculos';
 
 /** Relações que toda resposta de agendamento precisa. */
 const INCLUDE_PADRAO = {
@@ -86,7 +86,7 @@ export class AgendamentosService {
 
   async criar(dados: AgendamentoFormInput): Promise<Agendamento> {
     const agendamento = await this.prisma.comTenant(async (tx) => {
-      await garantirClienteEServico(tx, dados);
+      await garantirVinculos(tx, dados);
 
       return tx.agendamento.create({
         data: {
@@ -111,19 +111,19 @@ export class AgendamentosService {
    * o histórico; de algo cancelado, confundiria o registro do que houve.
    */
   async atualizar(id: string, dados: AgendamentoFormInput): Promise<Agendamento> {
-    const atual = await this.buscarPorId(id);
-
-    if (atual.status === 'executado' || atual.status === 'cancelado') {
-      throw new BadRequestException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem: `Este agendamento está ${ROTULO_STATUS_AGENDAMENTO[
-          atual.status
-        ].toLowerCase()} e não pode mais ser alterado.`,
-      });
-    }
-
     const agendamento = await this.prisma.comTenant(async (tx) => {
-      await garantirClienteEServico(tx, dados);
+      const atual = await this.exigir(tx, id);
+
+      if (atual.status === 'executado' || atual.status === 'cancelado') {
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem: `Este agendamento está ${ROTULO_STATUS_AGENDAMENTO[
+            atual.status
+          ].toLowerCase()} e não pode mais ser alterado.`,
+        });
+      }
+
+      await garantirVinculos(tx, dados);
 
       return tx.agendamento.update({
         where: { id },
@@ -148,28 +148,28 @@ export class AgendamentosService {
    * registro do que foi feito, sem exigir que alguém digite duas vezes.
    */
   async mudarStatus(id: string, acao: AcaoAgendamento): Promise<Agendamento> {
-    const atual = await this.buscarPorId(id);
-    const novoStatus = TRANSICOES_AGENDAMENTO[atual.status][acao];
-
-    if (!novoStatus) {
-      const possiveis = acoesAgendamentoDisponiveis(atual.status);
-
-      throw new BadRequestException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem:
-          possiveis.length === 0
-            ? `Um agendamento ${ROTULO_STATUS_AGENDAMENTO[
-                atual.status
-              ].toLowerCase()} não aceita mais alterações.`
-            : `Não é possível ${ROTULO_ACAO_AGENDAMENTO[acao].toLowerCase()} um agendamento ${ROTULO_STATUS_AGENDAMENTO[
-                atual.status
-              ].toLowerCase()}. Ações possíveis: ${possiveis
-                .map((a) => ROTULO_ACAO_AGENDAMENTO[a].toLowerCase())
-                .join(', ')}.`,
-      });
-    }
-
     const agendamento = await this.prisma.comTenant(async (tx) => {
+      const atual = await this.exigir(tx, id);
+      const novoStatus = TRANSICOES_AGENDAMENTO[atual.status][acao];
+
+      if (!novoStatus) {
+        const possiveis = acoesAgendamentoDisponiveis(atual.status);
+
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem:
+            possiveis.length === 0
+              ? `Um agendamento ${ROTULO_STATUS_AGENDAMENTO[
+                  atual.status
+                ].toLowerCase()} não aceita mais alterações.`
+              : `Não é possível ${ROTULO_ACAO_AGENDAMENTO[acao].toLowerCase()} um agendamento ${ROTULO_STATUS_AGENDAMENTO[
+                  atual.status
+                ].toLowerCase()}. Ações possíveis: ${possiveis
+                  .map((a) => ROTULO_ACAO_AGENDAMENTO[a].toLowerCase())
+                  .join(', ')}.`,
+        });
+      }
+
       const atualizado = await tx.agendamento.update({
         where: { id },
         data: { status: novoStatus },
@@ -187,17 +187,40 @@ export class AgendamentosService {
   }
 
   async remover(id: string): Promise<void> {
-    const atual = await this.buscarPorId(id);
+    await this.prisma.comTenant(async (tx) => {
+      const atual = await this.exigir(tx, id);
 
-    if (atual.status === 'executado') {
-      throw new BadRequestException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem:
-          'Agendamento executado não pode ser excluído — ele faz parte do histórico do cliente.',
+      if (atual.status === 'executado') {
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem:
+            'Agendamento executado não pode ser excluído — ele faz parte do histórico do cliente.',
+        });
+      }
+
+      await tx.agendamento.deleteMany({ where: { id } });
+    });
+  }
+
+  /**
+   * Carrega o agendamento dentro de uma transação já aberta, ou devolve 404.
+   *
+   * Existe para leitura e escrita ficarem na **mesma** transação. Chamar
+   * `buscarPorId` antes do `comTenant` abriria uma transação inteira a mais
+   * (`BEGIN` + `set_config` + consulta + `COMMIT`) e ainda deixaria a
+   * conferência fora da transação que grava.
+   */
+  private async exigir(tx: TransacaoComTenant, id: string): Promise<AgendamentoBanco> {
+    const agendamento = await tx.agendamento.findUnique({ where: { id }, include: INCLUDE_PADRAO });
+
+    if (!agendamento) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Agendamento não encontrado.',
       });
     }
 
-    await this.prisma.comTenant((tx) => tx.agendamento.deleteMany({ where: { id } }));
+    return agendamento;
   }
 
   /**

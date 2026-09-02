@@ -47,7 +47,7 @@ export async function removerAtendimento(
       method: 'DELETE',
     });
   } catch (erro) {
-    return traduzirErroAcao(erro, 'Não foi possível registrar. Tente novamente.');
+    return traduzirErroAcao(erro, 'Não foi possível excluir. Tente novamente.');
   }
 
   revalidatePath(`/painel/clientes/${clienteId}`);

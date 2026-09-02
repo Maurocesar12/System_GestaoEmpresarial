@@ -6,8 +6,6 @@ import { servicoFormSchema, type Servico, type ServicoFormInput } from '@gestao/
 import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 export async function salvarServico(
   id: string | null,
   dados: ServicoFormInput,

@@ -24,9 +24,6 @@ import type { SessaoResponse } from '@gestao/shared-types';
 const COOKIE_ACCESS = 'gestao_access';
 const COOKIE_REFRESH = 'gestao_refresh';
 
-/** Nome do cookie que o middleware de rota checa. */
-export const COOKIE_SESSAO = COOKIE_ACCESS;
-
 export async function gravarSessao(sessao: SessaoResponse): Promise<void> {
   const jar = await cookies();
   const producao = process.env.NODE_ENV === 'production';

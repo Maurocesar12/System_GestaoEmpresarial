@@ -5,6 +5,9 @@ import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
+import { Cartao, CartaoItem, CartaoLista } from '@/components/ui/cartao';
+import { Selecao } from '@/components/ui/selecao';
+import { Selo } from '@/components/ui/selo';
 import { criarCategoria, removerCategoria } from '../acoes';
 
 export function GerenciadorCategorias({ categorias }: { categorias: CategoriaFinanceira[] }) {
@@ -15,29 +18,25 @@ export function GerenciadorCategorias({ categorias }: { categorias: CategoriaFin
       {erro && <AvisoErro mensagem={erro} />}
 
       {categorias.length > 0 && (
-        <ul className="flex flex-col rounded-lg border">
-          {categorias.map((categoria) => (
-            <li
-              key={categoria.id}
-              className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
-            >
-              <span className="flex items-center gap-3">
-                <span className="text-sm font-medium">{categoria.nome}</span>
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-xs ${
-                    categoria.tipoCusto === 'fixo'
-                      ? 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-400'
-                      : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                  }`}
-                >
-                  {ROTULO_TIPO_CUSTO[categoria.tipoCusto]}
-                </span>
-              </span>
+        <Cartao>
+          <CartaoLista>
+            {categorias.map((categoria) => (
+              <CartaoItem key={categoria.id}>
+                <span className="flex items-center gap-3">
+                  <span className="text-sm font-medium">{categoria.nome}</span>
 
-              <BotaoExcluir id={categoria.id} nome={categoria.nome} onErro={setErro} />
-            </li>
-          ))}
-        </ul>
+                  {/* Azul para fixo, âmbar para variável — os mesmos tons de
+                    significado dos selos do resto do sistema. */}
+                  <Selo tom={categoria.tipoCusto === 'fixo' ? 'info' : 'atencao'}>
+                    {ROTULO_TIPO_CUSTO[categoria.tipoCusto]}
+                  </Selo>
+                </span>
+
+                <BotaoExcluir id={categoria.id} nome={categoria.nome} onErro={setErro} />
+              </CartaoItem>
+            ))}
+          </CartaoLista>
+        </Cartao>
       )}
 
       <NovaCategoria onErro={setErro} />
@@ -133,20 +132,16 @@ function NovaCategoria({ onErro }: { onErro: (erro?: string) => void }) {
         className="w-56"
       />
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="tipoCusto" className="text-sm font-medium">
-          Tipo de custo
-        </label>
-        <select
-          id="tipoCusto"
-          value={tipoCusto}
-          onChange={(evento) => setTipoCusto(evento.target.value as TipoCusto)}
-          className="focus-visible:ring-ring h-10 rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-        >
-          <option value="variavel">{ROTULO_TIPO_CUSTO.variavel}</option>
-          <option value="fixo">{ROTULO_TIPO_CUSTO.fixo}</option>
-        </select>
-      </div>
+      <Selecao
+        id="tipoCusto"
+        rotulo="Tipo de custo"
+        value={tipoCusto}
+        onChange={(evento) => setTipoCusto(evento.target.value as TipoCusto)}
+        className="w-44"
+      >
+        <option value="variavel">{ROTULO_TIPO_CUSTO.variavel}</option>
+        <option value="fixo">{ROTULO_TIPO_CUSTO.fixo}</option>
+      </Selecao>
 
       <Botao type="submit" variante="secundario" carregando={criando}>
         Adicionar

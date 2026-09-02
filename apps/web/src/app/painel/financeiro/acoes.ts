@@ -13,8 +13,6 @@ import {
 import { erroDeValidacao, primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 export async function salvarLancamento(
   id: string | null,
   dados: LancamentoFormInput,

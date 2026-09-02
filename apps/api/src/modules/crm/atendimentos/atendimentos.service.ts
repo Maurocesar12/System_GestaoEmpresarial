@@ -1,17 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CODIGOS_ERRO, type Atendimento, type AtendimentoFormInput } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
+import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 
-/** Registro do banco, com data como `Date`. */
-type AtendimentoBanco = {
-  id: string;
-  clienteId: string;
-  descricao: string;
-  data: Date;
-  criadoEm: Date;
-};
+/** O registro do banco, derivado do schema em vez de redigitado à mão. */
+type AtendimentoBanco = Prisma.AtendimentoGetPayload<object>;
 
 @Injectable()
 export class AtendimentosService {

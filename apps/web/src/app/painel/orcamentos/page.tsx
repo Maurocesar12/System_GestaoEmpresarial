@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { FileText } from 'lucide-react';
 import {
   ROTULO_STATUS,
   STATUS_ORCAMENTO,
@@ -8,12 +9,41 @@ import {
   type Orcamento,
   type Paginado,
   type ResumoOrcamentos,
+  type StatusOrcamento,
 } from '@gestao/shared-types';
+import { estilosBotao } from '@/components/ui/botao';
+import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
+import { Cartao } from '@/components/ui/cartao';
+import { EstadoVazio } from '@/components/ui/estado-vazio';
+import { BarraDeFiltros, FiltroLink } from '@/components/ui/filtro-link';
+import { Indicador } from '@/components/ui/indicador';
+import { Selo } from '@/components/ui/selo';
+import {
+  TabelaCabecalho,
+  TabelaCelula,
+  TabelaColuna,
+  TabelaCorpo,
+  TabelaLinha,
+  TabelaRolavel,
+} from '@/components/ui/tabela';
 import { apiComSessao } from '@/lib/api-servidor';
 import { AcoesStatus } from './acoes-status';
 
 export const metadata: Metadata = {
   title: 'Orçamentos',
+};
+
+/**
+ * O tom de cada status.
+ *
+ * Sai dos tokens de significado do sistema, e não de cores cruas do Tailwind:
+ * é o que mantém "aguardando" com o mesmo âmbar aqui, no financeiro e na
+ * agenda. Antes cada tela escolhia o seu, e as três já discordavam.
+ */
+const TOM_DO_STATUS: Record<StatusOrcamento, 'atencao' | 'sucesso' | 'perigo'> = {
+  aberto: 'atencao',
+  aprovado: 'sucesso',
+  recusado: 'perigo',
 };
 
 interface Props {
@@ -33,161 +63,125 @@ export default async function PaginaOrcamentos({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">Orçamentos</h1>
-          <p className="text-muted-foreground text-sm">
-            Propostas enviadas e o que já foi respondido.
-          </p>
-        </div>
-
-        <Link
-          href="/painel/orcamentos/novo"
-          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
-        >
-          Novo orçamento
-        </Link>
-      </header>
+      <CabecalhoPagina
+        titulo="Orçamentos"
+        descricao="Propostas enviadas e o que já foi respondido."
+        acoes={
+          <Link href="/painel/orcamentos/novo" className={estilosBotao()}>
+            Novo orçamento
+          </Link>
+        }
+      />
 
       {/* O resumo vem primeiro porque responde a pergunta mais frequente:
           quanto está em negociação e quanto já foi fechado. */}
       <section className="grid gap-3 sm:grid-cols-3">
-        <Cartao titulo="Em aberto" dados={resumo.abertos} destaque />
-        <Cartao titulo="Aprovados" dados={resumo.aprovados} />
-        <Cartao titulo="Recusados" dados={resumo.recusados} />
+        <Indicador
+          titulo="Em aberto"
+          valor={formatarBRL(resumo.abertos.valor)}
+          detalhe={rotularQuantidade(resumo.abertos.quantidade)}
+          destaque
+        />
+        <Indicador
+          titulo="Aprovados"
+          valor={formatarBRL(resumo.aprovados.valor)}
+          detalhe={rotularQuantidade(resumo.aprovados.quantidade)}
+          tom="positivo"
+        />
+        <Indicador
+          titulo="Recusados"
+          valor={formatarBRL(resumo.recusados.valor)}
+          detalhe={rotularQuantidade(resumo.recusados.quantidade)}
+        />
       </section>
 
-      <nav className="flex flex-wrap gap-2" aria-label="Filtrar por status">
-        <FiltroStatus atual={status} valor={undefined} rotulo="Todos" />
+      <BarraDeFiltros rotulo="Filtrar por status">
+        <FiltroLink base="/painel/orcamentos" parametro="status" atual={status} rotulo="Todos" />
         {STATUS_ORCAMENTO.map((valor) => (
-          <FiltroStatus key={valor} atual={status} valor={valor} rotulo={ROTULO_STATUS[valor]} />
+          <FiltroLink
+            key={valor}
+            base="/painel/orcamentos"
+            parametro="status"
+            valor={valor}
+            atual={status}
+            rotulo={ROTULO_STATUS[valor]}
+          />
         ))}
-      </nav>
+      </BarraDeFiltros>
 
       {lista.dados.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-16 text-center">
-          <p className="font-medium">Nenhum orçamento por aqui</p>
-          <p className="text-muted-foreground max-w-sm text-sm">
-            {status
+        <EstadoVazio
+          icone={FileText}
+          titulo="Nenhum orçamento por aqui"
+          descricao={
+            status
               ? 'Nenhum orçamento com este status.'
-              : 'Emita o primeiro orçamento para acompanhar o que está em negociação.'}
-          </p>
-        </div>
+              : 'Emita o primeiro orçamento para acompanhar o que está em negociação.'
+          }
+          acao={
+            status ? undefined : (
+              <Link href="/painel/orcamentos/novo" className={estilosBotao({ tamanho: 'sm' })}>
+                Novo orçamento
+              </Link>
+            )
+          }
+        />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">Cliente</th>
-                <th className="px-4 py-3 font-medium">Serviço</th>
-                <th className="px-4 py-3 text-right font-medium">Valor</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Cartao>
+          <TabelaRolavel>
+            <TabelaCabecalho>
+              <TabelaColuna>Cliente</TabelaColuna>
+              <TabelaColuna>Serviço</TabelaColuna>
+              <TabelaColuna numerica>Valor</TabelaColuna>
+              <TabelaColuna>Status</TabelaColuna>
+              <TabelaColuna>Ações</TabelaColuna>
+            </TabelaCabecalho>
+
+            <TabelaCorpo>
               {lista.dados.map((orcamento) => (
-                <tr key={orcamento.id} className="hover:bg-muted/30 border-t transition-colors">
-                  <td className="px-4 py-3">
+                <TabelaLinha key={orcamento.id}>
+                  <TabelaCelula>
                     <Link
                       href={`/painel/orcamentos/${orcamento.id}`}
                       className="font-medium underline-offset-4 hover:underline"
                     >
                       {orcamento.clienteNome}
                     </Link>
-                  </td>
-                  <td className="text-muted-foreground px-4 py-3">
-                    {orcamento.servicoNome ?? '—'}
-                  </td>
+                  </TabelaCelula>
+
+                  <TabelaCelula suave>{orcamento.servicoNome ?? '—'}</TabelaCelula>
+
                   {/* `tabular-nums` alinha os dígitos em coluna, o que torna a
                       comparação de valores possível de bater o olho. */}
-                  <td className="px-4 py-3 text-right font-medium tabular-nums">
+                  <TabelaCelula numerica className="font-medium">
                     {formatarBRL(orcamento.valor)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Selo orcamento={orcamento} />
-                  </td>
-                  <td className="px-4 py-3">
+                  </TabelaCelula>
+
+                  <TabelaCelula>
+                    <span className="flex flex-col items-start gap-1">
+                      <Selo tom={TOM_DO_STATUS[orcamento.status]}>
+                        {ROTULO_STATUS[orcamento.status]}
+                      </Selo>
+
+                      {estaVencido(orcamento) && (
+                        <span className="text-muted-foreground text-xs">validade expirada</span>
+                      )}
+                    </span>
+                  </TabelaCelula>
+
+                  <TabelaCelula>
                     <AcoesStatus id={orcamento.id} status={orcamento.status} />
-                  </td>
-                </tr>
+                  </TabelaCelula>
+                </TabelaLinha>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TabelaCorpo>
+          </TabelaRolavel>
+        </Cartao>
       )}
     </div>
   );
 }
 
-function Cartao({
-  titulo,
-  dados,
-  destaque = false,
-}: {
-  titulo: string;
-  dados: { quantidade: number; valor: string };
-  destaque?: boolean;
-}) {
-  return (
-    <div className={`rounded-lg border p-4 ${destaque ? 'bg-muted/30' : ''}`}>
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{titulo}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{formatarBRL(dados.valor)}</p>
-      <p className="text-muted-foreground text-xs">
-        {dados.quantidade} {dados.quantidade === 1 ? 'orçamento' : 'orçamentos'}
-      </p>
-    </div>
-  );
-}
-
-/**
- * Selo de status.
- *
- * A cor não é o único sinal: o texto sempre acompanha. Quem não distingue
- * verde de vermelho continua lendo "Aprovado" e "Recusado".
- */
-function Selo({ orcamento }: { orcamento: Orcamento }) {
-  const vencido = estaVencido(orcamento);
-
-  const cores: Record<string, string> = {
-    aberto: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-    aprovado: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-    recusado: 'border-destructive/40 bg-destructive/10 text-destructive',
-  };
-
-  return (
-    <span className="flex flex-col gap-1">
-      <span
-        className={`w-fit rounded-full border px-2 py-0.5 text-xs font-medium ${cores[orcamento.status]}`}
-      >
-        {ROTULO_STATUS[orcamento.status]}
-      </span>
-      {vencido && <span className="text-muted-foreground text-xs">validade expirada</span>}
-    </span>
-  );
-}
-
-function FiltroStatus({
-  atual,
-  valor,
-  rotulo,
-}: {
-  atual?: string;
-  valor?: string;
-  rotulo: string;
-}) {
-  const ativo = atual === valor;
-  const href = valor ? `/painel/orcamentos?status=${valor}` : '/painel/orcamentos';
-
-  return (
-    <Link
-      href={href}
-      aria-current={ativo ? 'page' : undefined}
-      className={`inline-flex h-9 items-center rounded-md border px-3 text-sm transition-colors ${
-        ativo ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-      }`}
-    >
-      {rotulo}
-    </Link>
-  );
+function rotularQuantidade(quantidade: number): string {
+  return `${quantidade} ${quantidade === 1 ? 'orçamento' : 'orçamentos'}`;
 }

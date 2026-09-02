@@ -1,4 +1,4 @@
-import { Injectable, Logger, type NestMiddleware } from '@nestjs/common';
+import { Injectable, type NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtPayload } from '@gestao/shared-types';
 import type { NextFunction, Request, Response } from 'express';
@@ -38,8 +38,6 @@ import { runComTenant } from './tenant-context';
  */
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
-  private readonly logger = new Logger(TenantMiddleware.name);
-
   constructor(private readonly jwt: JwtService) {}
 
   use(req: Request, res: Response, next: NextFunction): void {

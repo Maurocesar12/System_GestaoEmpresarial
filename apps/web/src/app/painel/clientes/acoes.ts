@@ -20,8 +20,6 @@ import { apiComSessao } from '@/lib/api-servidor';
  * qualquer script da página.
  */
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 export async function salvarCliente(
   id: string | null,
   dados: ClienteFormInput,
@@ -53,7 +51,7 @@ export async function removerCliente(id: string): Promise<ResultadoAcao> {
   try {
     await apiComSessao<void>(`/clientes/${id}`, { method: 'DELETE' });
   } catch (erro) {
-    return traduzirErroAcao(erro, 'Não foi possível salvar. Tente novamente.');
+    return traduzirErroAcao(erro, 'Não foi possível excluir. Tente novamente.');
   }
 
   revalidatePath('/painel/clientes');

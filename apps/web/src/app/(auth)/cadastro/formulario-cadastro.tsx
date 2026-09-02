@@ -7,7 +7,8 @@ import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
-import { cadastrar, type ResultadoAcao } from '../acoes';
+import type { ResultadoAcao } from '@/lib/acoes';
+import { cadastrar } from '../acoes';
 
 /** Campos do formulário, para o `setError` saber quais existem. */
 const CAMPOS = ['nomeEmpresa', 'nomeResponsavel', 'email', 'senha'] as const;

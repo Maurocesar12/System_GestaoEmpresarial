@@ -90,10 +90,6 @@ export function acoesDisponiveis(status: StatusOrcamento): AcaoOrcamento[] {
   return Object.keys(TRANSICOES[status]) as AcaoOrcamento[];
 }
 
-export function podeExecutar(status: StatusOrcamento, acao: AcaoOrcamento): boolean {
-  return acao in TRANSICOES[status];
-}
-
 /** Rótulos para exibição. */
 export const ROTULO_STATUS: Record<StatusOrcamento, string> = {
   aberto: 'Aberto',

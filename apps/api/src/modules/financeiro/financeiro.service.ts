@@ -26,29 +26,9 @@ import { uuidv7 } from '../../common/uuid';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../infra/tenant/tenant-context';
-
-const ZERO = new Prisma.Decimal(0);
-
-/** Coluna `DATE` do banco para `AAAA-MM-DD`, preservando o nulo. */
-function paraDia(valor: Date | null): string | null {
-  return valor ? valor.toISOString().slice(0, 10) : null;
-}
-
-/**
- * Hoje em `AAAA-MM-DD`, no fuso de Brasília.
- *
- * Não usa a data do servidor direto: em produção ele roda em UTC, e das 21h à
- * meia-noite o UTC já está no dia seguinte. Uma conta venceria — e apareceria
- * como atrasada para o usuário — três horas antes de vencer de verdade.
- */
-function hojeEmDia(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-}
-
-/** `AAAA-MM-DD` para o `DATE` do banco, fixado em meia-noite UTC. */
-function paraData(dia: string | null | undefined): Date | null {
-  return dia ? new Date(`${dia}T00:00:00Z`) : null;
-}
+import { garantirVinculos } from '../../common/vinculos';
+import { ZERO } from './decimal';
+import { hojeEmDia, paraData, paraDia } from './datas';
 
 /**
  * Traduz a situação — que é derivada — para um filtro que o banco entende.
@@ -201,7 +181,7 @@ export class FinanceiroService {
 
   async criar(dados: LancamentoFormInput): Promise<Lancamento> {
     const lancamento = await this.prisma.comTenant(async (tx) => {
-      await this.garantirVinculosValidos(tx, dados);
+      await garantirVinculos(tx, dados);
 
       return tx.lancamentoFinanceiro.create({
         data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBanco(dados) },
@@ -221,7 +201,7 @@ export class FinanceiroService {
    */
   async atualizar(id: string, dados: LancamentoFormInput): Promise<Lancamento> {
     const lancamento = await this.prisma.comTenant(async (tx) => {
-      await Promise.all([this.garantirExiste(tx, id), this.garantirVinculosValidos(tx, dados)]);
+      await Promise.all([this.garantirExiste(tx, id), garantirVinculos(tx, dados)]);
 
       return tx.lancamentoFinanceiro.update({
         where: { id },
@@ -298,7 +278,7 @@ export class FinanceiroService {
         where: { id },
         // Sem data informada, hoje: é o caso comum, e poupa o usuário de
         // digitar a data do dia.
-        data: { pagoEm: paraData(dados.pagoEm) ?? paraData(hojeEmDia()) },
+        data: { pagoEm: paraData(dados.pagoEm ?? hojeEmDia()) },
         include: INCLUDE_PADRAO,
       });
     });
@@ -432,12 +412,24 @@ export class FinanceiroService {
     const entradas = porTipo.find((g) => g.tipo === 'entrada')?._sum.valor ?? ZERO;
     const saidas = porTipo.find((g) => g.tipo === 'saida')?._sum.valor ?? ZERO;
 
+    const custoFixo = fixo._sum.valor ?? ZERO;
+    const custoVariavel = variavel._sum.valor ?? ZERO;
+
     return {
       entradas: entradas.toFixed(2),
       saidas: saidas.toFixed(2),
       saldo: entradas.minus(saidas).toFixed(2),
-      custoFixo: (fixo._sum.valor ?? ZERO).toFixed(2),
-      custoVariavel: (variavel._sum.valor ?? ZERO).toFixed(2),
+      custoFixo: custoFixo.toFixed(2),
+      custoVariavel: custoVariavel.toFixed(2),
+
+      // O que sobra das saídas depois de tirar fixo e variável: as saídas sem
+      // categoria. Reportado em vez de ignorado para que os três números fechem
+      // com o total — antes eles não fechavam, e a diferença sumia calada.
+      //
+      // Calculado por subtração, e não com uma quarta consulta, porque
+      // `saidas` já é a soma de todas elas.
+      custoNaoClassificado: saidas.minus(custoFixo).minus(custoVariavel).toFixed(2),
+
       periodo: { de: query.de, ate: query.ate },
     };
   }
@@ -606,48 +598,6 @@ export class FinanceiroService {
       throw new NotFoundException({
         codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
         mensagem: 'Lançamento não encontrado.',
-      });
-    }
-  }
-
-  private async garantirVinculosValidos(
-    tx: TransacaoComTenant,
-    dados: LancamentoFormInput,
-  ): Promise<void> {
-    // As três verificações em paralelo: são independentes entre si.
-    const [categoria, servico, cliente] = await Promise.all([
-      dados.categoriaId
-        ? tx.categoriaFinanceira.findUnique({
-            where: { id: dados.categoriaId },
-            select: { id: true },
-          })
-        : null,
-      dados.servicoId
-        ? tx.servico.findUnique({ where: { id: dados.servicoId }, select: { id: true } })
-        : null,
-      dados.clienteId
-        ? tx.cliente.findUnique({ where: { id: dados.clienteId }, select: { id: true } })
-        : null,
-    ]);
-
-    if (dados.categoriaId && !categoria) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Categoria não encontrada.',
-      });
-    }
-
-    if (dados.servicoId && !servico) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Serviço não encontrado.',
-      });
-    }
-
-    if (dados.clienteId && !cliente) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Cliente não encontrado.',
       });
     }
   }

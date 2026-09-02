@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { dinheiroDigitadoSchema } from '../common/dinheiro';
-import { opcional, textoOpcional } from '../common/opcional';
+import { opcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 import {
   naturezaLancamentoSchema,
@@ -220,6 +220,20 @@ export interface FluxoDeCaixa {
   /** Quanto das saídas é custo fixo — insumo do custo operacional diário. */
   custoFixo: string;
   custoVariavel: string;
+
+  /**
+   * Saídas sem categoria, que por isso não são nem fixas nem variáveis.
+   *
+   * Este campo existe para que `custoFixo + custoVariavel + custoNaoClassificado`
+   * feche exatamente com `saidas`. Sem ele os três primeiros números não somavam
+   * o total, e qualquer relatório construído em cima — DRE, ponto de equilíbrio —
+   * herdaria a diferença sem avisar.
+   *
+   * Um valor alto aqui é um recado para o usuário: categorize, ou seus relatórios
+   * de custo estão incompletos.
+   */
+  custoNaoClassificado: string;
+
   periodo: { de: string; ate: string };
 }
 

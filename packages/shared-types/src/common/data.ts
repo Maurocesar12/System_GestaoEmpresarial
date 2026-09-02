@@ -26,16 +26,3 @@ export function formatarDataISO(iso: string, opcoes?: { comAno?: boolean }): str
   const [ano, mes, dia] = iso.slice(0, 10).split('-');
   return opcoes?.comAno === false ? `${dia}/${mes}` : `${dia}/${mes}/${ano}`;
 }
-
-/** Quantos dias inteiros se passaram desde a data informada. */
-export function diasDesde(iso: string, referencia = new Date()): number {
-  const MS_POR_DIA = 24 * 60 * 60 * 1000;
-  const inicio = dataLocalDeISO(iso).getTime();
-  const hoje = new Date(
-    referencia.getFullYear(),
-    referencia.getMonth(),
-    referencia.getDate(),
-  ).getTime();
-
-  return Math.max(0, Math.round((hoje - inicio) / MS_POR_DIA));
-}

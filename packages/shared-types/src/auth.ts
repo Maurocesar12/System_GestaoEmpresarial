@@ -50,7 +50,6 @@ export type CadastroInput = z.infer<typeof cadastroSchema>;
 
 /** Mantido como alias: `signup` é o nome usado no documento de arquitetura. */
 export const signupSchema = cadastroSchema;
-export type SignupInput = CadastroInput;
 
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1),

@@ -7,7 +7,8 @@ import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
-import { entrar, type ResultadoAcao } from '../acoes';
+import type { ResultadoAcao } from '@/lib/acoes';
+import { entrar } from '../acoes';
 
 /**
  * Formulário de login.

@@ -10,8 +10,6 @@ import {
 import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 export async function criarEtapa(dados: EtapaFormInput): Promise<ResultadoAcao> {
   const validacao = etapaFormSchema.safeParse(dados);
 

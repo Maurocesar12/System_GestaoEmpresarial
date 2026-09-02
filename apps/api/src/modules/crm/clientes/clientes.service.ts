@@ -141,7 +141,7 @@ export class ClientesService {
    */
   async importar(clientes: ClienteFormInput[]): Promise<ResultadoImportacao> {
     return this.prisma.comTenant(async (tx) => {
-      await this.garantirLimiteImportacao(tx, clientes.length);
+      await this.garantirLimiteClientes(tx, clientes.length);
 
       const ignorados: ClienteIgnorado[] = [];
       const aCriar: { indice: number; dados: ClienteFormInput }[] = [];
@@ -265,7 +265,15 @@ export class ClientesService {
     return where;
   }
 
-  private async garantirLimiteClientes(tx: TransacaoComTenant): Promise<void> {
+  /**
+   * Confere se ainda cabem `quantidade` clientes no plano.
+   *
+   * Serve tanto ao cadastro individual ("cabe mais um?") quanto à importação
+   * ("cabem mais trezentos?"). A mensagem muda com o caso: no lote ela diz
+   * quantas vagas restam, porque "limite excedido" sem número deixa o usuário
+   * adivinhando quantas linhas apagar da planilha.
+   */
+  private async garantirLimiteClientes(tx: TransacaoComTenant, quantidade = 1): Promise<void> {
     const tenantId = tenantAtual();
 
     // Serializa criações concorrentes do mesmo tenant: sem o lock, duas
@@ -287,52 +295,7 @@ export class ClientesService {
 
     const limite = tenant.plano.limiteClientes;
 
-    if (limite === null) {
-      return;
-    }
-
-    const total = await tx.cliente.count();
-
-    if (total >= limite) {
-      throw new ForbiddenException({
-        codigo: CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO,
-        mensagem: `O plano ${tenant.plano.nome} permite até ${limite} cliente(s). Faça upgrade para cadastrar mais.`,
-      });
-    }
-  }
-
-  /**
-   * Confere se o lote inteiro cabe no plano.
-   *
-   * Diferente da versão de linha única, que pergunta "cabe mais um?", aqui a
-   * pergunta é "cabem mais trezentos?". A mensagem diz quantas vagas restam,
-   * porque "limite excedido" sem número deixa o usuário adivinhando quantas
-   * linhas apagar da planilha.
-   */
-  private async garantirLimiteImportacao(
-    tx: TransacaoComTenant,
-    quantidade: number,
-  ): Promise<void> {
-    const tenantId = tenantAtual();
-
-    // Mesma trava da criação individual: sem ela, duas importações simultâneas
-    // contariam o mesmo total e ambas caberiam no limite.
-    await tx.$executeRaw`SELECT id FROM tenant WHERE id = ${tenantId}::uuid FOR UPDATE`;
-
-    const tenant = await tx.tenant.findUnique({
-      where: { id: tenantId },
-      select: { plano: { select: { limiteClientes: true, nome: true } } },
-    });
-
-    if (!tenant) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Empresa não encontrada.',
-      });
-    }
-
-    const limite = tenant.plano.limiteClientes;
-
+    // Plano sem teto.
     if (limite === null) {
       return;
     }
@@ -344,8 +307,10 @@ export class ClientesService {
       throw new ForbiddenException({
         codigo: CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO,
         mensagem:
-          `O plano ${tenant.plano.nome} permite até ${limite} cliente(s) e ainda cabem ${vagas}. ` +
-          `A planilha tem ${quantidade}. Nada foi importado.`,
+          quantidade === 1
+            ? `O plano ${tenant.plano.nome} permite até ${limite} cliente(s). Faça upgrade para cadastrar mais.`
+            : `O plano ${tenant.plano.nome} permite até ${limite} cliente(s) e ainda cabem ${vagas}. ` +
+              `A planilha tem ${quantidade}. Nada foi importado.`,
       });
     }
   }

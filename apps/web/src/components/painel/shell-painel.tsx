@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AlternadorTema } from '@/components/ui/tema';
 import { cn } from '@/lib/utils';
-import { itemEstaAtivo, menuDoPapel } from './menu';
+import { hrefAtivo, menuDoPapel } from './menu';
 
 /**
  * Estrutura da área autenticada.
@@ -40,6 +40,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
   const [gavetaAberta, setGavetaAberta] = useState(false);
 
   const grupos = menuDoPapel(usuario.papel);
+  const ativo = hrefAtivo(grupos, caminho);
 
   // Esc fecha, como em qualquer sobreposição do sistema operacional.
   useEffect(() => {
@@ -64,7 +65,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
           )}
 
           {grupo.itens.map((item) => {
-            const ativo = itemEstaAtivo(item.href, caminho);
+            const estaAtivo = item.href === ativo;
 
             return (
               <Link
@@ -77,10 +78,10 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
                 onClick={() => setGavetaAberta(false)}
                 // `aria-current` informa a posição a quem usa leitor de tela.
                 // Fundo colorido, sozinho, não diz nada para essa pessoa.
-                aria-current={ativo ? 'page' : undefined}
+                aria-current={estaAtivo ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
-                  ativo
+                  estaAtivo
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 )}

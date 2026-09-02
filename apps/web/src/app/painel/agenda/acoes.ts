@@ -11,8 +11,6 @@ import {
 import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 export async function salvarAgendamento(
   id: string | null,
   dados: AgendamentoFormInput,
@@ -54,16 +52,5 @@ export async function mudarStatusAgendamento(
   // Marcar como executado cria um atendimento no histórico do cliente — a
   // ficha dele precisa refletir isso na próxima visita.
   revalidatePath('/painel/clientes', 'layout');
-  return {};
-}
-
-export async function removerAgendamento(id: string): Promise<ResultadoAcao> {
-  try {
-    await apiComSessao<void>(`/agendamentos/${id}`, { method: 'DELETE' });
-  } catch (erro) {
-    return traduzirErroAcao(erro);
-  }
-
-  revalidatePath('/painel/agenda');
   return {};
 }

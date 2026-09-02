@@ -23,8 +23,6 @@ import { gravarSessao, lerRefreshToken, limparSessao } from '@/lib/sessao';
  * daqui ele vai direto para o cookie.
  */
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 export async function entrar(dados: LoginInput): Promise<ResultadoAcao> {
   // Valida no servidor também, e não só no formulário: validação de cliente é
   // conveniência para quem digita, nunca uma garantia.

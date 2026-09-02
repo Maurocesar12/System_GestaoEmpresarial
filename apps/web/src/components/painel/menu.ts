@@ -2,9 +2,11 @@ import {
   CalendarDays,
   Contact,
   FileText,
+  HandCoins,
   KanbanSquare,
   LayoutDashboard,
   Bell,
+  PiggyBank,
   Wallet,
   Wrench,
   type LucideIcon,
@@ -92,13 +94,25 @@ export const MENU: readonly GrupoMenu[] = [
   },
   {
     titulo: 'Financeiro',
+    // Restrito (§9.5): o dono precisa poder dar acesso ao sistema sem expor o
+    // quanto ganha — e o pró-labore é justamente o número mais sensível disso.
     itens: [
-      // Restrito (§9.5): o dono precisa poder dar acesso ao sistema sem expor o
-      // quanto ganha.
       {
         href: '/painel/financeiro',
-        rotulo: 'Financeiro',
+        rotulo: 'Movimento',
         icone: Wallet,
+        papeis: ['admin', 'financeiro'],
+      },
+      {
+        href: '/painel/financeiro/pro-labore',
+        rotulo: 'Pró-labore',
+        icone: HandCoins,
+        papeis: ['admin', 'financeiro'],
+      },
+      {
+        href: '/painel/financeiro/reservas',
+        rotulo: 'Reservas',
+        icone: PiggyBank,
         papeis: ['admin', 'financeiro'],
       },
     ],
@@ -114,16 +128,31 @@ export function menuDoPapel(papel: PapelUsuario): GrupoMenu[] {
 }
 
 /**
- * Decide qual item fica marcado como atual.
+ * Qual item do menu representa a tela aberta.
  *
- * A comparação não pode ser só "a URL começa com o href", senão `/painel`
- * ficaria aceso em todas as telas. Para a raiz exige-se igualdade; para o
- * resto, o prefixo — assim `/painel/clientes/123` mantém "Clientes" aceso.
+ * Devolve **um** href, o mais específico entre os que casam. Isso importa desde
+ * que o financeiro ganhou subitens: `/painel/financeiro/reservas` casa tanto
+ * com "Movimento" quanto com "Reservas", e marcar por prefixo acenderia os dois
+ * ao mesmo tempo — inclusive para o leitor de tela, que anunciaria duas páginas
+ * atuais.
+ *
+ * Escolher o href mais longo resolve o caso geral: vale para o financeiro de
+ * hoje e para qualquer subitem que venha depois, sem lista de exceções. O
+ * `/painel` só vence quando nada mais casa, que é exatamente o que se espera de
+ * um item raiz.
  */
-export function itemEstaAtivo(href: string, caminhoAtual: string): boolean {
-  if (href === '/painel') {
-    return caminhoAtual === '/painel';
+export function hrefAtivo(grupos: readonly GrupoMenu[], caminhoAtual: string): string | null {
+  let escolhido: string | null = null;
+
+  for (const grupo of grupos) {
+    for (const item of grupo.itens) {
+      const casa = caminhoAtual === item.href || caminhoAtual.startsWith(`${item.href}/`);
+
+      if (casa && (escolhido === null || item.href.length > escolhido.length)) {
+        escolhido = item.href;
+      }
+    }
   }
 
-  return caminhoAtual === href || caminhoAtual.startsWith(`${href}/`);
+  return escolhido;
 }

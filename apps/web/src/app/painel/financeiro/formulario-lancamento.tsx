@@ -20,7 +20,8 @@ import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao, estilosBotao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import { Selecao } from '@/components/ui/selecao';
-import { salvarLancamento, type ResultadoAcao } from './acoes';
+import type { ResultadoAcao } from '@/lib/acoes';
+import { salvarLancamento } from './acoes';
 
 const CAMPOS = [
   'tipo',

@@ -14,6 +14,7 @@ import {
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  DIAS_PARA_ALERTA,
   diasNaEtapa,
   formatarBRL,
   formatarTelefone,
@@ -30,12 +31,6 @@ import { cn } from '@/lib/utils';
 import { moverCliente } from './acoes';
 import { CartaoAberto } from './cartao-aberto';
 import { NovoCartao } from './novo-cartao';
-
-/**
- * Dias parado numa etapa a partir do qual a negociação merece atenção.
- * O mesmo corte que o painel inicial usa para listar "paradas".
- */
-const DIAS_PARA_ALERTA = 7;
 
 /**
  * Quadro do funil.
@@ -290,7 +285,7 @@ function Coluna({
 
       <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
         {clientes.map((cliente) => (
-          <Cartao
+          <CartaoDoFunil
             key={cliente.id}
             cliente={cliente}
             etapaAtual={id}
@@ -319,7 +314,7 @@ function Coluna({
   );
 }
 
-function Cartao({
+function CartaoDoFunil({
   cliente,
   etapaAtual,
   etapas,

@@ -11,8 +11,6 @@ import {
 import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
-export type { ResultadoAcao } from '@/lib/acoes';
-
 export async function salvarOrcamento(
   id: string | null,
   dados: OrcamentoFormInput,
@@ -48,17 +46,6 @@ export async function mudarStatus(id: string, acao: AcaoOrcamento): Promise<Resu
       method: 'POST',
       body: JSON.stringify({ acao }),
     });
-  } catch (erro) {
-    return traduzirErroAcao(erro);
-  }
-
-  revalidatePath('/painel/orcamentos');
-  return {};
-}
-
-export async function removerOrcamento(id: string): Promise<ResultadoAcao> {
-  try {
-    await apiComSessao<void>(`/orcamentos/${id}`, { method: 'DELETE' });
   } catch (erro) {
     return traduzirErroAcao(erro);
   }

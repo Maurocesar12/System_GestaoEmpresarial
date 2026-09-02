@@ -15,7 +15,8 @@ import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import { mascararDocumento, mascararTelefone } from '@/lib/mascaras';
-import { salvarCliente, type ResultadoAcao } from './acoes';
+import type { ResultadoAcao } from '@/lib/acoes';
+import { salvarCliente } from './acoes';
 
 /** Campos do formulário, para o `setError` saber quais existem. */
 const CAMPOS = ['nome', 'email', 'telefone', 'documento', 'observacoes', 'origem'] as const;

@@ -1,16 +1,25 @@
-function partesDataISO(iso: string): [ano: string, mes: string, dia: string] {
-  const [ano = '', mes = '', dia = ''] = iso.split('-');
-  return [ano, mes, dia];
-}
+import { dataLocalDeISO, formatarDataISO } from '@gestao/shared-types';
 
+/**
+ * Formatação de data e hora para a tela.
+ *
+ * A conversão de `AAAA-MM-DD` para data local mora em `@gestao/shared-types`
+ * (`common/data.ts`), e não aqui: a API também precisa dela, e duas
+ * implementações da mesma regra de fuso é como um agendamento aparece no dia 12
+ * numa tela e no dia 13 na outra.
+ *
+ * O que fica neste arquivo é o que só o frontend usa — o formato dos campos de
+ * formulário e os rótulos relativos ("Hoje", "Amanhã").
+ */
+
+/** `2026-08-13` → `13/08`. */
 export function formatarDataCurta(iso: string): string {
-  const [, mes, dia] = partesDataISO(iso);
-  return `${dia}/${mes}`;
+  return formatarDataISO(iso, { comAno: false });
 }
 
+/** `2026-08-13` → `13/08/2026`. */
 export function formatarDataCompleta(iso: string): string {
-  const [ano, mes, dia] = partesDataISO(iso);
-  return `${dia}/${mes}/${ano}`;
+  return formatarDataISO(iso);
 }
 
 export function formatarPeriodo(de: string, ate: string): string {
@@ -21,19 +30,6 @@ export function formatarHora(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function paraCampoDatetimeLocal(iso: string): string {
-  const data = new Date(iso);
-  return `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(
-    data.getDate(),
-  )}T${doisDigitos(data.getHours())}:${doisDigitos(data.getMinutes())}`;
-}
-
-export function proximaHoraCheia(): string {
-  const data = new Date();
-  data.setHours(data.getHours() + 1, 0, 0, 0);
-  return paraCampoDatetimeLocal(data.toISOString());
-}
-
 export function formatarDataLonga(iso: string): string {
   return dataLocalDeISO(iso).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -42,6 +38,12 @@ export function formatarDataLonga(iso: string): string {
   });
 }
 
+/**
+ * O dia como a pessoa fala dele.
+ *
+ * "Hoje" e "Amanhã" em vez da data são o que faz uma agenda ser lida de relance:
+ * ninguém converte "13/08" para "é hoje?" sem pensar.
+ */
 export function formatarDiaAgenda(iso: string): string {
   const hoje = new Date();
   const amanha = new Date(hoje);
@@ -57,9 +59,32 @@ export function formatarDiaAgenda(iso: string): string {
   });
 }
 
-function dataLocalDeISO(iso: string): Date {
-  const [ano, mes, dia] = iso.split('-').map(Number);
-  return new Date(ano!, mes! - 1, dia!);
+/** `2026-08-13T14:30:00Z` → `hoje às 14:30`. Usado nas listas do painel. */
+export function formatarQuando(iso: string): string {
+  return `${formatarDiaAgenda(iso.slice(0, 10)).toLowerCase()} às ${formatarHora(iso)}`;
+}
+
+/**
+ * O formato que `<input type="datetime-local">` exige.
+ *
+ * Montado pelos componentes locais da data, e não por `toISOString()`: este
+ * último converte para UTC, e o campo apareceria com a hora deslocada.
+ */
+export function paraCampoDatetimeLocal(iso: string): string {
+  const data = new Date(iso);
+
+  return (
+    `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(data.getDate())}` +
+    `T${doisDigitos(data.getHours())}:${doisDigitos(data.getMinutes())}`
+  );
+}
+
+/** Sugestão padrão para agendar: a próxima hora fechada. */
+export function proximaHoraCheia(): string {
+  const data = new Date();
+  data.setHours(data.getHours() + 1, 0, 0, 0);
+
+  return paraCampoDatetimeLocal(data.toISOString());
 }
 
 function paraISO(data: Date): string {

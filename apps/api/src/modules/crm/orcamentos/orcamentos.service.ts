@@ -18,7 +18,7 @@ import { uuidv7 } from '../../../common/uuid';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import { FunilService } from '../funil/funil.service';
-import { garantirClienteEServico } from '../vinculos';
+import { garantirVinculos } from '../../../common/vinculos';
 // Import de valor, e não `import type`: além dos tipos, o `Prisma.Decimal` é
 // usado em tempo de execução para representar o zero quando não há orçamentos
 // somados.
@@ -141,7 +141,7 @@ export class OrcamentosService {
 
   async criar(dados: OrcamentoFormInput): Promise<Orcamento> {
     const orcamento = await this.prisma.comTenant(async (tx) => {
-      await garantirClienteEServico(tx, dados);
+      await garantirVinculos(tx, dados);
 
       const criado = await tx.orcamento.create({
         data: {
@@ -183,7 +183,7 @@ export class OrcamentosService {
         });
       }
 
-      await garantirClienteEServico(tx, dados);
+      await garantirVinculos(tx, dados);
 
       return tx.orcamento.update({
         where: { id },

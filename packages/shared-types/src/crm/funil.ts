@@ -15,17 +15,30 @@ import { z } from 'zod';
  *   viraria motivo para as pessoas pararem de atualizá-lo — e um funil
  *   desatualizado não serve para nada.
  *
- * - **Sem movimentação automática, por ora.** Ligar "orçamento aprovado" a
- *   "mover para Fechado" depende do módulo de Orçamentos, que ainda não existe.
- *   Fica para quando as duas pontas existirem.
+ * - **Movimentação automática pelos marcos.** Emitir um orçamento move o
+ *   cliente para a etapa marcada como `orcamento_enviado`; aprovar move para a
+ *   marcada como `fechado`. A automação segue o **marco**, e não o nome da
+ *   etapa — assim renomear "Proposta" para "Orçamento enviado" não quebra nada.
+ *   Recusar não move ninguém: a negociação pode continuar, e tirar a pessoa do
+ *   lugar esconderia justamente o que precisa de atenção. Empresa sem etapa
+ *   marcada segue funcionando; a automação é conveniência, não requisito.
  *
- * - **Cliente novo não entra no funil sozinho.** Nem todo cadastro é uma
- *   oportunidade de venda: muita gente cadastra o cliente depois do serviço
- *   feito. Entrar no funil é uma ação explícita.
+ * - **Cliente novo entra no funil sozinho**, na primeira etapa. O cadastro é o
+ *   início da relação comercial, e um funil que só recebe quem alguém lembrou
+ *   de arrastar mostra menos do que a realidade.
  *
  * Nenhuma dessas regras está gravada em pedra — todas são fáceis de mudar, e é
  * por isso que estão documentadas em vez de espalhadas pelo código.
  */
+
+/**
+ * Dias parado numa etapa a partir do qual a negociação merece atenção.
+ *
+ * Regra de negócio, e não detalhe de tela: o painel inicial e o quadro do funil
+ * precisam usar o mesmo corte, senão o mesmo cliente aparece alertado num lugar
+ * e normal no outro.
+ */
+export const DIAS_PARA_ALERTA = 7;
 
 export const etapaFormSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome da etapa').max(60),

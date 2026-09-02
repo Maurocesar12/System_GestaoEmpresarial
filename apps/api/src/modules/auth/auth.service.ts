@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
   CODIGOS_ERRO,
+  type StatusTenant,
   type JwtPayload,
   type LoginInput,
   type SessaoResponse,
@@ -170,7 +171,7 @@ export class AuthService {
    * aplicada aqui e não no meio das telas: é mais simples e não deixa brecha
    * de uma rota esquecida continuar respondendo.
    */
-  private garantirTenantOperante(status: string): void {
+  private garantirTenantOperante(status: StatusTenant): void {
     if (status === 'suspenso' || status === 'cancelado') {
       throw new ForbiddenException({
         codigo: CODIGOS_ERRO.TENANT_SUSPENSO,

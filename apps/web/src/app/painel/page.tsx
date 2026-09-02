@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { CalendarClock, BellRing, Hourglass, FileText } from 'lucide-react';
 import {
   ROTULO_CANAL_LEMBRETE,
   ROTULO_STATUS_AGENDAMENTO,
+  DIAS_PARA_ALERTA,
   diasNaEtapa,
   formatarBRL,
   type Agendamento,
@@ -13,15 +15,22 @@ import {
   type QuadroFunil,
   type ResumoOrcamentos,
 } from '@gestao/shared-types';
+import { estilosBotao } from '@/components/ui/botao';
+import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
+import {
+  Cartao,
+  CartaoCabecalho,
+  CartaoItem,
+  CartaoLista,
+  CartaoTitulo,
+} from '@/components/ui/cartao';
+import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
 import { apiComSessao } from '@/lib/api-servidor';
-import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
+import { formatarQuando } from '@/lib/formatacao';
 
 export const metadata: Metadata = {
   title: 'Painel',
 };
-
-/** Dias parado numa etapa a partir do qual a negociação merece atenção. */
-const DIAS_PARA_ALERTA = 7;
 
 /**
  * Painel inicial.
@@ -42,34 +51,38 @@ export default async function PaginaPainel() {
       apiComSessao<Paginado<LembreteFollowUp>>('/lembretes?status=pendente&porPagina=5'),
     ]);
 
+  if (clientes.meta.total === 0) {
+    return <PrimeirosPassos />;
+  }
+
   const noFunil = quadro.colunas.reduce((soma, coluna) => soma + coluna.clientes.length, 0);
+
   const proximosAgendamentos = [...agendados.dados, ...confirmados.dados]
     .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
     .slice(0, 5);
 
   // Negociações que não se movem há mais de uma semana. É o número que revela
   // dinheiro esquecido — o resto do painel mostra o que já está em andamento.
+  //
+  // Os dias são calculados uma vez por cliente e carregados junto, em vez de
+  // recalculados dentro do comparador: ali a conta rodaria a cada comparação.
   const paradas = quadro.colunas
-    .flatMap((coluna) => coluna.clientes.map((cliente) => ({ cliente, etapa: coluna.etapa.nome })))
-    .filter(({ cliente }) => diasNaEtapa(cliente.atualizadoEm) >= DIAS_PARA_ALERTA)
-    .sort((a, b) => diasNaEtapa(a.cliente.atualizadoEm) - diasNaEtapa(b.cliente.atualizadoEm))
-    .reverse()
+    .flatMap((coluna) =>
+      coluna.clientes.map((cliente) => ({
+        cliente,
+        etapa: coluna.etapa.nome,
+        dias: diasNaEtapa(cliente.atualizadoEm),
+      })),
+    )
+    .filter(({ dias }) => dias >= DIAS_PARA_ALERTA)
+    .sort((a, b) => b.dias - a.dias)
     .slice(0, 5);
-
-  const vazio = clientes.meta.total === 0;
-
-  if (vazio) {
-    return <PrimeirosPassos />;
-  }
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Painel</h1>
-        <p className="text-muted-foreground text-sm">A situação do seu negócio agora.</p>
-      </header>
+      <CabecalhoPagina titulo="Painel" descricao="A situação do seu negócio agora." />
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <FaixaDeIndicadores>
         <Indicador
           titulo="Em negociação"
           valor={formatarBRL(resumo.abertos.valor)}
@@ -81,6 +94,7 @@ export default async function PaginaPainel() {
           valor={formatarBRL(resumo.aprovados.valor)}
           detalhe={`${resumo.aprovados.quantidade} aprovado(s)`}
           href="/painel/orcamentos?status=aprovado"
+          tom="positivo"
         />
         <Indicador
           titulo="No funil"
@@ -98,202 +112,169 @@ export default async function PaginaPainel() {
           detalhe="na carteira"
           href="/painel/clientes"
         />
-      </section>
+      </FaixaDeIndicadores>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-sm font-medium">Próximos compromissos</h2>
-            <Link
-              href="/painel/agenda"
-              className="text-muted-foreground text-xs underline-offset-4 hover:underline"
-            >
-              ver agenda
-            </Link>
-          </div>
-
-          {proximosAgendamentos.length === 0 ? (
-            <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-              Nenhum compromisso pendente.
-            </p>
-          ) : (
-            <ul className="flex flex-col rounded-lg border">
-              {proximosAgendamentos.map((agendamento) => (
-                <li
-                  key={agendamento.id}
-                  className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Bloco
+          titulo="Próximos compromissos"
+          href="/painel/agenda"
+          rotuloLink="ver agenda"
+          icone={CalendarClock}
+          vazio="Nenhum compromisso pendente."
+          itens={proximosAgendamentos}
+          renderizar={(agendamento) => (
+            <CartaoItem key={agendamento.id}>
+              <div className="flex min-w-0 flex-col">
+                <Link
+                  href={`/painel/agenda/${agendamento.id}`}
+                  className="truncate text-sm font-medium underline-offset-4 hover:underline"
                 >
-                  <div className="flex min-w-0 flex-col">
-                    <Link
-                      href={`/painel/agenda/${agendamento.id}`}
-                      className="truncate text-sm font-medium underline-offset-4 hover:underline"
-                    >
-                      {agendamento.clienteNome}
-                    </Link>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {agendamento.servicoNome ?? 'Sem serviço do catálogo'} ·{' '}
-                      {ROTULO_STATUS_AGENDAMENTO[agendamento.status]}
-                    </span>
-                  </div>
+                  {agendamento.clienteNome}
+                </Link>
+                <span className="text-muted-foreground truncate text-xs">
+                  {agendamento.servicoNome ?? 'Sem serviço do catálogo'} ·{' '}
+                  {ROTULO_STATUS_AGENDAMENTO[agendamento.status]}
+                </span>
+              </div>
 
-                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                    {formatarQuando(agendamento.dataHora)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                {formatarQuando(agendamento.dataHora)}
+              </span>
+            </CartaoItem>
           )}
-        </section>
+        />
 
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-sm font-medium">Follow-ups pendentes</h2>
-            <Link
-              href="/painel/lembretes"
-              className="text-muted-foreground text-xs underline-offset-4 hover:underline"
-            >
-              ver lembretes
-            </Link>
-          </div>
-
-          {lembretes.dados.length === 0 ? (
-            <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-              Nenhum follow-up pendente.
-            </p>
-          ) : (
-            <ul className="flex flex-col rounded-lg border">
-              {lembretes.dados.map((lembrete) => (
-                <li
-                  key={lembrete.id}
-                  className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
+        <Bloco
+          titulo="Follow-ups pendentes"
+          href="/painel/lembretes"
+          rotuloLink="ver lembretes"
+          icone={BellRing}
+          vazio="Nenhum follow-up pendente."
+          itens={lembretes.dados}
+          renderizar={(lembrete) => (
+            <CartaoItem key={lembrete.id}>
+              <div className="flex min-w-0 flex-col">
+                <Link
+                  href={`/painel/clientes/${lembrete.clienteId}`}
+                  className="truncate text-sm font-medium underline-offset-4 hover:underline"
                 >
-                  <div className="flex min-w-0 flex-col">
-                    <Link
-                      href={`/painel/clientes/${lembrete.clienteId}`}
-                      className="truncate text-sm font-medium underline-offset-4 hover:underline"
-                    >
-                      {lembrete.clienteNome}
-                    </Link>
-                    <span className="text-muted-foreground text-xs">
-                      {ROTULO_CANAL_LEMBRETE[lembrete.canal]}
-                    </span>
-                  </div>
+                  {lembrete.clienteNome}
+                </Link>
+                <span className="text-muted-foreground text-xs">
+                  {ROTULO_CANAL_LEMBRETE[lembrete.canal]}
+                </span>
+              </div>
 
-                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                    {formatarQuando(lembrete.dataEnvio)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                {formatarQuando(lembrete.dataEnvio)}
+              </span>
+            </CartaoItem>
           )}
-        </section>
-      </div>
+        />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-sm font-medium">Paradas há mais de {DIAS_PARA_ALERTA} dias</h2>
-            <Link
-              href="/painel/funil"
-              className="text-muted-foreground text-xs underline-offset-4 hover:underline"
-            >
-              ver funil
-            </Link>
-          </div>
-
-          {paradas.length === 0 ? (
-            <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-              Nenhuma negociação parada. Bom sinal.
-            </p>
-          ) : (
-            <ul className="flex flex-col rounded-lg border">
-              {paradas.map(({ cliente, etapa }) => (
-                <li
-                  key={cliente.id}
-                  className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
+        <Bloco
+          titulo={`Paradas há mais de ${DIAS_PARA_ALERTA} dias`}
+          href="/painel/funil"
+          rotuloLink="ver funil"
+          icone={Hourglass}
+          vazio="Nenhuma negociação parada. Bom sinal."
+          itens={paradas}
+          renderizar={({ cliente, etapa, dias }) => (
+            <CartaoItem key={cliente.id}>
+              <div className="flex min-w-0 flex-col">
+                <Link
+                  href={`/painel/clientes/${cliente.id}`}
+                  className="truncate text-sm font-medium underline-offset-4 hover:underline"
                 >
-                  <div className="flex flex-col">
-                    <Link
-                      href={`/painel/clientes/${cliente.id}`}
-                      className="text-sm font-medium underline-offset-4 hover:underline"
-                    >
-                      {cliente.nome}
-                    </Link>
-                    <span className="text-muted-foreground text-xs">{etapa}</span>
-                  </div>
+                  {cliente.nome}
+                </Link>
+                <span className="text-muted-foreground truncate text-xs">{etapa}</span>
+              </div>
 
-                  <span className="text-muted-foreground text-xs tabular-nums">
-                    {diasNaEtapa(cliente.atualizadoEm)} dias
-                  </span>
-                </li>
-              ))}
-            </ul>
+              <span className="text-atencao shrink-0 text-xs font-medium tabular-nums">
+                {dias} dias
+              </span>
+            </CartaoItem>
           )}
-        </section>
+        />
 
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-sm font-medium">Orçamentos aguardando resposta</h2>
-            <Link
-              href="/painel/orcamentos?status=aberto"
-              className="text-muted-foreground text-xs underline-offset-4 hover:underline"
-            >
-              ver todos
-            </Link>
-          </div>
+        <Bloco
+          titulo="Orçamentos aguardando resposta"
+          href="/painel/orcamentos?status=aberto"
+          rotuloLink="ver todos"
+          icone={FileText}
+          vazio="Nenhum orçamento em aberto."
+          itens={orcamentos.dados}
+          renderizar={(orcamento) => (
+            <CartaoItem key={orcamento.id}>
+              <Link
+                href={`/painel/orcamentos/${orcamento.id}`}
+                className="min-w-0 truncate text-sm underline-offset-4 hover:underline"
+              >
+                {orcamento.clienteNome}
+              </Link>
 
-          {orcamentos.dados.length === 0 ? (
-            <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-              Nenhum orçamento em aberto.
-            </p>
-          ) : (
-            <ul className="flex flex-col rounded-lg border">
-              {orcamentos.dados.map((orcamento) => (
-                <li
-                  key={orcamento.id}
-                  className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
-                >
-                  <Link
-                    href={`/painel/orcamentos/${orcamento.id}`}
-                    className="text-sm underline-offset-4 hover:underline"
-                  >
-                    {orcamento.clienteNome}
-                  </Link>
-
-                  <span className="text-sm font-medium tabular-nums">
-                    {formatarBRL(orcamento.valor)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+              <span className="shrink-0 text-sm font-medium tabular-nums">
+                {formatarBRL(orcamento.valor)}
+              </span>
+            </CartaoItem>
           )}
-        </section>
+        />
       </div>
     </div>
   );
 }
 
-function formatarQuando(iso: string): string {
-  return `${formatarDiaAgenda(iso.slice(0, 10)).toLowerCase()} às ${formatarHora(iso)}`;
-}
-
-function Indicador({
+/**
+ * Bloco de lista do painel.
+ *
+ * Os quatro blocos da tela têm exatamente a mesma anatomia — título, link para
+ * a tela cheia, e uma lista curta ou uma frase de vazio. Escrever isso quatro
+ * vezes foi o que deixou os espaçamentos diferentes entre eles.
+ *
+ * O vazio aqui é uma frase, e não o `EstadoVazio` cheio: dentro de um bloco de
+ * meia largura, a versão com ícone e ação ocuparia mais espaço que a lista que
+ * ela substitui.
+ */
+function Bloco<T>({
   titulo,
-  valor,
-  detalhe,
   href,
+  rotuloLink,
+  icone: Icone,
+  vazio,
+  itens,
+  renderizar,
 }: {
   titulo: string;
-  valor: string;
-  detalhe: string;
   href: string;
+  rotuloLink: string;
+  icone: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  vazio: string;
+  itens: T[];
+  renderizar: (item: T) => React.ReactNode;
 }) {
   return (
-    <Link href={href} className="hover:bg-muted/30 rounded-lg border p-4 transition-colors">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{titulo}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{valor}</p>
-      <p className="text-muted-foreground text-xs">{detalhe}</p>
-    </Link>
+    <Cartao className="flex flex-col">
+      <CartaoCabecalho>
+        <CartaoTitulo className="flex items-center gap-2">
+          <Icone aria-hidden className="text-muted-foreground size-4" />
+          {titulo}
+        </CartaoTitulo>
+
+        <Link
+          href={href}
+          className="text-muted-foreground hover:text-foreground shrink-0 text-xs underline-offset-4 transition-colors hover:underline"
+        >
+          {rotuloLink}
+        </Link>
+      </CartaoCabecalho>
+
+      {itens.length === 0 ? (
+        <p className="text-muted-foreground flex-1 px-4 py-10 text-center text-sm">{vazio}</p>
+      ) : (
+        <CartaoLista>{itens.map(renderizar)}</CartaoLista>
+      )}
+    </Cartao>
   );
 }
 
@@ -327,31 +308,28 @@ function PrimeirosPassos() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Bem-vindo</h1>
-        <p className="text-muted-foreground text-sm">
-          Sua empresa está criada e o funil já vem configurado. Três passos para começar:
-        </p>
-      </header>
+      <CabecalhoPagina
+        titulo="Bem-vindo"
+        descricao="Sua empresa está criada e o funil já vem configurado. Três passos para começar:"
+      />
 
       <ol className="flex flex-col gap-3">
         {passos.map((passo, indice) => (
-          <li key={passo.href} className="flex items-start gap-4 rounded-lg border p-4">
-            <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums">
-              {indice + 1}
-            </span>
+          <li key={passo.href}>
+            <Cartao className="flex flex-wrap items-center gap-4 p-4">
+              <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums">
+                {indice + 1}
+              </span>
 
-            <div className="flex flex-1 flex-col gap-1">
-              <p className="font-medium">{passo.titulo}</p>
-              <p className="text-muted-foreground text-sm">{passo.descricao}</p>
-            </div>
+              <div className="flex min-w-[12rem] flex-1 flex-col gap-0.5">
+                <p className="font-medium">{passo.titulo}</p>
+                <p className="text-muted-foreground text-sm">{passo.descricao}</p>
+              </div>
 
-            <Link
-              href={passo.href}
-              className="hover:bg-accent inline-flex h-9 shrink-0 items-center rounded-md border px-3 text-sm font-medium transition-colors"
-            >
-              {passo.rotulo}
-            </Link>
+              <Link href={passo.href} className={estilosBotao({ variante: 'secundario' })}>
+                {passo.rotulo}
+              </Link>
+            </Cartao>
           </li>
         ))}
       </ol>

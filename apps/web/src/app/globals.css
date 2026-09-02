@@ -125,15 +125,29 @@
   --info-suave: oklch(0.955 0.025 245);
 
   /*
-    Série de gráficos. Começa na marca e se afasta em matiz a cada passo, para
-    as fatias continuarem distinguíveis lado a lado — inclusive para quem tem
-    daltonismo, já que a clareza também varia entre elas.
+    Série de gráficos, consumida sempre nesta ordem — nunca em ciclo.
+
+    A ordem alterna frio e quente porque, sob protanopia e deuteranopia (as duas
+    formas comuns de daltonismo), o azul e o âmbar são justamente os dois polos
+    que sobrevivem. Os pares que o daltonismo confunde — âmbar com verde, verde
+    com vermelho — estão separados por uma diferença grande de CLAREZA, que
+    nenhum tipo de daltonismo apaga.
+
+    A série anterior parecia cuidadosa mas não era: no tema escuro, o primeiro e
+    o segundo tons ficavam a ΔE 7.9 um do outro para quem enxerga todas as cores
+    — abaixo do piso de 15. Esta passou na verificação de faixa de clareza,
+    croma mínimo, separação sob daltonismo e contraste com a superfície, nos
+    dois temas.
+
+    O âmbar tem contraste de 2.3:1 com o fundo claro, abaixo de 3:1. Isso é
+    aceitável porque ele nunca aparece sozinho: todo gráfico do sistema traz
+    rótulo direto ou a tabela ao lado.
   */
-  --grafico-1: oklch(0.47 0.083 205);
-  --grafico-2: oklch(0.63 0.115 155);
-  --grafico-3: oklch(0.7 0.13 75);
-  --grafico-4: oklch(0.55 0.115 285);
-  --grafico-5: oklch(0.62 0.14 20);
+  --grafico-1: oklch(0.5 0.14 245);
+  --grafico-2: oklch(0.745 0.145 75);
+  --grafico-3: oklch(0.545 0.125 152);
+  --grafico-4: oklch(0.525 0.18 305);
+  --grafico-5: oklch(0.625 0.19 25);
 
   /*
     Sombras curtas e de baixa opacidade. A elevação vem principalmente da borda
@@ -192,11 +206,17 @@
   --info: oklch(0.72 0.109 245);
   --info-suave: oklch(0.3 0.058 245);
 
-  --grafico-1: oklch(0.72 0.094 197);
-  --grafico-2: oklch(0.74 0.115 155);
-  --grafico-3: oklch(0.8 0.125 75);
-  --grafico-4: oklch(0.7 0.115 285);
-  --grafico-5: oklch(0.72 0.13 20);
+  /*
+    Passos próprios para o escuro, e não os do claro clareados: a faixa de
+    clareza que funciona sobre fundo escuro é mais estreita, e o verde precisa
+    ficar bem mais escuro que o âmbar para os dois continuarem distinguíveis
+    sob daltonismo.
+  */
+  --grafico-1: oklch(0.645 0.13 245);
+  --grafico-2: oklch(0.66 0.145 78);
+  --grafico-3: oklch(0.53 0.125 152);
+  --grafico-4: oklch(0.62 0.16 305);
+  --grafico-5: oklch(0.64 0.17 25);
 
   --sombra-sutil: 0 1px 2px 0 oklch(0 0 0 / 0.3);
   --sombra-media: 0 4px 12px -2px oklch(0 0 0 / 0.4), 0 2px 4px -2px oklch(0 0 0 / 0.3);

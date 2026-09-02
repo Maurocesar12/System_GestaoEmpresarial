@@ -41,9 +41,10 @@ export function AcoesAgendamento({ id, status }: { id: string; status: StatusAge
             }
             className={`focus-visible:ring-ring inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50 ${
               // "Executado" é a ação que fecha o ciclo e cria o registro no
-              // histórico — merece destaque entre as demais.
+              // histórico — merece destaque entre as demais. O verde sai do
+              // token de sucesso, o mesmo dos selos, e não de uma cor crua.
               acao === 'executar'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-400'
+                ? 'border-sucesso/40 bg-sucesso-suave text-sucesso hover:bg-sucesso/20'
                 : 'hover:bg-accent'
             }`}
           >

@@ -16,7 +16,8 @@ import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import { paraCampoDatetimeLocal, proximaHoraCheia } from '@/lib/formatacao';
-import { salvarAgendamento, type ResultadoAcao } from './acoes';
+import type { ResultadoAcao } from '@/lib/acoes';
+import { salvarAgendamento } from './acoes';
 
 const CAMPOS = ['clienteId', 'servicoId', 'dataHora', 'observacoes'] as const;
 
