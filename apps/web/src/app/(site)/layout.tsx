@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { Marca } from '@/components/marca';
 import { estilosBotao } from '@/components/ui/botao';
 import { AlternadorTema } from '@/components/ui/tema';
+import { SITE } from '@/configuracao/site';
 
 /**
  * Layout das páginas públicas.
@@ -36,17 +38,8 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
           não cabem com `px-6`, e o nome quebrava em duas linhas.
         */}
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:gap-6 sm:px-6">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-semibold tracking-tight whitespace-nowrap"
-          >
-            <span
-              aria-hidden
-              className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded text-xs font-bold"
-            >
-              G
-            </span>
-            Gestão Empresarial
+          <Link href="/" aria-label="Página inicial" className="whitespace-nowrap">
+            <Marca className="text-sm sm:text-base" />
           </Link>
 
           {/* Escondida no celular: quatro âncoras não cabem sem virar sopa. */}
@@ -79,7 +72,7 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-semibold tracking-tight">Gestão Empresarial</span>
+              <Marca className="text-sm" />
               <span className="text-muted-foreground text-xs">
                 CRM e financeiro para pequenas e médias empresas de serviço.
               </span>
@@ -90,7 +83,7 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
 
           <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-4 border-t pt-6 text-xs">
             <span>
-              © {new Date().getFullYear()} Gestão Empresarial. Todos os direitos reservados.
+              © {new Date().getFullYear()} {SITE.nome}. Todos os direitos reservados.
             </span>
 
             <div className="flex gap-5">

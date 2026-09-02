@@ -5,6 +5,7 @@ import { LogOut, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
+import { SimboloMarca } from '@/components/marca';
 import { AlternadorTema } from '@/components/ui/tema';
 import { cn } from '@/lib/utils';
 import { hrefAtivo, menuDoPapel } from './menu';
@@ -97,11 +98,14 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
   );
 
   const identificacao = (
-    <div className="flex min-w-0 flex-col px-5 py-4">
-      <span className="truncate text-sm font-semibold tracking-tight">{usuario.nomeEmpresa}</span>
-      <span className="text-muted-foreground truncate text-xs">
-        {usuario.nome} · {ROTULO_PAPEL[usuario.papel]}
-      </span>
+    <div className="flex min-w-0 items-center gap-3 px-4 py-4">
+      <SimboloMarca />
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-sm font-semibold tracking-tight">{usuario.nomeEmpresa}</span>
+        <span className="text-muted-foreground truncate text-xs">
+          {usuario.nome} · {ROTULO_PAPEL[usuario.papel]}
+        </span>
+      </div>
     </div>
   );
 

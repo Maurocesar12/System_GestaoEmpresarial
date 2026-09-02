@@ -229,13 +229,6 @@
 
   body {
     @apply bg-background text-foreground;
-    /*
-      Ligaduras e formas alternativas desligadas: em interface de sistema elas
-      atrapalham a leitura de código de documento e de identificador.
-    */
-    font-feature-settings:
-      'liga' 1,
-      'calt' 1;
   }
 
   /*

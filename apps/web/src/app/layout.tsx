@@ -1,5 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import { SITE } from '@/configuracao/site';
 import { SCRIPT_TEMA } from '@/lib/tema';
 import './globals.css';
 
@@ -22,26 +23,55 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: SITE.url,
+  applicationName: SITE.nome,
   title: {
-    default: 'Gestão Empresarial',
-    // As páginas definem só o próprio nome; o sufixo é montado aqui, num lugar
-    // só, em vez de repetido em cada `metadata`.
-    template: '%s · Gestão Empresarial',
+    default: SITE.nome,
+    template: `%s · ${SITE.nome}`,
   },
-  description: 'CRM e financeiro no mesmo lugar, para PME de serviço.',
+  description: SITE.descricao,
+  keywords: ['CRM', 'gestão empresarial', 'financeiro', 'PME', 'empresas de serviço'],
+  creator: SITE.nome,
+  category: 'business',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
+  openGraph: {
+    type: 'website',
+    locale: SITE.locale,
+    siteName: SITE.nome,
+    title: SITE.nome,
+    description: SITE.descricao,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE.nome,
+    description: SITE.descricao,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: SITE.corFundo },
+    { media: '(prefers-color-scheme: dark)', color: '#171b25' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // `suppressHydrationWarning` em <html> e <body> por causa de extensões de
-    // navegador: várias delas (ColorZilla, Grammarly, gerenciadores de senha)
-    // injetam atributos nesses dois elementos antes do React hidratar. O
-    // servidor renderiza sem eles, o cliente encontra com eles, e o React
-    // reclama de uma diferença que não veio do nosso código.
-    //
-    // O efeito é raso de propósito: vale só para os atributos destes dois
-    // elementos, e não desce pela árvore. Um erro de hidratação de verdade,
-    // dentro de qualquer componente, continua sendo reportado normalmente.
+    // O script de tema pode mudar a classe antes de o React hidratar a página.
+    // A exceção fica apenas no elemento que realmente pode divergir.
     <html lang="pt-BR" className={inter.variable} suppressHydrationWarning>
       <head>
         {/*
@@ -64,9 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         atualização em segundo plano), ele volta — envolvendo só a parte que
         precisar, não o `<body>` inteiro.
       */}
-      <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
-        {children}
-      </body>
+      <body className="min-h-screen font-sans antialiased">{children}</body>
     </html>
   );
 }

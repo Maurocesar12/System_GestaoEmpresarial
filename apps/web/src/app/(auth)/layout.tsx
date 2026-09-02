@@ -1,5 +1,11 @@
+import type { Metadata } from 'next';
 import { ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { Marca } from '@/components/marca';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Layout das telas de entrada e cadastro.
@@ -17,17 +23,8 @@ export default function LayoutAutenticacao({ children }: { children: React.React
     <div className="grid min-h-screen lg:grid-cols-[1fr_28rem]">
       <div className="flex flex-col">
         <header className="px-6 py-5">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight"
-          >
-            <span
-              aria-hidden
-              className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded text-xs font-bold"
-            >
-              G
-            </span>
-            Gestão Empresarial
+          <Link href="/" aria-label="Voltar para a página inicial" className="inline-flex">
+            <Marca className="text-sm" />
           </Link>
         </header>
 

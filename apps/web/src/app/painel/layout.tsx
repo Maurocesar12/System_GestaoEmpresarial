@@ -1,4 +1,5 @@
 import type { UsuarioAutenticado } from '@gestao/shared-types';
+import type { Metadata } from 'next';
 import { ServerCrash } from 'lucide-react';
 import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
@@ -7,6 +8,10 @@ import { ProvedorDeAvisos } from '@/components/ui/avisos';
 import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao } from '@/lib/api-servidor';
 import { sair } from '../(auth)/acoes';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Layout da área autenticada.
