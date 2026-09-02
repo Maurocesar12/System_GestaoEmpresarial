@@ -42,13 +42,19 @@ services:
     #     no start, porque o plano gratuito hiberna: o start roda a cada
     #     despertar, e migrar a cada acordada só somaria tempo ao cold start.
     #     `migrate deploy` é idempotente e nunca gera migration nova.
-    #  6. `nest build` — compila para `dist/`.
+    #  6. `db:seed` — popula o catálogo de PLANOS. Não é opcional: o cadastro de
+    #     empresa procura o plano pelo slug de `ONBOARDING_PLANO_PADRAO`, e sem
+    #     essa linha no banco o primeiro cadastro falha. As migrations criam a
+    #     tabela `plano` vazia; quem a preenche é o seed. Ele usa `upsert` por
+    #     slug, então rodar a cada deploy atualiza preços em vez de duplicar.
+    #  7. `nest build` — compila para `dist/`.
     buildCommand: >-
       corepack enable &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @gestao/shared-types build &&
       pnpm --filter @gestao/api exec prisma generate &&
       pnpm --filter @gestao/api exec prisma migrate deploy &&
+      pnpm --filter @gestao/api run db:seed &&
       pnpm --filter @gestao/api build
 
     startCommand: pnpm --filter @gestao/api start
