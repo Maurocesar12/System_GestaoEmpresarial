@@ -308,14 +308,17 @@ Os testes de integração usam `gestao_test` e verificam regras importantes, com
 
 ## Deploy
 
-O alvo de produção previsto é:
+**Passo a passo completo em [docs/deploy.md](docs/deploy.md)**, incluindo a
+variante gratuita para validação. O `render.yaml` na raiz é o blueprint da API:
+o Render lê esse arquivo ao conectar o repositório e cria o serviço já
+configurado.
 
-| Parte      | Serviço |
-| ---------- | ------- |
-| Frontend   | Vercel  |
-| API        | Render  |
-| PostgreSQL | Render  |
-| Redis      | Upstash |
+| Parte      | Serviço | Observação                                              |
+| ---------- | ------- | ------------------------------------------------------- |
+| Frontend   | Vercel  | O plano Hobby **proíbe uso comercial** — cobrando, exige Pro |
+| API        | Render  | O plano gratuito hiberna, e o cron de lembretes para junto |
+| PostgreSQL | Neon    | Preferido ao Postgres do Render, cujo gratuito expira e apaga os dados |
+| Redis      | Upstash | Opcional: sem ele os lembretes são criados e ficam pendentes |
 
 Checklist de produção:
 

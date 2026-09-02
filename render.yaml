@@ -1,0 +1,132 @@
+# ============================================================================
+#  Render — API (NestJS)
+#
+#  Blueprint do serviço da API. O Render lê este arquivo ao conectar o
+#  repositório e cria o serviço já configurado, em vez de você preencher os
+#  campos na mão.
+#
+#  O frontend NÃO está aqui: ele vai para a Vercel, que entende Next.js
+#  nativamente. O banco também não: usamos o Neon, cujo plano gratuito não
+#  expira — o Postgres gratuito do Render tem prazo de validade e some com os
+#  dados junto.
+#
+#  Passo a passo completo em docs/deploy.md.
+# ============================================================================
+
+services:
+  - type: web
+    name: gestao-api
+    runtime: node
+    plan: free
+
+    # Sem região no Brasil no plano gratuito. Oregon costuma ser a de melhor
+    # latência entre as disponíveis; escolha a mesma região no Neon, porque o
+    # tráfego entre API e banco é o mais sensível — cada operação abre uma
+    # transação com `BEGIN`, `set_config` e `COMMIT`.
+    region: oregon
+
+    # ------------------------------------------------------------------------
+    #  Build
+    # ------------------------------------------------------------------------
+    #  A ordem importa, e cada passo existe por um motivo:
+    #
+    #  1. `corepack enable` — ativa o pnpm na versão fixada no package.json.
+    #  2. `install --frozen-lockfile` — falha se o lockfile estiver desatualizado,
+    #     em vez de resolver versões diferentes das que você testou.
+    #  3. `shared-types build` — a API importa `@gestao/shared-types` compilado;
+    #     sem este passo o `nest build` não encontra os tipos.
+    #  4. `prisma generate` — o cliente é gerado em `src/generated`, que não vai
+    #     para o repositório. Precisa existir ANTES do `nest build`, porque o
+    #     TypeScript compila esse diretório junto.
+    #  5. `migrate deploy` — aplica as migrations pendentes. Fica no build, e não
+    #     no start, porque o plano gratuito hiberna: o start roda a cada
+    #     despertar, e migrar a cada acordada só somaria tempo ao cold start.
+    #     `migrate deploy` é idempotente e nunca gera migration nova.
+    #  6. `nest build` — compila para `dist/`.
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @gestao/shared-types build &&
+      pnpm --filter @gestao/api exec prisma generate &&
+      pnpm --filter @gestao/api exec prisma migrate deploy &&
+      pnpm --filter @gestao/api build
+
+    startCommand: pnpm --filter @gestao/api start
+
+    # ------------------------------------------------------------------------
+    #  Health check
+    # ------------------------------------------------------------------------
+    #  A rota é `@Publico()` de propósito: sem isso o guard global responderia
+    #  401, o Render interpretaria como serviço fora do ar e ficaria reiniciando
+    #  a instância em laço.
+    healthCheckPath: /health
+
+    envVars:
+      # O `engines.node` da raiz pede >= 22, mas o Render nem sempre lê o
+      # package.json do topo de um monorepo. Declarar aqui evita a versão
+      # padrão dele quebrar o build por sintaxe recente.
+      - key: NODE_VERSION
+        value: 22
+
+      - key: NODE_ENV
+        value: production
+
+      # O Render injeta a porta que o serviço deve escutar. O `main.ts` já lê
+      # `PORT`, então basta repassar.
+      - key: PORT
+        value: 10000
+
+      - key: API_PREFIX
+        value: api
+
+      # --- Segredos: preenchidos no painel, nunca no repositório -------------
+      #
+      # `sync: false` faz o Render perguntar o valor na primeira publicação em
+      # vez de assumir um padrão.
+
+      # Connection string do Neon. PRECISA terminar em `?sslmode=require`.
+      - key: DATABASE_URL
+        sync: false
+
+      # Origens do CORS: a URL da Vercel, sem barra no final.
+      # Ex.: https://gestao-empresarial.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
+
+      # Gerado pelo próprio Render, com entropia adequada. Trocar este valor
+      # invalida todas as sessões abertas — é a forma de expulsar todo mundo se
+      # houver suspeita de vazamento.
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: JWT_ACCESS_TTL_MINUTOS
+        value: 15
+      - key: JWT_REFRESH_TTL_DIAS
+        value: 7
+
+      - key: ONBOARDING_PLANO_PADRAO
+        value: essencial
+      - key: ONBOARDING_TRIAL_DIAS
+        value: 14
+
+      - key: THROTTLE_TTL_MS
+        value: 60000
+      - key: THROTTLE_LIMIT
+        value: 120
+
+      # --- Opcionais: a API sobe sem eles ------------------------------------
+      #
+      # Sem REDIS_URL o envio automático de lembretes fica desligado — eles
+      # continuam sendo criados e ficam pendentes.
+      # Sem SMTP_URL o e-mail é apenas registrado no log, não enviado.
+      # Os dois avisam no boot, então dá para conferir no log do Render.
+      - key: REDIS_URL
+        value: ''
+      - key: SMTP_URL
+        value: ''
+      - key: EMAIL_REMETENTE
+        value: Gestão Empresarial <nao-responda@exemplo.com>
+
+      # Reservado para o painel interno (AdminModule), que ainda não existe.
+      - key: ADMIN_DATABASE_URL
+        value: ''
