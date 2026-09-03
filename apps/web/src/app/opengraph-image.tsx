@@ -15,8 +15,8 @@ export default function ImagemCompartilhamento() {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        background: '#f8fafc',
-        color: '#172033',
+        background: SITE.corFundo,
+        color: '#211d1a',
         padding: '76px 84px',
         fontFamily: 'Arial, sans-serif',
       }}
@@ -49,7 +49,7 @@ export default function ImagemCompartilhamento() {
         <div style={{ display: 'flex', fontSize: 64, fontWeight: 700, lineHeight: 1.08 }}>
           O que você vendeu e o que entrou no caixa, no mesmo sistema.
         </div>
-        <div style={{ display: 'flex', color: '#526075', fontSize: 29, lineHeight: 1.35 }}>
+        <div style={{ display: 'flex', color: '#6c625c', fontSize: 29, lineHeight: 1.35 }}>
           {SITE.descricao}
         </div>
       </div>

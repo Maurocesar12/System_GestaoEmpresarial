@@ -63,160 +63,101 @@
 }
 
 :root {
-  /*
-    Raio menor que o padrão do shadcn (0.625rem). Canto muito arredondado passa
-    sensação de aplicativo de consumo; este é um sistema de trabalho, onde o
-    usuário passa horas lendo tabela e formulário.
-  */
+  /* Base neutra e quente: marfim, carvão e nude/caramelo. */
   --radius: 0.5rem;
 
-  /*
-    O fundo não é branco puro, e o cartão é. Essa diferença de um passo é o que
-    cria camada: o conteúdo "sobe" sem precisar de sombra pesada. Sombra forte
-    em interface densa cansa a vista e envelhece rápido.
-  */
-  --background: oklch(0.983 0.002 250);
-  --superficie: oklch(0.968 0.003 250);
-  --foreground: oklch(0.21 0.021 260);
+  --background: oklch(0.985 0.005 75);
+  --superficie: oklch(0.963 0.009 70);
+  --foreground: oklch(0.19 0.012 50);
 
-  --card: oklch(1 0 0);
+  --card: oklch(0.998 0.002 75);
   --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.998 0.002 75);
   --popover-foreground: var(--foreground);
 
-  /*
-    Marca: um azul-petróleo. A escolha é deliberada — o índigo e o violeta
-    viraram assinatura de template pronto, e o azul corporativo puro é
-    indistinguível de qualquer concorrente. Este tom tem verde suficiente para
-    conversar com dinheiro e resultado sem virar "verde de banco".
+  /* Caramelo escuro o bastante para manter texto branco acessível. */
+  --primary: oklch(0.46 0.063 52);
+  --primary-foreground: oklch(0.99 0.004 75);
 
-    Usado com parcimônia: ação principal, item de menu ativo e anel de foco.
-    Cor que aparece em tudo deixa de destacar qualquer coisa.
-  */
-  --primary: oklch(0.47 0.083 205);
-  --primary-foreground: oklch(0.99 0.002 250);
-
-  --secondary: oklch(0.968 0.003 250);
+  --secondary: oklch(0.95 0.011 70);
   --secondary-foreground: var(--foreground);
 
-  --muted: oklch(0.968 0.003 250);
-  /*
-    Contraste de 4.6:1 sobre o fundo. Texto secundário costuma ser clareado até
-    ficar bonito e ilegível; este é o ponto em que ainda passa na WCAG AA.
-  */
-  --muted-foreground: oklch(0.508 0.019 258);
+  --muted: oklch(0.95 0.009 70);
+  --muted-foreground: oklch(0.49 0.018 52);
 
-  --accent: oklch(0.958 0.004 250);
+  --accent: oklch(0.935 0.021 65);
   --accent-foreground: var(--foreground);
 
-  --border: oklch(0.918 0.005 255);
-  --input: oklch(0.895 0.006 255);
+  --border: oklch(0.885 0.014 65);
+  --input: oklch(0.85 0.018 62);
   --ring: var(--primary);
 
-  --destructive: oklch(0.553 0.209 27.3);
-  --destructive-foreground: oklch(0.99 0.002 250);
-  --destrutivo-suave: oklch(0.958 0.026 27.3);
+  /* Estados preservam cor própria porque também comunicam significado. */
+  --destructive: oklch(0.5 0.16 28);
+  --destructive-foreground: oklch(0.99 0.004 75);
+  --destrutivo-suave: oklch(0.955 0.026 28);
 
-  --sucesso: oklch(0.508 0.114 158);
-  --sucesso-suave: oklch(0.955 0.032 158);
-  --atencao: oklch(0.55 0.115 65);
-  --atencao-suave: oklch(0.96 0.042 78);
-  --info: oklch(0.52 0.106 245);
-  --info-suave: oklch(0.955 0.025 245);
+  --sucesso: oklch(0.46 0.09 150);
+  --sucesso-suave: oklch(0.955 0.025 150);
+  --atencao: oklch(0.51 0.09 70);
+  --atencao-suave: oklch(0.955 0.035 75);
+  --info: oklch(0.48 0.055 245);
+  --info-suave: oklch(0.955 0.018 245);
 
-  /*
-    Série de gráficos, consumida sempre nesta ordem — nunca em ciclo.
+  /* Gráficos seguem a marca sem perder contraste entre as séries. */
+  --grafico-1: oklch(0.46 0.063 52);
+  --grafico-2: oklch(0.28 0.012 50);
+  --grafico-3: oklch(0.6 0.032 55);
+  --grafico-4: oklch(0.72 0.055 67);
+  --grafico-5: oklch(0.48 0.009 70);
 
-    A ordem alterna frio e quente porque, sob protanopia e deuteranopia (as duas
-    formas comuns de daltonismo), o azul e o âmbar são justamente os dois polos
-    que sobrevivem. Os pares que o daltonismo confunde — âmbar com verde, verde
-    com vermelho — estão separados por uma diferença grande de CLAREZA, que
-    nenhum tipo de daltonismo apaga.
-
-    A série anterior parecia cuidadosa mas não era: no tema escuro, o primeiro e
-    o segundo tons ficavam a ΔE 7.9 um do outro para quem enxerga todas as cores
-    — abaixo do piso de 15. Esta passou na verificação de faixa de clareza,
-    croma mínimo, separação sob daltonismo e contraste com a superfície, nos
-    dois temas.
-
-    O âmbar tem contraste de 2.3:1 com o fundo claro, abaixo de 3:1. Isso é
-    aceitável porque ele nunca aparece sozinho: todo gráfico do sistema traz
-    rótulo direto ou a tabela ao lado.
-  */
-  --grafico-1: oklch(0.5 0.14 245);
-  --grafico-2: oklch(0.745 0.145 75);
-  --grafico-3: oklch(0.545 0.125 152);
-  --grafico-4: oklch(0.525 0.18 305);
-  --grafico-5: oklch(0.625 0.19 25);
-
-  /*
-    Sombras curtas e de baixa opacidade. A elevação vem principalmente da borda
-    fina; a sombra só reforça.
-  */
-  --sombra-sutil: 0 1px 2px 0 oklch(0.21 0.021 260 / 0.05);
+  --sombra-sutil: 0 1px 2px 0 oklch(0.19 0.012 50 / 0.06);
   --sombra-media:
-    0 4px 12px -2px oklch(0.21 0.021 260 / 0.08), 0 2px 4px -2px oklch(0.21 0.021 260 / 0.04);
+    0 4px 12px -2px oklch(0.19 0.012 50 / 0.09), 0 2px 4px -2px oklch(0.19 0.012 50 / 0.05);
 }
 
 .dark {
-  /*
-    O escuro não é o claro invertido. Preto puro com texto branco vibra e
-    cansa: o fundo aqui é um cinza-azulado profundo, e as camadas sobem em vez
-    de descer — o cartão é mais claro que o fundo, como no mundo físico.
-  */
-  --background: oklch(0.168 0.014 258);
-  --superficie: oklch(0.148 0.014 258);
-  --foreground: oklch(0.968 0.004 250);
+  --background: oklch(0.145 0.008 50);
+  --superficie: oklch(0.12 0.007 50);
+  --foreground: oklch(0.96 0.008 70);
 
-  --card: oklch(0.208 0.016 258);
+  --card: oklch(0.19 0.01 50);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.208 0.016 258);
+  --popover: oklch(0.19 0.01 50);
   --popover-foreground: var(--foreground);
 
-  /*
-    A marca clareia no escuro. O tom do tema claro tem clareza 0.47 e ficaria
-    quase invisível sobre fundo escuro — cor de marca precisa de leitura, não
-    de fidelidade ao valor original.
-  */
-  --primary: oklch(0.72 0.094 197);
-  --primary-foreground: oklch(0.168 0.014 258);
+  --primary: oklch(0.76 0.057 62);
+  --primary-foreground: oklch(0.16 0.01 50);
 
-  --secondary: oklch(0.262 0.018 258);
+  --secondary: oklch(0.245 0.012 50);
   --secondary-foreground: var(--foreground);
 
-  --muted: oklch(0.262 0.018 258);
-  --muted-foreground: oklch(0.706 0.018 256);
+  --muted: oklch(0.245 0.012 50);
+  --muted-foreground: oklch(0.7 0.018 62);
 
-  --accent: oklch(0.272 0.019 258);
+  --accent: oklch(0.275 0.02 55);
   --accent-foreground: var(--foreground);
 
-  /* Borda por transparência: acompanha a camada em que estiver apoiada. */
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 16%);
   --ring: var(--primary);
 
-  --destructive: oklch(0.68 0.176 25);
-  --destructive-foreground: oklch(0.168 0.014 258);
-  --destrutivo-suave: oklch(0.32 0.075 25);
+  --destructive: oklch(0.68 0.14 25);
+  --destructive-foreground: oklch(0.16 0.01 50);
+  --destrutivo-suave: oklch(0.3 0.055 25);
 
-  --sucesso: oklch(0.72 0.128 158);
-  --sucesso-suave: oklch(0.29 0.055 158);
-  --atencao: oklch(0.79 0.132 78);
-  --atencao-suave: oklch(0.32 0.058 68);
-  --info: oklch(0.72 0.109 245);
-  --info-suave: oklch(0.3 0.058 245);
+  --sucesso: oklch(0.72 0.1 150);
+  --sucesso-suave: oklch(0.28 0.04 150);
+  --atencao: oklch(0.79 0.1 75);
+  --atencao-suave: oklch(0.3 0.045 65);
+  --info: oklch(0.72 0.075 245);
+  --info-suave: oklch(0.29 0.04 245);
 
-  /*
-    Passos próprios para o escuro, e não os do claro clareados: a faixa de
-    clareza que funciona sobre fundo escuro é mais estreita, e o verde precisa
-    ficar bem mais escuro que o âmbar para os dois continuarem distinguíveis
-    sob daltonismo.
-  */
-  --grafico-1: oklch(0.645 0.13 245);
-  --grafico-2: oklch(0.66 0.145 78);
-  --grafico-3: oklch(0.53 0.125 152);
-  --grafico-4: oklch(0.62 0.16 305);
-  --grafico-5: oklch(0.64 0.17 25);
+  --grafico-1: oklch(0.76 0.057 62);
+  --grafico-2: oklch(0.88 0.01 70);
+  --grafico-3: oklch(0.62 0.03 55);
+  --grafico-4: oklch(0.55 0.07 48);
+  --grafico-5: oklch(0.7 0.008 70);
 
   --sombra-sutil: 0 1px 2px 0 oklch(0 0 0 / 0.3);
   --sombra-media: 0 4px 12px -2px oklch(0 0 0 / 0.4), 0 2px 4px -2px oklch(0 0 0 / 0.3);

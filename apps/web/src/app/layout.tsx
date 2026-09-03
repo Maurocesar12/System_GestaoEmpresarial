@@ -64,7 +64,7 @@ export const viewport: Viewport = {
   colorScheme: 'light dark',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: SITE.corFundo },
-    { media: '(prefers-color-scheme: dark)', color: '#171b25' },
+    { media: '(prefers-color-scheme: dark)', color: SITE.corFundoEscuro },
   ],
 };
 
