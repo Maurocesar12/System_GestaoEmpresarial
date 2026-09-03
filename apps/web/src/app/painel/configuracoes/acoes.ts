@@ -2,8 +2,10 @@
 import { revalidatePath } from 'next/cache';
 import {
   configuracoesEmpresaSchema,
+  testeEmailSchema,
   type ConfiguracoesEmpresa,
   type ConfiguracoesEmpresaInput,
+  type TesteEmailResponse,
 } from '@gestao/shared-types';
 import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
@@ -21,5 +23,21 @@ export async function salvarConfiguracoes(
     return { configuracoes };
   } catch (erro) {
     return traduzirErroAcao(erro);
+  }
+}
+
+export async function testarEmail(
+  email: string,
+): Promise<ResultadoAcao & { modo?: TesteEmailResponse['modo'] }> {
+  const validacao = testeEmailSchema.safeParse({ email });
+  if (!validacao.success) return erroDeValidacao(validacao.error.issues);
+
+  try {
+    return await apiComSessao<TesteEmailResponse>('/configuracoes/email/testar', {
+      method: 'POST',
+      body: JSON.stringify(validacao.data),
+    });
+  } catch (erro) {
+    return traduzirErroAcao(erro, 'Não foi possível enviar o e-mail de teste.');
   }
 }

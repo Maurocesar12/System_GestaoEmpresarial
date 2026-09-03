@@ -3,8 +3,11 @@ import {
   CODIGOS_ERRO,
   type ConfiguracoesEmpresa,
   type ConfiguracoesEmpresaInput,
+  type TesteEmailInput,
+  type TesteEmailResponse,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
+import { ErroDeNotificacao, Notificador } from '../../../infra/notificacoes/notificador';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import { AuditoriaService } from '../auditoria/auditoria.service';
@@ -14,6 +17,7 @@ export class ConfiguracoesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
+    private readonly notificador: Notificador,
   ) {}
 
   async buscar(): Promise<ConfiguracoesEmpresa> {
@@ -90,6 +94,35 @@ export class ConfiguracoesService {
       return atualizado;
     });
     return this.paraResposta(tenant);
+  }
+
+  async testarEmail(dados: TesteEmailInput): Promise<TesteEmailResponse> {
+    const empresa = await this.prisma.comTenant((tx) =>
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantAtual() }, select: { nome: true } }),
+    );
+
+    try {
+      await this.notificador.enviar({
+        destinatario: dados.email,
+        assunto: `Teste de e-mail — ${empresa.nome}`,
+        corpo:
+          `Este é um teste de envio do sistema ${empresa.nome}.\n\n` +
+          'Se você recebeu esta mensagem, a configuração de e-mail está funcionando.',
+      });
+    } catch (erro) {
+      if (erro instanceof ErroDeNotificacao) {
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.VALIDACAO,
+          mensagem:
+            'Não foi possível enviar o e-mail. Confira o destinatário, SMTP_URL, ' +
+            'EMAIL_REMETENTE e a verificação do domínio.',
+        });
+      }
+
+      throw erro;
+    }
+
+    return { modo: this.notificador.modo ?? 'simulado' };
   }
 
   private paraResposta(tenant: {

@@ -12,6 +12,8 @@ import { ErroDeNotificacao, Notificador, type MensagemNotificacao } from './noti
  */
 @Injectable()
 export class NotificadorEmail extends Notificador {
+  override readonly modo = 'smtp' as const;
+
   constructor(
     private readonly transporte: Transporter,
     /** Remetente no formato `Nome <endereco@dominio>`, vindo de `EMAIL_REMETENTE`. */

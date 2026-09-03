@@ -65,6 +65,14 @@ export interface ConfiguracoesEmpresa extends Omit<
   etiquetas: Etiqueta[];
 }
 
+export const testeEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email('E-mail inválido')),
+});
+export type TesteEmailInput = z.infer<typeof testeEmailSchema>;
+export interface TesteEmailResponse {
+  modo: 'smtp' | 'simulado';
+}
+
 function validarUnicos(
   itens: Array<{ id?: string; nome: string }>,
   grupo: 'campos' | 'etiquetas',

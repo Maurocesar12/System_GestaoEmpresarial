@@ -24,6 +24,8 @@ export interface MensagemNotificacao {
   corpo: string;
 }
 
+export type ModoNotificacao = 'smtp' | 'simulado';
+
 /**
  * Porta de saída de notificações.
  *
@@ -34,6 +36,9 @@ export interface MensagemNotificacao {
  * decidir qual implementação entra.
  */
 export abstract class Notificador {
+  /** Permite à tela informar se houve envio real ou apenas registro local. */
+  readonly modo?: ModoNotificacao;
+
   abstract enviar(mensagem: MensagemNotificacao): Promise<void>;
 }
 

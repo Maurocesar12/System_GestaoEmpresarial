@@ -270,6 +270,8 @@ Principais variáveis:
 | `ONBOARDING_PLANO_PADRAO` | Plano usado no cadastro inicial                |
 | `ONBOARDING_TRIAL_DIAS`   | Duração do trial                               |
 | `REDIS_URL`               | Reservado para BullMQ/Upstash                  |
+| `SMTP_URL`                | Conexão SMTP usada em convites e lembretes     |
+| `EMAIL_REMETENTE`         | Nome e e-mail do domínio remetente             |
 
 Veja o modelo completo em [apps/api/.env.example](apps/api/.env.example).
 

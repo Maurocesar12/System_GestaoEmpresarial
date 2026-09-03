@@ -5,7 +5,7 @@ import {
   type Etiqueta,
   type TipoCampoPersonalizado,
 } from '@gestao/shared-types';
-import { Plus, Trash2 } from 'lucide-react';
+import { MailCheck, Plus, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { useAvisos } from '@/components/ui/avisos';
@@ -13,7 +13,7 @@ import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import { Selecao } from '@/components/ui/selecao';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
-import { salvarConfiguracoes } from './acoes';
+import { salvarConfiguracoes, testarEmail } from './acoes';
 
 type CampoEditavel = Omit<CampoPersonalizado, 'id'> & { id?: string };
 type EtiquetaEditavel = Omit<Etiqueta, 'id'> & { id?: string };
@@ -22,7 +22,9 @@ export function FormularioConfiguracoes({ iniciais }: { iniciais: ConfiguracoesE
   const [campos, setCampos] = useState<CampoEditavel[]>(iniciais.campos);
   const [etiquetas, setEtiquetas] = useState<EtiquetaEditavel[]>(iniciais.etiquetas);
   const [falha, setFalha] = useState<string>();
+  const [emailTeste, setEmailTeste] = useState(iniciais.email ?? '');
   const [salvando, iniciar] = useTransition();
+  const [testandoEmail, iniciarTesteEmail] = useTransition();
   const { avisar } = useAvisos();
   return (
     <form
@@ -60,6 +62,46 @@ export function FormularioConfiguracoes({ iniciais }: { iniciais: ConfiguracoesE
           <Campo name="cnpj" rotulo="CNPJ" defaultValue={iniciais.cnpj ?? ''} />
           <Campo name="email" type="email" rotulo="E-mail" defaultValue={iniciais.email ?? ''} />
           <Campo name="telefone" rotulo="Telefone" defaultValue={iniciais.telefone ?? ''} />
+        </CartaoConteudo>
+      </Cartao>
+      <Cartao>
+        <CartaoCabecalho>
+          <div>
+            <CartaoTitulo>Teste de envio de e-mail</CartaoTitulo>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Confirme se convites e lembretes conseguem chegar ao destinatário.
+            </p>
+          </div>
+        </CartaoCabecalho>
+        <CartaoConteudo className="flex flex-col items-start gap-4 sm:flex-row sm:items-end">
+          <Campo
+            className="sm:min-w-80"
+            type="email"
+            rotulo="Destinatário do teste"
+            value={emailTeste}
+            onChange={(evento) => setEmailTeste(evento.target.value)}
+          />
+          <Botao
+            type="button"
+            variante="secundario"
+            carregando={testandoEmail}
+            onClick={() =>
+              iniciarTesteEmail(async () => {
+                setFalha(undefined);
+                const resultado = await testarEmail(emailTeste);
+                setFalha(resultado.erro);
+                if (resultado.modo === 'smtp') {
+                  avisar('sucesso', 'E-mail de teste enviado. Confira a caixa de entrada.');
+                }
+                if (resultado.modo === 'simulado') {
+                  avisar('atencao', 'SMTP ainda não configurado. O teste apareceu apenas no log.');
+                }
+              })
+            }
+          >
+            <MailCheck />
+            Enviar teste
+          </Botao>
         </CartaoConteudo>
       </Cartao>
       <Cartao>

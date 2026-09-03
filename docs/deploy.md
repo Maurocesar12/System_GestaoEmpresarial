@@ -60,13 +60,15 @@ role que o Neon te entrega.
 
 1. Em [render.com](https://render.com), **New → Blueprint** e aponte para o
    repositório. Ele lê o `render.yaml` da raiz e já cria o serviço configurado.
-2. O Render vai pedir os três valores marcados como `sync: false`:
+2. O Render vai pedir os cinco valores marcados como `sync: false`:
 
-   | Variável       | Valor                                                           |
-   | -------------- | --------------------------------------------------------------- |
-   | `DATABASE_URL` | A connection string do Neon, com `?sslmode=require`             |
-   | `CORS_ORIGINS` | A URL da Vercel — preencha depois do passo 3, deixe vazio agora |
-   | `APP_URL`      | A mesma URL da Vercel, usada para montar os links dos convites  |
+   | Variável          | Valor                                                           |
+   | ----------------- | --------------------------------------------------------------- |
+   | `DATABASE_URL`    | A connection string do Neon, com `?sslmode=require`             |
+   | `CORS_ORIGINS`    | A URL da Vercel — preencha depois do passo 3, deixe vazio agora |
+   | `APP_URL`         | A mesma URL da Vercel, usada para montar os links dos convites  |
+   | `SMTP_URL`        | URL SMTP completa; veja a configuração de e-mail abaixo         |
+   | `EMAIL_REMETENTE` | Nome e endereço do domínio verificado                           |
 
 3. Publique. O build roda migrations automaticamente (`prisma migrate deploy`).
 
@@ -130,6 +132,29 @@ de cliente precisar falar com a API.
 
 Se o passo 2 falhar com erro de política, o problema é quase sempre a migration
 de RLS não ter rodado — confira o log de build do Render.
+
+---
+
+## Configurar o envio real de e-mail
+
+O sistema usa o mesmo SMTP para convites de funcionários e lembretes. Com o
+Resend, faça o seguinte:
+
+1. Cadastre um domínio ou subdomínio de envio no
+   [painel do Resend](https://resend.com/domains).
+2. Copie para o seu DNS os registros SPF e DKIM exibidos pelo provedor e espere
+   o domínio aparecer como verificado.
+3. Crie uma API key exclusiva para produção.
+4. No Render, preencha `SMTP_URL` com
+   `smtps://resend:re_SUA_CHAVE@smtp.resend.com:465`.
+5. Preencha `EMAIL_REMETENTE` com um endereço do domínio verificado, por exemplo
+   `Minha Empresa <notificacoes@envios.minhaempresa.com.br>`.
+6. Depois do deploy, abra **Configurações → Teste de envio de e-mail** e envie
+   uma mensagem para o seu próprio endereço.
+
+Nunca coloque a API key no `.env.example`, no código ou em um commit. Em
+desenvolvimento, deixar `SMTP_URL` vazia é intencional: a mensagem aparece no
+terminal sem ser enviada para uma pessoa real.
 
 ---
 

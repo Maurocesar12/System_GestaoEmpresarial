@@ -101,6 +101,15 @@ describe('configurações, campos e etiquetas (HTTP)', () => {
     etiquetaId = body.etiquetas[0].id;
   });
 
+  it('informa quando o teste de e-mail está no modo simulado', async () => {
+    const { body } = await autenticado(tokenA)
+      .post('/api/configuracoes/email/testar')
+      .send({ email: `receber-teste+${marca}@exemplo.com` })
+      .expect(201);
+
+    expect(body.modo).toBe('simulado');
+  });
+
   it('valida campo obrigatório ao cadastrar um cliente', async () => {
     const resposta = await autenticado(tokenA)
       .post('/api/clientes')

@@ -1,8 +1,12 @@
-import { Controller, Get, Put } from '@nestjs/common';
+import { Controller, Get, Post, Put } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   configuracoesEmpresaSchema,
+  testeEmailSchema,
   type ConfiguracoesEmpresa,
   type ConfiguracoesEmpresaInput,
+  type TesteEmailInput,
+  type TesteEmailResponse,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { CorpoValidado } from '../../../common/decorators/validado.decorator';
@@ -20,5 +24,14 @@ export class ConfiguracoesController {
     @CorpoValidado(configuracoesEmpresaSchema) dados: ConfiguracoesEmpresaInput,
   ): Promise<ConfiguracoesEmpresa> {
     return this.configuracoes.salvar(dados);
+  }
+
+  @Post('email/testar')
+  @Permissoes('empresa.configurar')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  testarEmail(
+    @CorpoValidado(testeEmailSchema) dados: TesteEmailInput,
+  ): Promise<TesteEmailResponse> {
+    return this.configuracoes.testarEmail(dados);
   }
 }

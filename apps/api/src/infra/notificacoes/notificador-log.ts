@@ -17,6 +17,7 @@ import { Notificador, type MensagemNotificacao } from './notificador';
  */
 @Injectable()
 export class NotificadorLog extends Notificador {
+  override readonly modo = 'simulado' as const;
   private readonly logger = new Logger(NotificadorLog.name);
 
   enviar(mensagem: MensagemNotificacao): Promise<void> {

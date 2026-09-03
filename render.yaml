@@ -134,9 +134,9 @@ services:
       - key: REDIS_URL
         value: ''
       - key: SMTP_URL
-        value: ''
+        sync: false
       - key: EMAIL_REMETENTE
-        value: Gestão Empresarial <nao-responda@exemplo.com>
+        sync: false
 
       # Reservado para o painel interno (AdminModule), que ainda não existe.
       - key: ADMIN_DATABASE_URL
