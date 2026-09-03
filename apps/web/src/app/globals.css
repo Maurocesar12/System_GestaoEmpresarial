@@ -64,6 +64,7 @@
 
 :root {
   /* Base neutra e quente: marfim, carvão e nude/caramelo. */
+  color-scheme: light;
   --radius: 0.5rem;
 
   --background: oklch(0.985 0.005 75);
@@ -117,6 +118,9 @@
 }
 
 .dark {
+  /* Faz controles nativos, como a lista do select, acompanharem o tema. */
+  color-scheme: dark;
+
   --background: oklch(0.145 0.008 50);
   --superficie: oklch(0.12 0.007 50);
   --foreground: oklch(0.96 0.008 70);
@@ -170,6 +174,19 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /*
+    No Windows, a lista aberta de um select é desenhada pelo navegador.
+    Declarar as cores nas opções evita fundo branco com texto claro no escuro.
+  */
+  select option {
+    color: var(--popover-foreground);
+    background-color: var(--popover);
+  }
+
+  select option:disabled {
+    color: var(--muted-foreground);
   }
 
   /*

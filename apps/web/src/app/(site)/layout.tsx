@@ -78,7 +78,7 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
             <div className="flex flex-col gap-1">
               <Marca className="text-sm" />
               <span className="text-muted-foreground text-xs">
-                CRM e financeiro para pequenas e médias empresas de serviço.
+                Sistema de Gestão para empresas.
               </span>
             </div>
 
