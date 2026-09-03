@@ -1,9 +1,13 @@
 import {
   Bell,
   CalendarDays,
+  Camera,
   Contact,
   FileText,
   KanbanSquare,
+  MessageSquareText,
+  Sparkles,
+  TrendingUp,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
@@ -14,6 +18,14 @@ import {
  * Separado da página de propósito: ajustar uma frase de venda é o tipo de coisa
  * que acontece toda semana, e não deveria exigir navegar por JSX para achar
  * onde o texto está. Aqui é tudo dado; lá é só apresentação.
+ *
+ * ## Sobre o tom
+ *
+ * Quem lê esta página é dono de oficina, de clínica pequena, de empresa de
+ * manutenção. Ele não procura "gestão integrada de processos": procura saber se
+ * o mês fechou no azul e por que aquele orçamento não voltou. Por isso o texto
+ * evita palavra de catálogo de software e descreve situação — o que acontece
+ * hoje, e o que passa a acontecer.
  */
 
 export interface Recurso {
@@ -25,39 +37,39 @@ export interface Recurso {
 export const RECURSOS: readonly Recurso[] = [
   {
     icone: Contact,
-    titulo: 'Clientes com histórico',
+    titulo: 'Seus clientes num lugar só',
     descricao:
-      'Cada atendimento fica registrado na ficha do cliente, junto com a origem do contato — indicação, Instagram, anúncio.',
+      'Tudo que já foi feito para cada cliente fica registrado na ficha dele: serviços, valores e datas. Antes de ligar, você lê em dez segundos o que aconteceu da última vez.',
   },
   {
     icone: KanbanSquare,
-    titulo: 'Funil de vendas',
+    titulo: 'Nenhuma negociação esquecida',
     descricao:
-      'Etapas configuráveis e quadro para arrastar. Você vê onde cada negociação parou e há quantos dias ela não anda.',
+      'Um quadro simples mostra em que pé está cada conversa e há quantos dias ela não anda. O que travou aparece em destaque, em vez de sumir no meio da lista.',
   },
   {
     icone: FileText,
-    titulo: 'Orçamentos',
+    titulo: 'Orçamentos que se movem sozinhos',
     descricao:
-      'Emita a proposta e o cliente entra no funil sozinho. O status acompanha: aberto, aprovado ou recusado.',
+      'Você faz a proposta e ela já entra na sua lista de negociações. Quando o cliente aprova, o sistema atualiza tudo — você não precisa lembrar de arrastar nada.',
   },
   {
     icone: CalendarDays,
-    titulo: 'Agenda de serviços',
+    titulo: 'Agenda ligada ao serviço',
     descricao:
-      'O que foi vendido vira compromisso agendado, com estados que vão de agendado a executado.',
+      'O que foi vendido vira compromisso marcado. Ao dar como feito, o serviço entra no histórico do cliente sem você digitar de novo.',
   },
   {
     icone: Bell,
-    titulo: 'Follow-up automático',
+    titulo: 'O retorno acontece no dia certo',
     descricao:
-      'Marque o retorno e o sistema envia o lembrete por e-mail no dia certo, sem depender de alguém lembrar.',
+      'Marque quando falar de novo com alguém e pode esquecer: o lembrete chega sozinho. Aquele orçamento que ficou sem resposta deixa de morrer no silêncio.',
   },
   {
     icone: Wallet,
-    titulo: 'Financeiro com margem',
+    titulo: 'Você descobre o que dá lucro',
     descricao:
-      'Entradas e saídas separadas entre pessoal e empresa, fluxo de caixa e a margem real de cada serviço prestado.',
+      'O dinheiro que entra e sai fica ligado ao serviço que o gerou. Aí o sistema responde a pergunta que planilha nenhuma responde: qual trabalho seu realmente compensa.',
   },
 ];
 
@@ -72,68 +84,109 @@ export interface Passo {
  */
 export const PASSOS: readonly Passo[] = [
   {
-    titulo: 'O contato vira negociação',
+    titulo: 'Chega um cliente',
     descricao:
-      'Você cadastra o cliente e emite o orçamento. Ele entra no funil na hora, sem você mover nada à mão.',
+      'Você cadastra e faz o orçamento. Só isso já coloca a negociação no seu quadro de acompanhamento.',
   },
   {
-    titulo: 'A venda vira compromisso',
+    titulo: 'O cliente aprova',
     descricao:
-      'Orçamento aprovado vira agendamento, com o serviço do catálogo e o custo-base que ele já carrega.',
+      'A proposta aprovada vira compromisso na agenda, já com o serviço e o custo que ele tem para você.',
   },
   {
-    titulo: 'O serviço vira número',
+    titulo: 'O trabalho é feito',
     descricao:
-      'Ao lançar o recebimento, receita e custo ficam ligados ao atendimento que os gerou — e a margem sai sozinha.',
+      'Você registra o que recebeu. Nesse momento o sistema já sabe quanto aquele serviço custou e quanto sobrou.',
+  },
+  {
+    titulo: 'A conta aparece pronta',
+    descricao:
+      'Sem fechar planilha no fim do mês: a margem de cada tipo de serviço está calculada desde o primeiro lançamento.',
   },
 ];
 
-export interface Plano {
-  slug: string;
-  nome: string;
-  /** Em reais, por mês. */
-  preco: string;
-  resumo: string;
-  limites: readonly string[];
-  destaque?: boolean;
+/**
+ * Recursos de inteligência artificial.
+ *
+ * ## Estes recursos ainda NÃO existem
+ *
+ * Nada aqui está implementado. A seção descreve o que está sendo construído, e
+ * a página deixa isso explícito — cada item leva o rótulo "em breve" e o texto
+ * de abertura diz com todas as letras que é o próximo passo, não o que a pessoa
+ * encontra ao entrar hoje.
+ *
+ * Isso não é excesso de zelo. Quem assina um teste esperando conversar com a IA
+ * e não encontra nada cancela na primeira hora — e não volta. Anunciar o que
+ * vem, dizendo que vem, constrói expectativa sem queimar a confiança.
+ *
+ * Ao implementar cada um, mova o item para `RECURSOS` e tire daqui.
+ */
+export interface RecursoIA {
+  icone: LucideIcon;
+  titulo: string;
+  descricao: string;
+  /** A pergunta do dono que este recurso responde, nas palavras dele. */
+  pergunta: string;
 }
 
-/**
- * Planos exibidos na página.
- *
- * ATENÇÃO: estes valores espelham `apps/api/prisma/seed.ts`, onde estão
- * marcados como **provisórios** — são um ponto de partida para desenvolver, e
- * não uma decisão comercial (arquitetura §12, "Planos — quantos, quais limites,
- * preço, duração do trial").
- *
- * Antes de o site ir ao ar, preço e limites precisam ser confirmados aqui e no
- * seed, que é quem popula o banco. Divergência entre os dois faz o cliente
- * contratar uma coisa e receber outra.
- */
-export const PLANOS: readonly Plano[] = [
+export const RECURSOS_IA: readonly RecursoIA[] = [
   {
-    slug: 'essencial',
-    nome: 'Essencial',
-    preco: '97',
-    resumo: 'Para quem está organizando a operação pela primeira vez.',
-    limites: ['3 usuários', 'Até 500 clientes', '300 lembretes por mês'],
+    icone: MessageSquareText,
+    titulo: 'Pergunte em português',
+    pergunta: '"Quanto gastei com combustível nos últimos três meses?"',
+    descricao:
+      'Em vez de montar filtro e relatório, você escreve a pergunta como falaria com o contador. A resposta vem com os números do seu negócio, não com um manual de como encontrá-los.',
   },
   {
-    slug: 'profissional',
-    nome: 'Profissional',
-    preco: '197',
-    resumo: 'Para equipe formada, com follow-up rodando todos os dias.',
-    limites: ['10 usuários', 'Até 3.000 clientes', '2.000 lembretes por mês'],
-    destaque: true,
+    icone: Camera,
+    titulo: 'Fotografe a nota',
+    pergunta: '"Tenho um monte de recibo para lançar e nunca sobra tempo."',
+    descricao:
+      'Tire uma foto do comprovante e o lançamento aparece preenchido: valor, data e categoria. Você confere e confirma — o trabalho vira conferir, não digitar.',
   },
   {
-    slug: 'ilimitado',
-    nome: 'Ilimitado',
-    preco: '397',
-    resumo: 'Para operação grande, sem teto de cadastro nem de envio.',
-    limites: ['Usuários ilimitados', 'Clientes ilimitados', 'Lembretes ilimitados'],
+    icone: TrendingUp,
+    titulo: 'Sugestão de preço',
+    pergunta: '"Será que estou cobrando barato demais nesse serviço?"',
+    descricao:
+      'A partir do que você realmente gastou e recebeu em cada tipo de trabalho, o sistema aponta onde o preço não está cobrindo o custo — e quanto seria preciso cobrar para fechar a conta.',
+  },
+  {
+    icone: Bell,
+    titulo: 'Aviso do que vai esfriar',
+    pergunta: '"Aquele orçamento sumiu e eu nem percebi."',
+    descricao:
+      'Comparando com o que costuma acontecer no seu histórico, o sistema avisa quais negociações estão perdendo força a tempo de você agir — em vez de descobrir depois que o cliente fechou com outro.',
+  },
+  {
+    icone: MessageSquareText,
+    titulo: 'Mensagem pronta para enviar',
+    pergunta: '"Nunca sei como cobrar sem parecer chato."',
+    descricao:
+      'O sistema escreve o retorno para você, já sabendo quem é o cliente e o que foi combinado. Você lê, ajusta o que quiser e manda.',
+  },
+  {
+    icone: Sparkles,
+    titulo: 'Resumo antes da conversa',
+    pergunta: '"O cliente ligou e eu não lembro o que combinamos."',
+    descricao:
+      'Um parágrafo curto com o essencial daquele cliente: o que já foi feito, o que está em aberto e o que ficou pendente da última vez.',
   },
 ];
 
 /** Dias de teste — espelha `ONBOARDING_TRIAL_DIAS` no ambiente da API. */
 export const DIAS_DE_TESTE = 14;
+
+/**
+ * O que está incluído no período de teste.
+ *
+ * Substitui a tabela de planos enquanto preço e limites não estão definidos
+ * (arquitetura §12). Anunciar valor que ainda vai mudar é pior que não
+ * anunciar: quem contrata por um preço e recebe outro não reclama, some.
+ */
+export const INCLUIDO_NO_TESTE: readonly string[] = [
+  'Todas as funcionalidades liberadas, sem recurso bloqueado',
+  'Sem cartão de crédito para começar',
+  'Seus dados continuam seus — dá para exportar quando quiser',
+  'Sem fidelidade: se não servir, é só parar de usar',
+];

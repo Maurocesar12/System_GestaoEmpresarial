@@ -70,8 +70,21 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // O script de tema pode mudar a classe antes de o React hidratar a página.
-    // A exceção fica apenas no elemento que realmente pode divergir.
+    // `suppressHydrationWarning` nos DOIS elementos, e por dois motivos
+    // diferentes:
+    //
+    // No `<html>`, porque o script de tema troca a classe antes de o React
+    // hidratar — o servidor renderiza sem `.dark`, o navegador já encontra com.
+    //
+    // No `<body>`, por causa de extensão de navegador. Várias delas (ColorZilla,
+    // Grammarly, gerenciadores de senha) injetam atributo ali antes da
+    // hidratação: o ColorZilla escreve `cz-shortcut-listen="true"`. O React
+    // compara, encontra um atributo que não veio do servidor e reclama de uma
+    // diferença que não nasceu no nosso código.
+    //
+    // O efeito é raso de propósito: vale só para os atributos destes dois
+    // elementos, e não desce pela árvore. Um erro de hidratação de verdade,
+    // dentro de qualquer componente, continua sendo reportado normalmente.
     <html lang="pt-BR" className={inter.variable} suppressHydrationWarning>
       <head>
         {/*
@@ -94,7 +107,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         atualização em segundo plano), ele volta — envolvendo só a parte que
         precisar, não o `<body>` inteiro.
       */}
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

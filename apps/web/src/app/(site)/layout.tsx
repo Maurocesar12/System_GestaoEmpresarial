@@ -18,10 +18,10 @@ import { SITE } from '@/configuracao/site';
  */
 
 const SECOES = [
-  { href: '#recursos', rotulo: 'Recursos' },
+  { href: '#recursos', rotulo: 'O que faz' },
   { href: '#como-funciona', rotulo: 'Como funciona' },
+  { href: '#ia', rotulo: 'Inteligência artificial' },
   { href: '#seguranca', rotulo: 'Segurança' },
-  { href: '#planos', rotulo: 'Planos' },
 ];
 
 export default function LayoutSite({ children }: { children: React.ReactNode }) {
@@ -42,8 +42,12 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
             <Marca className="text-sm sm:text-base" />
           </Link>
 
-          {/* Escondida no celular: quatro âncoras não cabem sem virar sopa. */}
-          <nav className="hidden items-center gap-7 md:flex" aria-label="Seções da página">
+          {/*
+            Escondida abaixo de `lg`: com "Inteligência artificial" no meio, as
+            quatro âncoras deixam de caber em tablet sem espremer os botões de
+            entrar e criar conta, que são o que a página existe para oferecer.
+          */}
+          <nav className="hidden items-center gap-7 lg:flex" aria-label="Seções da página">
             {SECOES.map((secao) => (
               <a
                 key={secao.href}
