@@ -126,7 +126,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
   );
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="fundo-painel min-h-screen">
       {/* Lateral fixa, a partir de telas médias. */}
       <aside className="bg-superficie fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r md:flex">
         {identificacao}
@@ -179,7 +179,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
         </div>
       )}
 
-      <div className="md:pl-60">
+      <div className="min-h-screen md:pl-60">
         {/*
           Largura máxima generosa e não centralizada em excesso: tabela e quadro
           de funil precisam de espaço horizontal. O limite existe só para o

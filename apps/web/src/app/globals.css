@@ -176,6 +176,37 @@
     @apply bg-background text-foreground;
   }
 
+  /* Fundo da área autenticada: profundidade suave, sem competir com os dados. */
+  .fundo-painel {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(
+        circle at 12% 0%,
+        color-mix(in oklch, var(--primary) 13%, transparent) 0,
+        transparent 34rem
+      ),
+      radial-gradient(
+        circle at 88% 14%,
+        color-mix(in oklch, var(--primary) 7%, transparent) 0,
+        transparent 28rem
+      );
+    background-attachment: fixed;
+  }
+
+  .dark .fundo-painel {
+    background-image:
+      radial-gradient(
+        circle at 12% 0%,
+        color-mix(in oklch, var(--primary) 8%, transparent) 0,
+        transparent 34rem
+      ),
+      radial-gradient(
+        circle at 88% 14%,
+        color-mix(in oklch, var(--primary) 4%, transparent) 0,
+        transparent 28rem
+      );
+  }
+
   /*
     No Windows, a lista aberta de um select é desenhada pelo navegador.
     Declarar as cores nas opções evita fundo branco com texto claro no escuro.

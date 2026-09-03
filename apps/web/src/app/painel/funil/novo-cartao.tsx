@@ -76,7 +76,7 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
           // O foco vai para o campo no próximo quadro, quando ele já existe.
           requestAnimationFrame(() => campo.current?.focus());
         }}
-        className="text-muted-foreground hover:bg-accent hover:text-foreground flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-sm transition-colors"
+        className="text-muted-foreground hover:bg-accent hover:text-foreground flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors"
       >
         <Plus aria-hidden className="size-4" />
         Adicionar cliente

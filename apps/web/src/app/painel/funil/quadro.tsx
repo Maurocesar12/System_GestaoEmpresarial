@@ -148,7 +148,7 @@ export function Quadro({ quadro }: { quadro: QuadroFunil }) {
       */}
       <DndContext id="funil" sensors={sensores} onDragStart={aoPegar} onDragEnd={aoSoltar}>
         {/* O quadro rola na horizontal; a página, não. */}
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="flex items-start gap-3 overflow-x-auto pb-5">
           {colunas.map((coluna, indice) => (
             <Coluna
               key={coluna.etapa.id}
@@ -170,7 +170,7 @@ export function Quadro({ quadro }: { quadro: QuadroFunil }) {
         */}
         <DragOverlay>
           {arrastando && (
-            <div className="bg-card w-[19rem] rotate-3 rounded-lg border p-3.5 shadow-[var(--sombra-media)]">
+            <div className="bg-card w-72 rotate-2 rounded-lg border p-3 shadow-[var(--sombra-media)]">
               <p className="text-sm font-semibold">{arrastando.nome}</p>
               {arrastando.orcamentoAberto && (
                 <p className="numerico mt-1 text-sm font-semibold">
@@ -251,7 +251,7 @@ function Coluna({
     <section
       ref={setNodeRef}
       className={cn(
-        'bg-superficie flex max-h-[calc(100vh-15rem)] w-80 shrink-0 flex-col rounded-xl border transition-colors',
+        'bg-superficie/95 flex max-h-[calc(100vh-13rem)] w-72 shrink-0 flex-col rounded-xl border shadow-[var(--sombra-sutil)] backdrop-blur-sm transition-colors',
         // Realce durante o arrasto: sem ele, não fica claro onde o cartão cai.
         isOver && 'border-primary bg-primary/5',
       )}
@@ -261,7 +261,7 @@ function Coluna({
         visível — saber em que etapa se está enquanto se percorre trinta
         clientes é o mínimo para não se perder.
       */}
-      <header className="bg-superficie sticky top-0 z-10 flex flex-col gap-1 rounded-t-xl border-b px-4 py-3">
+      <header className="bg-superficie/95 sticky top-0 z-10 flex flex-col gap-1 rounded-t-xl px-3 py-3 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
             {/* O ponto colorido dá à etapa uma identidade que o olho reconhece
@@ -270,7 +270,7 @@ function Coluna({
             {nome}
           </h2>
 
-          <span className="text-muted-foreground numerico bg-background rounded-full border px-2 py-0.5 text-xs font-medium">
+          <span className="text-muted-foreground numerico bg-background/70 rounded-full px-2 py-0.5 text-xs font-medium">
             {clientes.length}
           </span>
         </div>
@@ -283,12 +283,13 @@ function Coluna({
         )}
       </header>
 
-      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
         {clientes.map((cliente) => (
           <CartaoDoFunil
             key={cliente.id}
             cliente={cliente}
             etapaAtual={id}
+            corEtapa={COR_DA_ETAPA[indice % COR_DA_ETAPA.length]!}
             etapas={etapas}
             aoTrocarEtapa={(etapaId) => aoTrocarEtapa(cliente.id, etapaId)}
             aoAbrir={() => aoAbrir(cliente.id)}
@@ -298,7 +299,7 @@ function Coluna({
         {clientes.length === 0 && (
           <p
             className={cn(
-              'rounded-lg border border-dashed px-3 py-8 text-center text-xs transition-colors',
+              'rounded-lg border border-dashed px-3 py-6 text-center text-xs transition-colors',
               isOver ? 'border-primary text-primary' : 'text-muted-foreground',
             )}
           >
@@ -307,7 +308,7 @@ function Coluna({
         )}
       </div>
 
-      <div className="border-t p-2">
+      <div className="px-2 pb-2">
         <NovoCartao etapaId={id} etapaNome={nome} />
       </div>
     </section>
@@ -317,12 +318,14 @@ function Coluna({
 function CartaoDoFunil({
   cliente,
   etapaAtual,
+  corEtapa,
   etapas,
   aoTrocarEtapa,
   aoAbrir,
 }: {
   cliente: ClienteNoFunil;
   etapaAtual: string;
+  corEtapa: (typeof COR_DA_ETAPA)[number];
   etapas: { id: string; nome: string }[];
   aoTrocarEtapa: (etapaId: string) => void;
   aoAbrir: () => void;
@@ -346,8 +349,8 @@ function CartaoDoFunil({
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
-        'bg-card flex flex-col gap-3 rounded-lg border p-3.5 shadow-[var(--sombra-sutil)] transition-shadow',
-        'hover:shadow-[var(--sombra-media)]',
+        'bg-card flex flex-col gap-2 rounded-lg border p-3 shadow-[var(--sombra-sutil)]',
+        'transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-input hover:shadow-[var(--sombra-media)]',
         // A faixa lateral marca o cartão parado sem gastar espaço com texto.
         parado && 'border-l-atencao border-l-2',
         isDragging && 'opacity-40',
@@ -368,15 +371,17 @@ function CartaoDoFunil({
         {...listeners}
         onClick={aoAbrir}
         aria-label={`Abrir cartão de ${cliente.nome}`}
-        className="group/arrastar flex w-full cursor-grab flex-col gap-3 text-left active:cursor-grabbing"
+        className="group/arrastar flex w-full cursor-grab flex-col gap-2 text-left active:cursor-grabbing"
       >
+        <span aria-hidden className={cn('h-1.5 w-10 rounded-full', corEtapa)} />
+
         <div className="flex items-start gap-2.5">
           {/* Iniciais no lugar de foto: o CRM não guarda imagem de cliente, e
               uma inicial já dá ao olho um ponto de ancoragem para varrer a
               coluna sem ler nome por nome. */}
           <span
             aria-hidden
-            className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+            className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold"
           >
             {iniciais(cliente.nome)}
           </span>
@@ -406,8 +411,8 @@ function CartaoDoFunil({
         {/* O valor em negociação, quando há proposta em aberto. É o que permite
             ler o quadro como visão de negócio, e não como lista de nomes. */}
         {cliente.orcamentoAberto && (
-          <div className="bg-superficie flex items-baseline justify-between gap-2 rounded-md px-2.5 py-2">
-            <span className="numerico text-base font-semibold">
+          <div className="bg-primary/10 flex items-baseline justify-between gap-2 rounded-md px-2.5 py-1.5">
+            <span className="numerico text-sm font-semibold">
               {formatarBRL(cliente.orcamentoAberto.valor)}
             </span>
 
@@ -445,21 +450,18 @@ function CartaoDoFunil({
           {whatsapp && (
             <AcaoContato href={whatsapp} rotulo={`Conversar com ${cliente.nome} no WhatsApp`}>
               <MessageCircle aria-hidden className="size-3.5" />
-              WhatsApp
             </AcaoContato>
           )}
 
           {telefone && (
             <AcaoContato href={telefone} rotulo={`Ligar para ${cliente.nome}`}>
               <Phone aria-hidden className="size-3.5" />
-              Ligar
             </AcaoContato>
           )}
 
           {email && (
             <AcaoContato href={email} rotulo={`Enviar e-mail para ${cliente.nome}`}>
               <Mail aria-hidden className="size-3.5" />
-              E-mail
             </AcaoContato>
           )}
         </div>
@@ -521,8 +523,9 @@ function AcaoContato({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={rotulo}
+      title={rotulo}
       onClick={(evento) => evento.stopPropagation()}
-      className="text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors"
+      className="text-muted-foreground hover:bg-accent hover:text-foreground flex size-7 items-center justify-center rounded-md transition-colors"
     >
       {children}
     </a>
