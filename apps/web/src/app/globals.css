@@ -75,9 +75,9 @@
   --popover: oklch(0.998 0.002 75);
   --popover-foreground: var(--foreground);
 
-  /* Caramelo escuro o bastante para manter texto branco acessível. */
-  --primary: oklch(0.46 0.063 52);
-  --primary-foreground: oklch(0.99 0.004 75);
+  /* Nude claro com texto carvão para preservar contraste e leveza. */
+  --primary: oklch(0.72 0.055 62);
+  --primary-foreground: oklch(0.19 0.012 50);
 
   --secondary: oklch(0.95 0.011 70);
   --secondary-foreground: var(--foreground);
@@ -105,7 +105,7 @@
   --info-suave: oklch(0.955 0.018 245);
 
   /* Gráficos seguem a marca sem perder contraste entre as séries. */
-  --grafico-1: oklch(0.46 0.063 52);
+  --grafico-1: oklch(0.72 0.055 62);
   --grafico-2: oklch(0.28 0.012 50);
   --grafico-3: oklch(0.6 0.032 55);
   --grafico-4: oklch(0.72 0.055 67);
@@ -126,7 +126,7 @@
   --popover: oklch(0.19 0.01 50);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.76 0.057 62);
+  --primary: oklch(0.8 0.047 65);
   --primary-foreground: oklch(0.16 0.01 50);
 
   --secondary: oklch(0.245 0.012 50);
@@ -153,7 +153,7 @@
   --info: oklch(0.72 0.075 245);
   --info-suave: oklch(0.29 0.04 245);
 
-  --grafico-1: oklch(0.76 0.057 62);
+  --grafico-1: oklch(0.8 0.047 65);
   --grafico-2: oklch(0.88 0.01 70);
   --grafico-3: oklch(0.62 0.03 55);
   --grafico-4: oklch(0.55 0.07 48);

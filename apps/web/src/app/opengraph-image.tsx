@@ -38,7 +38,12 @@ export default function ImagemCompartilhamento() {
           {[22, 34, 46].map((altura) => (
             <div
               key={altura}
-              style={{ width: 8, height: altura, borderRadius: 8, background: '#fff' }}
+              style={{
+                width: 8,
+                height: altura,
+                borderRadius: 8,
+                background: SITE.corFundoEscuro,
+              }}
             />
           ))}
         </div>

@@ -16,7 +16,7 @@ export const SITE = {
   descricao: 'CRM e financeiro no mesmo lugar, para pequenas e médias empresas de serviço.',
   idioma: 'pt-BR',
   locale: 'pt_BR',
-  corMarca: '#865f4d',
+  corMarca: '#c9a98f',
   corFundo: '#fbfaf8',
   corFundoEscuro: '#171412',
   url: new URL(urlPublica),
