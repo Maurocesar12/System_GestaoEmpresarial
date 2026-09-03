@@ -98,6 +98,23 @@ export const lancamentoFormSchema = z.object({
 export type LancamentoFormInput = z.infer<typeof lancamentoFormSchema>;
 export type LancamentoFormEntrada = z.input<typeof lancamentoFormSchema>;
 
+/** Importação financeira deliberadamente limitada aos dados do lançamento. */
+export const importacaoLancamentosSchema = z.object({
+  lancamentos: z
+    .array(lancamentoFormSchema.omit({ categoriaId: true, servicoId: true, clienteId: true }))
+    .min(1)
+    .max(500),
+});
+export type ImportacaoLancamentosInput = z.infer<typeof importacaoLancamentosSchema>;
+
+export interface ResultadoImportacaoLancamentos {
+  criados: number;
+}
+export interface ExportacaoFinanceira {
+  nomeArquivo: string;
+  conteudo: string;
+}
+
 /**
  * Situação de pagamento de um lançamento.
  *

@@ -17,7 +17,7 @@ import {
   type ServicoFormInput,
   type ServicosQuery,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { ServicosService } from './servicos.service';
 
@@ -29,7 +29,7 @@ import { ServicosService } from './servicos.service';
  * a margem do negócio, e mexer nele muda como toda a lucratividade é calculada.
  */
 @Controller('servicos')
-@Papeis('admin', 'financeiro', 'atendente', 'tecnico')
+@Permissoes('servicos.visualizar')
 export class ServicosController {
   constructor(private readonly servicos: ServicosService) {}
 
@@ -46,13 +46,13 @@ export class ServicosController {
   }
 
   @Post()
-  @Papeis('admin', 'financeiro')
+  @Permissoes('servicos.gerenciar')
   criar(@Body(new ZodValidationPipe(servicoFormSchema)) dados: ServicoFormInput): Promise<Servico> {
     return this.servicos.criar(dados);
   }
 
   @Patch(':id')
-  @Papeis('admin', 'financeiro')
+  @Permissoes('servicos.gerenciar')
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(servicoFormSchema)) dados: ServicoFormInput,
@@ -61,7 +61,7 @@ export class ServicosController {
   }
 
   @Delete(':id')
-  @Papeis('admin', 'financeiro')
+  @Permissoes('servicos.gerenciar')
   // Desativa, não apaga: orçamentos e lançamentos antigos apontam para este
   // serviço, e apagá-lo quebraria o histórico de margem.
   desativar(@Param('id', ParseUUIDPipe) id: string): Promise<Servico> {

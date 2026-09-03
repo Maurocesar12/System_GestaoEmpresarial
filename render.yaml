@@ -99,6 +99,11 @@ services:
       - key: CORS_ORIGINS
         sync: false
 
+      # Endereço público do frontend usado para montar links de convite.
+      # Ex.: https://gestao-empresarial.vercel.app (sem barra no final).
+      - key: APP_URL
+        sync: false
+
       # Gerado pelo próprio Render, com entropia adequada. Trocar este valor
       # invalida todas as sessões abertas — é a forma de expulsar todo mundo se
       # houver suspeita de vazamento.

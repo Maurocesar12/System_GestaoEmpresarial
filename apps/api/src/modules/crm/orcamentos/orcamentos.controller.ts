@@ -22,12 +22,12 @@ import {
   type Paginado,
   type ResumoOrcamentos,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { OrcamentosService } from './orcamentos.service';
 
 @Controller('orcamentos')
-@Papeis('admin', 'atendente', 'tecnico')
+@Permissoes('orcamentos.visualizar')
 export class OrcamentosController {
   constructor(private readonly orcamentos: OrcamentosService) {}
 
@@ -51,6 +51,7 @@ export class OrcamentosController {
   }
 
   @Post()
+  @Permissoes('orcamentos.gerenciar')
   criar(
     @Body(new ZodValidationPipe(orcamentoFormSchema)) dados: OrcamentoFormInput,
   ): Promise<Orcamento> {
@@ -58,6 +59,7 @@ export class OrcamentosController {
   }
 
   @Patch(':id')
+  @Permissoes('orcamentos.gerenciar')
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(orcamentoFormSchema)) dados: OrcamentoFormInput,
@@ -67,6 +69,7 @@ export class OrcamentosController {
 
   /** Aprovar, recusar ou reabrir — as transições da máquina de estados. */
   @Post(':id/status')
+  @Permissoes('orcamentos.gerenciar')
   mudarStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(mudarStatusSchema)) dados: MudarStatusInput,
@@ -75,6 +78,7 @@ export class OrcamentosController {
   }
 
   @Delete(':id')
+  @Permissoes('orcamentos.gerenciar')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.orcamentos.remover(id);

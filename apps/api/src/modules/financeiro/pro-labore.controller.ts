@@ -16,7 +16,7 @@ import {
   type SugestaoProLabore,
   type SugestaoQuery,
 } from '@gestao/shared-types';
-import { Papeis } from '../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../common/decorators/permissoes.decorator';
 import { CorpoValidado, QueryValidada } from '../../common/decorators/validado.decorator';
 import { ProLaboreService } from './pro-labore.service';
 
@@ -28,7 +28,7 @@ import { ProLaboreService } from './pro-labore.service';
  * sistema.
  */
 @Controller('financeiro/pro-labore')
-@Papeis('admin', 'financeiro')
+@Permissoes('financeiro.visualizar')
 export class ProLaboreController {
   constructor(private readonly proLabore: ProLaboreService) {}
 
@@ -52,11 +52,13 @@ export class ProLaboreController {
   }
 
   @Post()
+  @Permissoes('financeiro.criar')
   definir(@CorpoValidado(proLaboreFormSchema) dados: ProLaboreFormInput): Promise<ProLabore> {
     return this.proLabore.definir(dados);
   }
 
   @Delete(':id')
+  @Permissoes('financeiro.excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.proLabore.remover(id);

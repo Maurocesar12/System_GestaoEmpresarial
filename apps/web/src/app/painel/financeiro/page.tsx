@@ -106,6 +106,12 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
         acoes={
           <>
             <Link
+              href="/painel/financeiro/dados"
+              className={estilosBotao({ variante: 'secundario' })}
+            >
+              Importar / exportar
+            </Link>
+            <Link
               href="/painel/financeiro/reservas"
               className={estilosBotao({ variante: 'secundario' })}
             >

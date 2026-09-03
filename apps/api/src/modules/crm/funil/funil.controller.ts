@@ -21,7 +21,7 @@ import {
   type QuadroFunil,
   type ReordenarEtapasInput,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { FunilService } from './funil.service';
 
@@ -34,7 +34,7 @@ import { FunilService } from './funil.service';
  * de um atendimento.
  */
 @Controller('funil')
-@Papeis('admin', 'atendente', 'tecnico')
+@Permissoes('funil.visualizar')
 export class FunilController {
   constructor(private readonly funil: FunilService) {}
 
@@ -49,6 +49,7 @@ export class FunilController {
   }
 
   @Post('mover')
+  @Permissoes('funil.movimentar')
   @HttpCode(HttpStatus.NO_CONTENT)
   async mover(
     @Body(new ZodValidationPipe(moverClienteSchema)) dados: MoverClienteInput,
@@ -57,6 +58,7 @@ export class FunilController {
   }
 
   @Delete('clientes/:clienteId')
+  @Permissoes('funil.movimentar')
   @HttpCode(HttpStatus.NO_CONTENT)
   async removerDoFunil(@Param('clienteId', ParseUUIDPipe) clienteId: string): Promise<void> {
     await this.funil.removerDoFunil(clienteId);
@@ -65,7 +67,7 @@ export class FunilController {
   // --- Estrutura do funil: somente admin ------------------------------------
 
   @Post('etapas')
-  @Papeis('admin')
+  @Permissoes('funil.configurar')
   criarEtapa(
     @Body(new ZodValidationPipe(etapaFormSchema)) dados: EtapaFormInput,
   ): Promise<EtapaFunil> {
@@ -73,7 +75,7 @@ export class FunilController {
   }
 
   @Patch('etapas/:id')
-  @Papeis('admin')
+  @Permissoes('funil.configurar')
   renomearEtapa(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(etapaFormSchema)) dados: EtapaFormInput,
@@ -82,7 +84,7 @@ export class FunilController {
   }
 
   @Put('etapas/ordem')
-  @Papeis('admin')
+  @Permissoes('funil.configurar')
   reordenarEtapas(
     @Body(new ZodValidationPipe(reordenarEtapasSchema)) dados: ReordenarEtapasInput,
   ): Promise<EtapaFunil[]> {
@@ -90,7 +92,7 @@ export class FunilController {
   }
 
   @Delete('etapas/:id')
-  @Papeis('admin')
+  @Permissoes('funil.configurar')
   @HttpCode(HttpStatus.NO_CONTENT)
   async removerEtapa(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.funil.removerEtapa(id);

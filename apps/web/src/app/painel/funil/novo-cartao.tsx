@@ -53,6 +53,8 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
         utmSource: null,
         utmMedium: null,
         utmCampaign: null,
+        camposPersonalizados: {},
+        etiquetas: [],
       });
 
       if (resultado.erro) {

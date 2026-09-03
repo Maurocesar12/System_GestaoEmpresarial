@@ -81,6 +81,9 @@ export const envSchema = z.object({
    */
   EMAIL_REMETENTE: z.string().default('Gestão Empresarial <nao-responda@localhost>'),
 
+  /** Endereço público do frontend, usado nos links de convite da equipe. */
+  APP_URL: z.url().default('http://localhost:3000'),
+
   /** Rate limit global: janela em milissegundos e teto de requisições. */
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),

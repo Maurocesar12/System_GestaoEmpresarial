@@ -14,7 +14,7 @@ import {
   type Atendimento,
   type AtendimentoFormInput,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { AtendimentosService } from './atendimentos.service';
 
@@ -26,7 +26,7 @@ import { AtendimentosService } from './atendimentos.service';
  * relação óbvia para quem lê o código e para quem consome a API.
  */
 @Controller('clientes/:clienteId/atendimentos')
-@Papeis('admin', 'atendente', 'tecnico')
+@Permissoes('clientes.visualizar')
 export class AtendimentosController {
   constructor(private readonly atendimentos: AtendimentosService) {}
 
@@ -36,6 +36,7 @@ export class AtendimentosController {
   }
 
   @Post()
+  @Permissoes('clientes.editar')
   criar(
     @Param('clienteId', ParseUUIDPipe) clienteId: string,
     @Body(new ZodValidationPipe(atendimentoFormSchema)) dados: AtendimentoFormInput,
@@ -44,6 +45,7 @@ export class AtendimentosController {
   }
 
   @Delete(':id')
+  @Permissoes('clientes.editar')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.atendimentos.remover(id);

@@ -1,11 +1,14 @@
 import type { Metadata } from 'next';
 import { FormularioCliente } from '../formulario-cliente';
+import type { ConfiguracoesEmpresa } from '@gestao/shared-types';
+import { apiComSessao } from '@/lib/api-servidor';
 
 export const metadata: Metadata = {
   title: 'Novo cliente',
 };
 
-export default function PaginaNovoCliente() {
+export default async function PaginaNovoCliente() {
+  const configuracoes = await apiComSessao<ConfiguracoesEmpresa>('/configuracoes');
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1.5">
@@ -15,7 +18,7 @@ export default function PaginaNovoCliente() {
         </p>
       </header>
 
-      <FormularioCliente />
+      <FormularioCliente campos={configuracoes.campos} etiquetas={configuracoes.etiquetas} />
     </div>
   );
 }

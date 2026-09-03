@@ -3,11 +3,11 @@
 Como colocar o sistema no ar sem custo, para validar o produto com empresas
 reais antes de investir em infraestrutura paga.
 
-| Peça       | Onde        | Plano    |
-| ---------- | ----------- | -------- |
-| Frontend   | Vercel      | Hobby    |
-| API        | Render      | Free     |
-| PostgreSQL | Neon        | Free     |
+| Peça       | Onde         | Plano        |
+| ---------- | ------------ | ------------ |
+| Frontend   | Vercel       | Hobby        |
+| API        | Render       | Free         |
+| PostgreSQL | Neon         | Free         |
 | Redis      | — (opcional) | Upstash Free |
 
 ---
@@ -60,12 +60,13 @@ role que o Neon te entrega.
 
 1. Em [render.com](https://render.com), **New → Blueprint** e aponte para o
    repositório. Ele lê o `render.yaml` da raiz e já cria o serviço configurado.
-2. O Render vai pedir os dois valores marcados como `sync: false`:
+2. O Render vai pedir os três valores marcados como `sync: false`:
 
-   | Variável       | Valor                                                       |
-   | -------------- | ----------------------------------------------------------- |
-   | `DATABASE_URL` | A connection string do Neon, com `?sslmode=require`          |
+   | Variável       | Valor                                                           |
+   | -------------- | --------------------------------------------------------------- |
+   | `DATABASE_URL` | A connection string do Neon, com `?sslmode=require`             |
    | `CORS_ORIGINS` | A URL da Vercel — preencha depois do passo 3, deixe vazio agora |
+   | `APP_URL`      | A mesma URL da Vercel, usada para montar os links dos convites  |
 
 3. Publique. O build roda migrations automaticamente (`prisma migrate deploy`).
 
@@ -83,21 +84,21 @@ avisos esperados, de `REDIS_URL` e `SMTP_URL` não configuradas.
    repositório.
 2. Configure assim:
 
-   | Campo              | Valor                                                    |
-   | ------------------ | -------------------------------------------------------- |
-   | Framework Preset   | Next.js                                                   |
-   | Root Directory     | `apps/web`                                                |
-   | Build Command      | `pnpm --filter @gestao/shared-types build && next build`   |
-   | Install Command    | (deixe o padrão — a Vercel detecta o workspace pnpm)      |
+   | Campo            | Valor                                                    |
+   | ---------------- | -------------------------------------------------------- |
+   | Framework Preset | Next.js                                                  |
+   | Root Directory   | `apps/web`                                               |
+   | Build Command    | `pnpm --filter @gestao/shared-types build && next build` |
+   | Install Command  | (deixe o padrão — a Vercel detecta o workspace pnpm)     |
 
-   O *Build Command* precisa desse prefixo porque a web importa
+   O _Build Command_ precisa desse prefixo porque a web importa
    `@gestao/shared-types` compilado, e a Vercel constrói apenas o diretório raiz
    que você apontou.
 
 3. Variável de ambiente:
 
-   | Variável              | Valor                                     |
-   | --------------------- | ----------------------------------------- |
+   | Variável              | Valor                                                       |
+   | --------------------- | ----------------------------------------------------------- |
    | `NEXT_PUBLIC_API_URL` | `https://SEU-SERVICO.onrender.com` — **sem barra no final** |
 
 4. Publique.
@@ -106,9 +107,9 @@ avisos esperados, de `REDIS_URL` e `SMTP_URL` não configuradas.
 
 ## 4. Fechar o círculo do CORS
 
-Com a URL da Vercel em mãos, volte ao Render e preencha `CORS_ORIGINS` com ela
-(ex.: `https://gestao-empresarial.vercel.app`, sem barra no final). Salvar
-reinicia o serviço.
+Com a URL da Vercel em mãos, volte ao Render e preencha `CORS_ORIGINS` e
+`APP_URL` com ela (ex.: `https://gestao-empresarial.vercel.app`, sem barra no
+final). Salvar reinicia o serviço.
 
 Você deve fazer isso mesmo que pareça desnecessário. Hoje o navegador não chama a
 API diretamente — quem chama é o servidor do Next, por `apiComSessao`, e
@@ -134,11 +135,11 @@ de RLS não ter rodado — confira o log de build do Render.
 
 ## O que fica desligado no plano gratuito
 
-| Recurso                      | Situação                                                  |
-| ---------------------------- | --------------------------------------------------------- |
+| Recurso                       | Situação                                                               |
+| ----------------------------- | ---------------------------------------------------------------------- |
 | Envio automático de lembretes | Desligado sem `REDIS_URL`. Os lembretes são criados e ficam pendentes. |
-| E-mail transacional          | Sem `SMTP_URL`, a mensagem vai para o log em vez do destinatário. |
-| Cron de varredura            | Só roda enquanto a API está acordada.                     |
+| E-mail transacional           | Sem `SMTP_URL`, a mensagem vai para o log em vez do destinatário.      |
+| Cron de varredura             | Só roda enquanto a API está acordada.                                  |
 
 Para ligar os dois primeiros: crie um banco Redis gratuito no
 [Upstash](https://upstash.com) e preencha `REDIS_URL`; para o e-mail, qualquer

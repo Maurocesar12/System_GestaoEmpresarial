@@ -7,12 +7,12 @@ import {
   type LembretesQuery,
   type Paginado,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { LembretesService } from './lembretes.service';
 
 @Controller('lembretes')
-@Papeis('admin', 'atendente', 'tecnico')
+@Permissoes('lembretes.visualizar')
 export class LembretesController {
   constructor(private readonly lembretes: LembretesService) {}
 
@@ -29,6 +29,7 @@ export class LembretesController {
   }
 
   @Post()
+  @Permissoes('lembretes.gerenciar')
   criar(
     @Body(new ZodValidationPipe(lembreteFormSchema)) dados: LembreteFormInput,
   ): Promise<LembreteFollowUp> {
@@ -36,6 +37,7 @@ export class LembretesController {
   }
 
   @Post(':id/cancelar')
+  @Permissoes('lembretes.gerenciar')
   cancelar(@Param('id', ParseUUIDPipe) id: string): Promise<LembreteFollowUp> {
     return this.lembretes.cancelar(id);
   }

@@ -26,8 +26,12 @@ import {
   type PeriodoQuery,
   type RelatorioMargem,
   type ResumoContas,
+  importacaoLancamentosSchema,
+  type ImportacaoLancamentosInput,
+  type ResultadoImportacaoLancamentos,
+  type ExportacaoFinanceira,
 } from '@gestao/shared-types';
-import { Papeis } from '../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../common/decorators/permissoes.decorator';
 import { CorpoValidado, QueryValidada } from '../../common/decorators/validado.decorator';
 import { FinanceiroService } from './financeiro.service';
 
@@ -40,7 +44,7 @@ import { FinanceiroService } from './financeiro.service';
  * ganha.
  */
 @Controller('financeiro')
-@Papeis('admin', 'financeiro')
+@Permissoes('financeiro.visualizar')
 export class FinanceiroController {
   constructor(private readonly financeiro: FinanceiroService) {}
 
@@ -52,6 +56,7 @@ export class FinanceiroController {
   }
 
   @Post('categorias')
+  @Permissoes('financeiro.criar')
   criarCategoria(
     @CorpoValidado(categoriaFormSchema) dados: CategoriaFormInput,
   ): Promise<CategoriaFinanceira> {
@@ -59,6 +64,7 @@ export class FinanceiroController {
   }
 
   @Delete('categorias/:id')
+  @Permissoes('financeiro.excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
   async removerCategoria(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.financeiro.removerCategoria(id);
@@ -93,17 +99,33 @@ export class FinanceiroController {
     return this.financeiro.listar(query);
   }
 
+  @Get('dados/exportar')
+  @Permissoes('financeiro.exportar')
+  exportar(@QueryValidada(periodoQuerySchema) query: PeriodoQuery): Promise<ExportacaoFinanceira> {
+    return this.financeiro.exportar(query);
+  }
+
+  @Post('dados/importar')
+  @Permissoes('financeiro.importar')
+  importar(
+    @CorpoValidado(importacaoLancamentosSchema) dados: ImportacaoLancamentosInput,
+  ): Promise<ResultadoImportacaoLancamentos> {
+    return this.financeiro.importar(dados);
+  }
+
   @Get('lancamentos/:id')
   buscar(@Param('id', ParseUUIDPipe) id: string): Promise<Lancamento> {
     return this.financeiro.buscarPorId(id);
   }
 
   @Post('lancamentos')
+  @Permissoes('financeiro.criar')
   criar(@CorpoValidado(lancamentoFormSchema) dados: LancamentoFormInput): Promise<Lancamento> {
     return this.financeiro.criar(dados);
   }
 
   @Patch('lancamentos/:id')
+  @Permissoes('financeiro.editar')
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @CorpoValidado(lancamentoFormSchema) dados: LancamentoFormInput,
@@ -119,6 +141,7 @@ export class FinanceiroController {
    * campo qualquer.
    */
   @Post('lancamentos/:id/baixa')
+  @Permissoes('financeiro.editar')
   darBaixa(
     @Param('id', ParseUUIDPipe) id: string,
     @CorpoValidado(baixaFormSchema) dados: BaixaFormInput,
@@ -127,11 +150,13 @@ export class FinanceiroController {
   }
 
   @Post('lancamentos/:id/estornar-baixa')
+  @Permissoes('financeiro.editar')
   estornarBaixa(@Param('id', ParseUUIDPipe) id: string): Promise<Lancamento> {
     return this.financeiro.estornarBaixa(id);
   }
 
   @Delete('lancamentos/:id')
+  @Permissoes('financeiro.excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.financeiro.remover(id);

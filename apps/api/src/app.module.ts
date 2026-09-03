@@ -1,9 +1,10 @@
 import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { PapeisGuard } from './common/guards/papeis.guard';
+import { PermissoesGuard } from './common/guards/permissoes.guard';
+import { AuditoriaInterceptor } from './common/interceptors/auditoria.interceptor';
 import { validateEnv, type Env } from './config/env.schema';
 import { NotificacoesModule } from './infra/notificacoes/notificacoes.module';
 import { PrismaModule } from './infra/prisma/prisma.module';
@@ -19,6 +20,9 @@ import { ServicosModule } from './modules/crm/servicos/servicos.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { HealthModule } from './modules/health/health.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { EquipeModule } from './modules/plataforma/equipe/equipe.module';
+import { AuditoriaModule } from './modules/plataforma/auditoria/auditoria.module';
+import { ConfiguracoesModule } from './modules/plataforma/configuracoes/configuracoes.module';
 
 /**
  * Raiz da aplicação.
@@ -58,6 +62,9 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     NotificacoesModule,
     AuthModule,
     OnboardingModule,
+    EquipeModule,
+    AuditoriaModule,
+    ConfiguracoesModule,
     ClientesModule,
     AtendimentosModule,
     FunilModule,
@@ -83,7 +90,11 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     {
       // Roda depois do JwtAuthGuard — a ordem aqui é a ordem de execução.
       provide: APP_GUARD,
-      useClass: PapeisGuard,
+      useClass: PermissoesGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditoriaInterceptor,
     },
   ],
 })

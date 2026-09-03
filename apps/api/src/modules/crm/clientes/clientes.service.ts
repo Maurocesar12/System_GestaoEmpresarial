@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -15,6 +15,7 @@ import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/pr
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
 import { FunilService } from '../funil/funil.service';
+import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
 
 /**
  * Clientes da empresa.
@@ -29,6 +30,7 @@ export class ClientesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly funil: FunilService,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   async listar(query: ClientesQuery): Promise<Paginado<Cliente>> {
@@ -41,6 +43,7 @@ export class ClientesService {
       Promise.all([
         tx.cliente.findMany({
           where,
+          include: { etiquetas: { select: { etiquetaId: true } } },
           orderBy: { nome: 'asc' },
           skip: (query.pagina - 1) * query.porPagina,
           take: query.porPagina,
@@ -70,6 +73,7 @@ export class ClientesService {
           posicaoFunil: {
             select: { etapa: { select: { id: true, nome: true } } },
           },
+          etiquetas: { select: { etiquetaId: true } },
         },
       }),
     );
@@ -96,9 +100,13 @@ export class ClientesService {
     const { cliente, etapa } = await this.prisma.comTenant(async (tx) => {
       await this.garantirLimiteClientes(tx);
 
+      await this.garantirPersonalizacao(tx, dados);
       const criado = await tx.cliente.create({
-        data: { id: uuidv7(), tenantId: tenantAtual(), ...dados },
+        data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBancoCliente(dados) },
+        include: { etiquetas: { select: { etiquetaId: true } } },
       });
+
+      await this.salvarEtiquetas(tx, criado.id, dados.etiquetas);
 
       // Todo cliente novo entra no funil, na primeira etapa. O cadastro é o
       // início da relação comercial, e um funil que só recebe quem alguém
@@ -108,13 +116,17 @@ export class ClientesService {
       // junto — nada de cliente existindo pela metade.
       const etapa = await this.funil.colocarNaPrimeiraEtapa(tx, criado.id);
 
+      await this.auditoria.registrar(tx, {
+        entidade: 'cliente', entidadeId: criado.id, acao: 'criou', depois: this.paraResposta(criado),
+      });
+
       return { cliente: criado, etapa };
     });
 
     // A etapa vai na resposta para o contrato ficar igual ao do `GET /clientes/:id`.
     // Sem isso, a tela precisaria de uma segunda requisição só para saber onde o
     // cliente caiu no funil.
-    return { ...this.paraResposta(cliente), etapaFunil: etapa };
+    return { ...this.paraResposta(cliente), etiquetas: [...new Set(dados.etiquetas)], etapaFunil: etapa };
   }
 
   /**
@@ -185,7 +197,7 @@ export class ClientesService {
       const novos = aCriar.map(({ dados }) => ({
         id: uuidv7(),
         tenantId: tenantAtual(),
-        ...dados,
+        ...this.paraBancoCliente(dados),
       }));
 
       await tx.cliente.createMany({ data: novos });
@@ -194,6 +206,12 @@ export class ClientesService {
         tx,
         novos.map((cliente) => cliente.id),
       );
+
+      for (const novo of novos) {
+        await this.auditoria.registrar(tx, {
+          entidade: 'cliente', entidadeId: novo.id, acao: 'criou', depois: { ...novo },
+        });
+      }
 
       return { criados: novos.length, ignorados };
     });
@@ -208,7 +226,9 @@ export class ClientesService {
       // Na mesma transação da escrita, e buscando só o `id`: chamar
       // `buscarPorId` aqui abriria uma segunda transação e ainda traria a
       // posição no funil junto, que não é usada para nada nesta conferência.
-      const existe = await tx.cliente.findUnique({ where: { id }, select: { id: true } });
+      const existe = await tx.cliente.findUnique({
+        where: { id }, include: { etiquetas: { select: { etiquetaId: true } } },
+      });
 
       if (!existe) {
         throw new NotFoundException({
@@ -217,17 +237,36 @@ export class ClientesService {
         });
       }
 
-      return tx.cliente.update({ where: { id }, data: dados });
+      await this.garantirPersonalizacao(tx, dados);
+      const alterado = await tx.cliente.update({
+        where: { id }, data: this.paraBancoCliente(dados),
+        include: { etiquetas: { select: { etiquetaId: true } } },
+      });
+      await this.salvarEtiquetas(tx, id, dados.etiquetas);
+      await this.auditoria.registrar(tx, {
+        entidade: 'cliente', entidadeId: id, acao: 'alterou',
+        antes: this.paraResposta(existe), depois: this.paraResposta(alterado),
+      });
+      return alterado;
     });
 
-    return this.paraResposta(cliente);
+    return { ...this.paraResposta(cliente), etiquetas: [...new Set(dados.etiquetas)] };
   }
 
   async remover(id: string): Promise<void> {
     // `deleteMany` em vez de `delete`: a RLS já garante o escopo, e assim uma
     // corrida (dois pedidos de exclusão ao mesmo tempo) não vira erro 500.
     // Contar o resultado dispensa a consulta prévia de existência.
-    const { count } = await this.prisma.comTenant((tx) => tx.cliente.deleteMany({ where: { id } }));
+    const { count } = await this.prisma.comTenant(async (tx) => {
+      const cliente = await tx.cliente.findUnique({ where: { id } });
+      const resultado = await tx.cliente.deleteMany({ where: { id } });
+      if (cliente && resultado.count) {
+        await this.auditoria.registrar(tx, {
+          entidade: 'cliente', entidadeId: id, acao: 'excluiu', antes: this.paraResposta(cliente),
+        });
+      }
+      return resultado;
+    });
 
     if (count === 0) {
       throw new NotFoundException({
@@ -417,7 +456,9 @@ export class ClientesService {
    * Datas viram string ISO: `Date` não sobrevive à serialização JSON de forma
    * previsível, e o frontend precisa de um formato estável para exibir.
    */
-  private paraResposta(registro: Prisma.ClienteGetPayload<object>): Cliente {
+  private paraResposta(
+    registro: Prisma.ClienteGetPayload<object> & { etiquetas?: Array<{ etiquetaId: string }> },
+  ): Cliente {
     return {
       id: registro.id,
       nome: registro.nome,
@@ -429,8 +470,45 @@ export class ClientesService {
       utmSource: registro.utmSource,
       utmMedium: registro.utmMedium,
       utmCampaign: registro.utmCampaign,
+      camposPersonalizados: registro.camposPersonalizados as Record<string, string>,
+      etiquetas: registro.etiquetas?.map((item) => item.etiquetaId) ?? [],
       criadoEm: registro.criadoEm.toISOString(),
       atualizadoEm: registro.atualizadoEm.toISOString(),
     };
+  }
+
+  private paraBancoCliente(dados: ClienteFormInput) {
+    const { etiquetas: _etiquetas, ...campos } = dados;
+    return campos;
+  }
+
+  private async garantirPersonalizacao(tx: TransacaoComTenant, dados: ClienteFormInput): Promise<void> {
+    const definicoes = await tx.campoPersonalizado.findMany();
+    const porId = new Map(definicoes.map((item) => [item.id, item]));
+    for (const [id, valor] of Object.entries(dados.camposPersonalizados)) {
+      const campo = porId.get(id);
+      if (!campo) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: 'Um campo personalizado não existe mais.' });
+      if (valor && campo.tipo === 'numero' && !Number.isFinite(Number(valor.replace(',', '.')))) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `${campo.nome} precisa ser um número.` });
+      if (valor && campo.tipo === 'data' && !/^\d{4}-\d{2}-\d{2}$/.test(valor)) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `${campo.nome} precisa ser uma data válida.` });
+      if (valor && campo.tipo === 'selecao' && !campo.opcoes.includes(valor)) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `Escolha uma opção válida para ${campo.nome}.` });
+    }
+    const faltando = definicoes.find((item) => item.obrigatorio && !dados.camposPersonalizados[item.id]?.trim());
+    if (faltando) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `Preencha o campo obrigatório ${faltando.nome}.` });
+
+    const ids = dados.etiquetas;
+    if (!ids.length) return;
+    const total = await tx.etiqueta.count({ where: { id: { in: ids } } });
+    if (total !== new Set(ids).size) {
+      throw new NotFoundException({ codigo: CODIGOS_ERRO.NAO_ENCONTRADO, mensagem: 'Uma das etiquetas não existe.' });
+    }
+  }
+
+  private async salvarEtiquetas(tx: TransacaoComTenant, clienteId: string, ids: string[]): Promise<void> {
+    await tx.clienteEtiqueta.deleteMany({ where: { clienteId } });
+    if (ids.length) {
+      await tx.clienteEtiqueta.createMany({
+        data: [...new Set(ids)].map((etiquetaId) => ({ tenantId: tenantAtual(), clienteId, etiquetaId })),
+      });
+    }
   }
 }

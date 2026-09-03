@@ -266,6 +266,7 @@ Principais variáveis:
 | `ADMIN_DATABASE_URL`      | Conexão administrativa futura                  |
 | `JWT_SECRET`              | Segredo para assinar JWT, mínimo 32 caracteres |
 | `CORS_ORIGINS`            | Origens liberadas, separadas por vírgula       |
+| `APP_URL`                 | URL do frontend usada nos convites da equipe   |
 | `ONBOARDING_PLANO_PADRAO` | Plano usado no cadastro inicial                |
 | `ONBOARDING_TRIAL_DIAS`   | Duração do trial                               |
 | `REDIS_URL`               | Reservado para BullMQ/Upstash                  |
@@ -313,12 +314,12 @@ variante gratuita para validação. O `render.yaml` na raiz é o blueprint da AP
 o Render lê esse arquivo ao conectar o repositório e cria o serviço já
 configurado.
 
-| Parte      | Serviço | Observação                                              |
-| ---------- | ------- | ------------------------------------------------------- |
-| Frontend   | Vercel  | O plano Hobby **proíbe uso comercial** — cobrando, exige Pro |
-| API        | Render  | O plano gratuito hiberna, e o cron de lembretes para junto |
+| Parte      | Serviço | Observação                                                             |
+| ---------- | ------- | ---------------------------------------------------------------------- |
+| Frontend   | Vercel  | O plano Hobby **proíbe uso comercial** — cobrando, exige Pro           |
+| API        | Render  | O plano gratuito hiberna, e o cron de lembretes para junto             |
 | PostgreSQL | Neon    | Preferido ao Postgres do Render, cujo gratuito expira e apaga os dados |
-| Redis      | Upstash | Opcional: sem ele os lembretes são criados e ficam pendentes |
+| Redis      | Upstash | Opcional: sem ele os lembretes são criados e ficam pendentes           |
 
 Checklist de produção:
 
@@ -330,6 +331,7 @@ Checklist de produção:
 - Configurar `REDIS_URL`, ou o envio automático de lembretes fica desligado.
 - Configurar `SMTP_URL` e `EMAIL_REMETENTE`; sem eles os lembretes são apenas
   registrados no log, e nenhum e-mail chega ao cliente.
+- Configurar `APP_URL` com a URL pública da Vercel, sem barra no final.
 
 ## Documentação
 

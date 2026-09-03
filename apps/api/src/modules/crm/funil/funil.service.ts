@@ -12,6 +12,7 @@ import { uuidv7 } from '../../../common/uuid';
 import type { MarcoFunil } from '../../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
 
 /**
  * Funil de vendas.
@@ -34,7 +35,10 @@ export class FunilService {
    */
   private readonly LIMITE_POR_ETAPA = 50;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   async montarQuadro(): Promise<QuadroFunil> {
     const { etapas, posicoes, orcamentos, totalForaDoFunil } = await this.prisma.comTenant(
@@ -161,17 +165,38 @@ export class FunilService {
         });
       }
 
-      await tx.clienteFunil.upsert({
+      const posicaoAnterior = await tx.clienteFunil.findUnique({
+        where: { clienteId }, select: { etapaId: true },
+      });
+
+      const posicao = await tx.clienteFunil.upsert({
         where: { clienteId },
         create: { id: uuidv7(), tenantId: tenantAtual(), clienteId, etapaId },
         update: { etapaId },
       });
+
+      if (posicaoAnterior?.etapaId !== etapaId) {
+        await this.auditoria.registrar(tx, {
+          entidade: 'funil', entidadeId: posicao.id, acao: 'movimentou',
+          antes: posicaoAnterior ? { clienteId, etapaId: posicaoAnterior.etapaId } : undefined,
+          depois: { clienteId, etapaId },
+        });
+      }
     });
   }
 
   /** Tira o cliente do funil, sem apagar o cadastro dele. */
   async removerDoFunil(clienteId: string): Promise<void> {
-    await this.prisma.comTenant((tx) => tx.clienteFunil.deleteMany({ where: { clienteId } }));
+    await this.prisma.comTenant(async (tx) => {
+      const posicao = await tx.clienteFunil.findUnique({ where: { clienteId } });
+      await tx.clienteFunil.deleteMany({ where: { clienteId } });
+      if (posicao) {
+        await this.auditoria.registrar(tx, {
+          entidade: 'funil', entidadeId: posicao.id, acao: 'excluiu',
+          antes: { clienteId, etapaId: posicao.etapaId },
+        });
+      }
+    });
   }
 
   /**

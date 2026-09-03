@@ -9,9 +9,12 @@ import {
   PiggyBank,
   Wallet,
   Wrench,
+  Settings,
+  Users,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react';
-import type { PapelUsuario } from '@gestao/shared-types';
+import { possuiPermissao, type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
 
 /**
  * Estrutura do menu do painel.
@@ -29,8 +32,8 @@ export interface ItemMenu {
   href: string;
   rotulo: string;
   icone: LucideIcon;
-  /** `null` significa visível para qualquer papel. */
-  papeis: readonly PapelUsuario[] | null;
+  /** `null` significa visível para qualquer usuário autenticado. */
+  permissao: Permissao | null;
 }
 
 export interface GrupoMenu {
@@ -39,12 +42,10 @@ export interface GrupoMenu {
   itens: readonly ItemMenu[];
 }
 
-const TODOS_MENOS_FINANCEIRO = ['admin', 'atendente', 'tecnico'] as const;
-
 export const MENU: readonly GrupoMenu[] = [
   {
     titulo: null,
-    itens: [{ href: '/painel', rotulo: 'Início', icone: LayoutDashboard, papeis: null }],
+    itens: [{ href: '/painel', rotulo: 'Início', icone: LayoutDashboard, permissao: null }],
   },
   {
     titulo: 'Relacionamento',
@@ -53,19 +54,19 @@ export const MENU: readonly GrupoMenu[] = [
         href: '/painel/clientes',
         rotulo: 'Clientes',
         icone: Contact,
-        papeis: TODOS_MENOS_FINANCEIRO,
+        permissao: 'clientes.visualizar',
       },
       {
         href: '/painel/funil',
         rotulo: 'Funil',
         icone: KanbanSquare,
-        papeis: TODOS_MENOS_FINANCEIRO,
+        permissao: 'funil.visualizar',
       },
       {
         href: '/painel/lembretes',
         rotulo: 'Lembretes',
         icone: Bell,
-        papeis: TODOS_MENOS_FINANCEIRO,
+        permissao: 'lembretes.visualizar',
       },
     ],
   },
@@ -76,19 +77,19 @@ export const MENU: readonly GrupoMenu[] = [
         href: '/painel/orcamentos',
         rotulo: 'Orçamentos',
         icone: FileText,
-        papeis: TODOS_MENOS_FINANCEIRO,
+        permissao: 'orcamentos.visualizar',
       },
       {
         href: '/painel/agenda',
         rotulo: 'Agenda',
         icone: CalendarDays,
-        papeis: TODOS_MENOS_FINANCEIRO,
+        permissao: 'agenda.visualizar',
       },
       {
         href: '/painel/servicos',
         rotulo: 'Serviços',
         icone: Wrench,
-        papeis: ['admin', 'financeiro', 'atendente', 'tecnico'],
+        permissao: 'servicos.visualizar',
       },
     ],
   },
@@ -101,29 +102,39 @@ export const MENU: readonly GrupoMenu[] = [
         href: '/painel/financeiro',
         rotulo: 'Movimento',
         icone: Wallet,
-        papeis: ['admin', 'financeiro'],
+        permissao: 'financeiro.visualizar',
       },
       {
         href: '/painel/financeiro/pro-labore',
         rotulo: 'Pró-labore',
         icone: HandCoins,
-        papeis: ['admin', 'financeiro'],
+        permissao: 'financeiro.visualizar',
       },
       {
         href: '/painel/financeiro/reservas',
         rotulo: 'Reservas',
         icone: PiggyBank,
-        papeis: ['admin', 'financeiro'],
+        permissao: 'financeiro.visualizar',
       },
+    ],
+  },
+  {
+    titulo: 'Administração',
+    itens: [
+      { href: '/painel/equipe', rotulo: 'Equipe', icone: Users, permissao: 'equipe.gerenciar' },
+      { href: '/painel/auditoria', rotulo: 'Auditoria', icone: ScrollText, permissao: 'auditoria.visualizar' },
+      { href: '/painel/configuracoes', rotulo: 'Configurações', icone: Settings, permissao: 'empresa.configurar' },
     ],
   },
 ];
 
 /** Grupos que sobram para um papel, já sem os grupos que ficaram vazios. */
-export function menuDoPapel(papel: PapelUsuario): GrupoMenu[] {
+export function menuDoUsuario(usuario: UsuarioAutenticado): GrupoMenu[] {
   return MENU.map((grupo) => ({
     ...grupo,
-    itens: grupo.itens.filter((item) => item.papeis === null || item.papeis.includes(papel)),
+    itens: grupo.itens.filter(
+      (item) => item.permissao === null || possuiPermissao(usuario, item.permissao),
+    ),
   })).filter((grupo) => grupo.itens.length > 0);
 }
 

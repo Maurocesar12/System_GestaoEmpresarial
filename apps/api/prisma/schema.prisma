@@ -160,6 +160,8 @@ model Tenant {
   id   String  @id @default(uuid(7)) @db.Uuid
   nome String  @db.VarChar(120)
   cnpj String? @unique @db.VarChar(14)
+  email    String? @db.VarChar(180)
+  telefone String? @db.VarChar(20)
 
   planoId String       @map("plano_id") @db.Uuid
   plano   Plano        @relation(fields: [planoId], references: [id], onDelete: Restrict)
@@ -190,6 +192,10 @@ model Tenant {
   reservas              ReservaFinanceira[]
   refreshTokens         RefreshToken[]
   logsAuditoria         LogAuditoria[]
+  convitesEquipe        ConviteEquipe[]
+  camposPersonalizados  CampoPersonalizado[]
+  etiquetas             Etiqueta[]
+  clientesEtiquetas     ClienteEtiqueta[]
 
   @@index([status])
   @@map("tenant")
@@ -221,7 +227,9 @@ model Usuario {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   nome  String @db.VarChar(120)
-  email String @db.VarChar(180)
+  /// Único no produto inteiro: o login recebe apenas e-mail e senha, portanto
+  /// dois tenants com o mesmo e-mail tornariam a conta ambígua.
+  email String @unique @db.VarChar(180)
 
   /// Hash Argon2id — nunca a senha em texto. O nome do campo diz isso de
   /// propósito, para que um `select` distraído não pareça inofensivo.
@@ -230,6 +238,10 @@ model Usuario {
   papel PapelUsuario @default(atendente)
   ativo Boolean      @default(true)
 
+  /// Nulo usa o conjunto padrão do papel; preenchido representa uma escolha explícita.
+  permissoes                  String[] @default([])
+  permissoesPersonalizadas    Boolean  @default(false) @map("permissoes_personalizadas")
+
   ultimoLoginEm DateTime? @map("ultimo_login_em")
 
   criadoEm     DateTime @default(now()) @map("criado_em")
@@ -237,9 +249,8 @@ model Usuario {
 
   refreshTokens RefreshToken[]
 
-  /// E-mail único **por tenant**, não globalmente: a mesma pessoa pode ser
-  /// usuária de duas empresas diferentes com o mesmo e-mail.
-  @@unique([tenantId, email])
+  @@index([tenantId, criadoEm])
+
   @@index([tenantId, ativo])
   @@map("usuario")
 }
@@ -273,6 +284,25 @@ model RefreshToken {
   @@map("refresh_token")
 }
 
+/// Convite de funcionário. Somente o hash do token é persistido.
+model ConviteEquipe {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome       String       @db.VarChar(120)
+  email      String       @db.VarChar(180)
+  papel      PapelUsuario
+  permissoes String[] @default([])
+  tokenHash  String       @unique @map("token_hash") @db.VarChar(64)
+  expiraEm   DateTime     @map("expira_em")
+  criadoEm   DateTime     @default(now()) @map("criado_em")
+
+  @@unique([tenantId, email])
+  @@index([tenantId, expiraEm])
+  @@map("convite_equipe")
+}
+
 // ============================================================================
 //  CRM
 // ============================================================================
@@ -295,6 +325,8 @@ model Cliente {
   utmMedium   String? @map("utm_medium") @db.VarChar(120)
   utmCampaign String? @map("utm_campaign") @db.VarChar(120)
 
+  camposPersonalizados Json @default("{}") @map("campos_personalizados")
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -304,11 +336,63 @@ model Cliente {
   posicaoFunil ClienteFunil?
   lembretes    LembreteFollowUp[]
   lancamentos  LancamentoFinanceiro[]
+  etiquetas    ClienteEtiqueta[]
 
   @@index([tenantId, nome])
   @@index([tenantId, criadoEm])
   @@index([tenantId, origem])
   @@map("cliente")
+}
+
+enum TipoCampoPersonalizado {
+  texto
+  numero
+  data
+  selecao
+
+  @@map("tipo_campo_personalizado")
+}
+
+model CampoPersonalizado {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome       String @db.VarChar(80)
+  tipo       TipoCampoPersonalizado @default(texto)
+  obrigatorio Boolean @default(false)
+  opcoes     String[] @default([])
+  ordem      Int @default(0)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@unique([tenantId, nome])
+  @@index([tenantId, ordem])
+  @@map("campo_personalizado")
+}
+
+model Etiqueta {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome     String @db.VarChar(40)
+  cor      String @db.VarChar(7)
+  criadoEm DateTime @default(now()) @map("criado_em")
+  clientes ClienteEtiqueta[]
+
+  @@unique([tenantId, nome])
+  @@map("etiqueta")
+}
+
+model ClienteEtiqueta {
+  tenantId  String @map("tenant_id") @db.Uuid
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clienteId String @map("cliente_id") @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  etiquetaId String @map("etiqueta_id") @db.Uuid
+  etiqueta   Etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
+
+  @@id([clienteId, etiquetaId])
+  @@index([tenantId, etiquetaId])
+  @@map("cliente_etiqueta")
 }
 
 /// Registro do histórico de atendimento de um cliente.

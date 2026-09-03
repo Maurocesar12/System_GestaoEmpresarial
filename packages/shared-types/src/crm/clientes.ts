@@ -46,6 +46,8 @@ export const clienteFormSchema = z.object({
   utmSource: opcional(z.string().trim().max(120)),
   utmMedium: opcional(z.string().trim().max(120)),
   utmCampaign: opcional(z.string().trim().max(120)),
+  camposPersonalizados: z.record(z.string(), z.string().max(500)).default({}),
+  etiquetas: z.array(z.uuid()).max(50).default([]),
 });
 
 /**
@@ -94,6 +96,8 @@ export interface Cliente {
   utmSource: string | null;
   utmMedium: string | null;
   utmCampaign: string | null;
+  camposPersonalizados: Record<string, string>;
+  etiquetas: string[];
   criadoEm: string;
   atualizadoEm: string;
 }

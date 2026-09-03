@@ -22,20 +22,19 @@ import {
   type Paginado,
   type ResultadoImportacao,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { ClientesService } from './clientes.service';
 
 /**
  * Rotas de clientes.
  *
- * `@Papeis` no controller inteiro, conforme §9.5: CRM é acessível a `admin`,
- * `atendente` e `tecnico`. Quem tem papel `financeiro` não entra aqui — a
- * separação existe para que a pessoa que cuida do caixa não tenha acesso à
- * carteira de clientes sem necessidade.
+ * A leitura é a permissão padrão do controller; criar, editar, importar e
+ * excluir sobrescrevem essa regra com a ação específica. Assim um funcionário
+ * pode consultar clientes sem ganhar, por acidente, o direito de apagá-los.
  */
 @Controller('clientes')
-@Papeis('admin', 'atendente', 'tecnico')
+@Permissoes('clientes.visualizar')
 export class ClientesController {
   constructor(private readonly clientes: ClientesService) {}
 
@@ -57,6 +56,7 @@ export class ClientesController {
   }
 
   @Post()
+  @Permissoes('clientes.criar')
   criar(@Body(new ZodValidationPipe(clienteFormSchema)) dados: ClienteFormInput): Promise<Cliente> {
     return this.clientes.criar(dados);
   }
@@ -76,7 +76,7 @@ export class ClientesController {
    * cadastrar um.
    */
   @Post('importar')
-  @Papeis('admin')
+  @Permissoes('clientes.importar')
   importar(
     @Body(new ZodValidationPipe(importacaoClientesSchema)) dados: ImportacaoClientesInput,
   ): Promise<ResultadoImportacao> {
@@ -84,6 +84,7 @@ export class ClientesController {
   }
 
   @Patch(':id')
+  @Permissoes('clientes.editar')
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(clienteFormSchema)) dados: ClienteFormInput,
@@ -95,7 +96,7 @@ export class ClientesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   // Excluir cliente é restrito a `admin`: apaga em cascata o histórico de
   // atendimentos, orçamentos e agendamentos junto.
-  @Papeis('admin')
+  @Permissoes('clientes.excluir')
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.clientes.remover(id);
   }

@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { PapelUsuario } from '@gestao/shared-types';
+import type { PapelUsuario, Permissao } from '@gestao/shared-types';
 
 /**
  * Contexto de tenant por requisição — camada 1 do isolamento (arquitetura §4.2).
@@ -17,6 +17,7 @@ export interface TenantContext {
   tenantId: string;
   usuarioId: string;
   papel: PapelUsuario;
+  permissoes?: Permissao[];
   /** Correlaciona logs de uma mesma requisição ou job. */
   requestId: string;
 }

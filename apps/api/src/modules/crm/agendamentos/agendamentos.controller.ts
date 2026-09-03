@@ -21,12 +21,12 @@ import {
   type MudarStatusAgendamentoInput,
   type Paginado,
 } from '@gestao/shared-types';
-import { Papeis } from '../../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { AgendamentosService } from './agendamentos.service';
 
 @Controller('agendamentos')
-@Papeis('admin', 'atendente', 'tecnico')
+@Permissoes('agenda.visualizar')
 export class AgendamentosController {
   constructor(private readonly agendamentos: AgendamentosService) {}
 
@@ -43,6 +43,7 @@ export class AgendamentosController {
   }
 
   @Post()
+  @Permissoes('agenda.gerenciar')
   criar(
     @Body(new ZodValidationPipe(agendamentoFormSchema)) dados: AgendamentoFormInput,
   ): Promise<Agendamento> {
@@ -50,6 +51,7 @@ export class AgendamentosController {
   }
 
   @Patch(':id')
+  @Permissoes('agenda.gerenciar')
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(agendamentoFormSchema)) dados: AgendamentoFormInput,
@@ -59,6 +61,7 @@ export class AgendamentosController {
 
   /** Confirmar, executar, cancelar ou reagendar. */
   @Post(':id/status')
+  @Permissoes('agenda.gerenciar')
   mudarStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(mudarStatusAgendamentoSchema))
@@ -68,6 +71,7 @@ export class AgendamentosController {
   }
 
   @Delete(':id')
+  @Permissoes('agenda.gerenciar')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.agendamentos.remover(id);

@@ -10,6 +10,7 @@ import {
   type LembreteFollowUp,
   type Orcamento,
   type Paginado,
+  type ConfiguracoesEmpresa,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
 import {
@@ -43,7 +44,7 @@ interface Props {
 export default async function PaginaCliente({ params }: Props) {
   const { id } = await params;
 
-  const [cliente, etapas, orcamentos, atendimentos, lembretes] = await Promise.all([
+  const [cliente, etapas, orcamentos, atendimentos, lembretes, configuracoes] = await Promise.all([
     apiComSessao<Cliente>(`/clientes/${id}`),
     apiComSessao<EtapaFunil[]>('/funil/etapas'),
     apiComSessao<Paginado<Orcamento>>(`/orcamentos?clienteId=${id}&porPagina=50`),
@@ -51,6 +52,7 @@ export default async function PaginaCliente({ params }: Props) {
     apiComSessao<Paginado<LembreteFollowUp>>(
       `/lembretes?clienteId=${id}&status=pendente&porPagina=5`,
     ),
+    apiComSessao<ConfiguracoesEmpresa>('/configuracoes'),
   ]);
 
   const etapaAtual = cliente.etapaFunil?.id ?? null;
@@ -182,7 +184,7 @@ export default async function PaginaCliente({ params }: Props) {
             aqui, e ocupava a maior parte da tela. */}
         <summary className="cursor-pointer text-sm font-medium">Editar cadastro</summary>
         <div className="pt-4">
-          <FormularioCliente cliente={cliente} />
+          <FormularioCliente cliente={cliente} campos={configuracoes.campos} etiquetas={configuracoes.etiquetas} />
         </div>
       </details>
 

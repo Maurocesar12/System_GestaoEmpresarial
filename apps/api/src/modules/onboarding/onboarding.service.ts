@@ -1,6 +1,11 @@
 import { ConflictException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CODIGOS_ERRO, type CadastroInput, type SessaoResponse } from '@gestao/shared-types';
+import {
+  CODIGOS_ERRO,
+  permissoesDoUsuario,
+  type CadastroInput,
+  type SessaoResponse,
+} from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
 import type { Env } from '../../config/env.schema';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -100,6 +105,7 @@ export class OnboardingService {
       nome: criado.usuario.nome,
       email: criado.usuario.email,
       papel: criado.usuario.papel,
+      permissoes: permissoesDoUsuario(criado.usuario.papel, undefined),
       tenantId: criado.tenantId,
       nomeEmpresa: dados.nomeEmpresa,
     });

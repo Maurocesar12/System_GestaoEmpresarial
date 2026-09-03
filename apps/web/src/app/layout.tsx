@@ -1,26 +1,7 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import { SITE } from '@/configuracao/site';
 import { SCRIPT_TEMA } from '@/lib/tema';
 import './globals.css';
-
-/**
- * Tipografia do sistema.
- *
- * Inter foi desenhada para texto de interface em tela: altura de x generosa,
- * letras abertas e — o que importa aqui — algarismos de largura fixa
- * disponíveis, que é o que mantém uma coluna de valores alinhada.
- *
- * Servida pelo `next/font`, os arquivos são baixados no build e passam a ser
- * entregues pelo nosso próprio domínio. Não há requisição ao Google em tempo
- * de execução (nada de dado do usuário vaza para lá, o que também simplifica o
- * lado de LGPD) e não existe o "pulo" de fonte no primeiro carregamento.
- */
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--fonte-sans',
-});
 
 export const metadata: Metadata = {
   metadataBase: SITE.url,
@@ -85,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // O efeito é raso de propósito: vale só para os atributos destes dois
     // elementos, e não desce pela árvore. Um erro de hidratação de verdade,
     // dentro de qualquer componente, continua sendo reportado normalmente.
-    <html lang="pt-BR" className={inter.variable} suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         {/*
           Aplica o tema salvo antes da primeira pintura. Precisa ser inline e

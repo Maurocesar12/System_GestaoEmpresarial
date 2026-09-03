@@ -7,6 +7,7 @@ import {
   type RefreshTokenInput,
   type SessaoResponse,
   type UsuarioAutenticado,
+  permissoesDoUsuario,
 } from '@gestao/shared-types';
 import { Publico } from '../../common/decorators/publico.decorator';
 import { UsuarioAtual } from '../../common/decorators/usuario-atual.decorator';
@@ -79,6 +80,10 @@ export class AuthController {
       nome: usuario.nome,
       email: usuario.email,
       papel: usuario.papel,
+      permissoes: permissoesDoUsuario(
+        usuario.papel,
+        usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
+      ),
       tenantId: usuario.tenantId,
       nomeEmpresa: usuario.tenant.nome,
     };

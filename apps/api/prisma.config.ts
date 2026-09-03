@@ -9,6 +9,11 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    url: process.env['DATABASE_URL'],
+    // Permite aplicar migrations no banco isolado de integração sem editar o
+    // arquivo .env. O padrão continua sendo o banco de desenvolvimento.
+    url:
+      process.env['PRISMA_USE_TEST_DB'] === '1'
+        ? process.env['TEST_DATABASE_URL']
+        : process.env['DATABASE_URL'],
   },
 });

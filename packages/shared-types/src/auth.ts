@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { PapelUsuario } from './enums';
+import type { Permissao } from './plataforma/permissoes';
 
 /**
  * Contrato de autenticação (arquitetura §9.1).
@@ -62,6 +63,7 @@ export interface UsuarioAutenticado {
   nome: string;
   email: string;
   papel: PapelUsuario;
+  permissoes: Permissao[];
   tenantId: string;
   /** Nome da empresa, para exibir no cabeçalho sem uma segunda requisição. */
   nomeEmpresa: string;
@@ -84,10 +86,12 @@ export interface SessaoResponse {
  * antes de qualquer claim ser lido.
  */
 export interface JwtPayload {
+  tipo: 'acesso';
   /** subject — id do usuário */
   sub: string;
   tenantId: string;
   papel: PapelUsuario;
+  permissoes: Permissao[];
   /** emitido em (epoch, segundos) */
   iat?: number;
   /** expira em (epoch, segundos) */

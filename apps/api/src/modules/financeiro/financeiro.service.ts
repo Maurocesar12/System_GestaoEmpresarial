@@ -21,6 +21,9 @@ import {
   type RelatorioMargem,
   type ResumoContas,
   type StatusLancamento,
+  type ImportacaoLancamentosInput,
+  type ResultadoImportacaoLancamentos,
+  type ExportacaoFinanceira,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
 import { Prisma } from '../../generated/prisma/client';
@@ -29,6 +32,7 @@ import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { garantirVinculos } from '../../common/vinculos';
 import { ZERO } from './decimal';
 import { hojeEmDia, paraData, paraDia } from './datas';
+import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 
 /**
  * Traduz a situação — que é derivada — para um filtro que o banco entende.
@@ -81,7 +85,10 @@ type LancamentoBanco = Prisma.LancamentoFinanceiroGetPayload<{
  */
 @Injectable()
 export class FinanceiroService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   // --- Categorias ----------------------------------------------------------
 
@@ -183,10 +190,14 @@ export class FinanceiroService {
     const lancamento = await this.prisma.comTenant(async (tx) => {
       await garantirVinculos(tx, dados);
 
-      return tx.lancamentoFinanceiro.create({
+      const criado = await tx.lancamentoFinanceiro.create({
         data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBanco(dados) },
         include: INCLUDE_PADRAO,
       });
+      await this.auditoria.registrar(tx, {
+        entidade: 'lancamento', entidadeId: criado.id, acao: 'criou', depois: this.paraResposta(criado),
+      });
+      return criado;
     });
 
     return this.paraResposta(lancamento);
@@ -201,13 +212,24 @@ export class FinanceiroService {
    */
   async atualizar(id: string, dados: LancamentoFormInput): Promise<Lancamento> {
     const lancamento = await this.prisma.comTenant(async (tx) => {
-      await Promise.all([this.garantirExiste(tx, id), garantirVinculos(tx, dados)]);
+      const [anterior] = await Promise.all([
+        tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_PADRAO }),
+        garantirVinculos(tx, dados),
+      ]);
+      if (!anterior) {
+        throw new NotFoundException({ codigo: CODIGOS_ERRO.NAO_ENCONTRADO, mensagem: 'Lançamento não encontrado.' });
+      }
 
-      return tx.lancamentoFinanceiro.update({
+      const alterado = await tx.lancamentoFinanceiro.update({
         where: { id },
         data: this.paraBanco(dados),
         include: INCLUDE_PADRAO,
       });
+      await this.auditoria.registrar(tx, {
+        entidade: 'lancamento', entidadeId: id, acao: 'alterou',
+        antes: this.paraResposta(anterior), depois: this.paraResposta(alterado),
+      });
+      return alterado;
     });
 
     return this.paraResposta(lancamento);
@@ -231,9 +253,14 @@ export class FinanceiroService {
   async remover(id: string): Promise<void> {
     // O `deleteMany` sob RLS só apaga o que é do tenant; contar o resultado
     // distingue "não existe" de "é de outra empresa" sem uma consulta extra.
-    const { count } = await this.prisma.comTenant((tx) =>
-      tx.lancamentoFinanceiro.deleteMany({ where: { id } }),
-    );
+    const { count } = await this.prisma.comTenant(async (tx) => {
+      const anterior = await tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_PADRAO });
+      const resultado = await tx.lancamentoFinanceiro.deleteMany({ where: { id } });
+      if (anterior && resultado.count) await this.auditoria.registrar(tx, {
+        entidade: 'lancamento', entidadeId: id, acao: 'excluiu', antes: this.paraResposta(anterior),
+      });
+      return resultado;
+    });
 
     if (count === 0) {
       throw new NotFoundException({
@@ -241,6 +268,53 @@ export class FinanceiroService {
         mensagem: 'Lançamento não encontrado.',
       });
     }
+  }
+
+  async importar(dados: ImportacaoLancamentosInput): Promise<ResultadoImportacaoLancamentos> {
+    const importacaoId = uuidv7();
+    await this.prisma.comTenant(async (tx) => {
+      const registros = [];
+      for (const item of dados.lancamentos) {
+        registros.push({
+          id: uuidv7(), tenantId: tenantAtual(),
+          ...this.paraBanco({ ...item, categoriaId: null, servicoId: null, clienteId: null }),
+        });
+      }
+      await tx.lancamentoFinanceiro.createMany({ data: registros });
+      await this.auditoria.registrar(tx, {
+        entidade: 'importacao_financeira', entidadeId: importacaoId, acao: 'criou',
+        depois: { quantidade: registros.length },
+      });
+    });
+    return { criados: dados.lancamentos.length };
+  }
+
+  async exportar(query: PeriodoQuery): Promise<ExportacaoFinanceira> {
+    const registros = await this.prisma.comTenant((tx) => tx.lancamentoFinanceiro.findMany({
+      where: {
+        data: {
+          gte: new Date(`${query.de}T00:00:00.000Z`),
+          lte: new Date(`${query.ate}T00:00:00.000Z`),
+        },
+        ...(query.natureza ? { natureza: query.natureza } : {}),
+      },
+      orderBy: [{ data: 'asc' }, { criadoEm: 'asc' }],
+    }));
+    const escapar = (valor: string | null) => {
+      const seguro = valor && /^[=+\-@]/.test(valor) ? `'${valor}` : (valor ?? '');
+      return `"${seguro.replace(/"/g, '""')}"`;
+    };
+    const linhas = [
+      ['tipo', 'natureza', 'descricao', 'valor', 'data', 'vencimento', 'pagoEm'].join(';'),
+      ...registros.map((item) => [
+        item.tipo, item.natureza, escapar(item.descricao), item.valor.toFixed(2).replace('.', ','),
+        paraDia(item.data), item.vencimento ? paraDia(item.vencimento) : '', item.pagoEm ? paraDia(item.pagoEm) : '',
+      ].join(';')),
+    ];
+    return {
+      nomeArquivo: `financeiro-${query.de}-a-${query.ate}.csv`,
+      conteudo: `\uFEFF${linhas.join('\r\n')}`,
+    };
   }
 
   // --- Contas a receber e a pagar ------------------------------------------
@@ -274,13 +348,18 @@ export class FinanceiroService {
         });
       }
 
-      return tx.lancamentoFinanceiro.update({
+      const alterado = await tx.lancamentoFinanceiro.update({
         where: { id },
         // Sem data informada, hoje: é o caso comum, e poupa o usuário de
         // digitar a data do dia.
         data: { pagoEm: paraData(dados.pagoEm ?? hojeEmDia()) },
         include: INCLUDE_PADRAO,
       });
+      await this.auditoria.registrar(tx, {
+        entidade: 'lancamento', entidadeId: id, acao: 'alterou',
+        antes: { pagoEm: null }, depois: { pagoEm: alterado.pagoEm?.toISOString() ?? null },
+      });
+      return alterado;
     });
 
     return this.paraResposta(lancamento);
@@ -314,11 +393,16 @@ export class FinanceiroService {
         });
       }
 
-      return tx.lancamentoFinanceiro.update({
+      const alterado = await tx.lancamentoFinanceiro.update({
         where: { id },
         data: { pagoEm: null },
         include: INCLUDE_PADRAO,
       });
+      await this.auditoria.registrar(tx, {
+        entidade: 'lancamento', entidadeId: id, acao: 'alterou',
+        antes: { pagoEm: atual.pagoEm.toISOString() }, depois: { pagoEm: null },
+      });
+      return alterado;
     });
 
     return this.paraResposta(lancamento);

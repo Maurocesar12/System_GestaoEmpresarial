@@ -1,6 +1,6 @@
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import type { JwtPayload } from '@gestao/shared-types';
+import { permissoesDoUsuario, type JwtPayload } from '@gestao/shared-types';
 import type { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { runComTenant } from './tenant-context';
@@ -54,6 +54,12 @@ export class TenantMiddleware implements NestMiddleware {
       // assinatura — qualquer pessoa poderia forjar um token com o `tenantId`
       // de outra empresa e ele seria aceito.
       payload = this.jwt.verify<JwtPayload>(token);
+      // Convites também são JWTs assinados, mas não são sessões. Sem esta
+      // marca, um link de convite usado como Bearer abriria rotas do tenant.
+      if (payload.tipo !== 'acesso' || !payload.sub || !payload.tenantId || !payload.papel) {
+        next();
+        return;
+      }
     } catch {
       // Token inválido ou expirado. Segue sem contexto; o guard responde 401.
       next();
@@ -71,6 +77,7 @@ export class TenantMiddleware implements NestMiddleware {
         tenantId: payload.tenantId,
         usuarioId: payload.sub,
         papel: payload.papel,
+        permissoes: permissoesDoUsuario(payload.papel, payload.permissoes),
         requestId,
       },
       () => {

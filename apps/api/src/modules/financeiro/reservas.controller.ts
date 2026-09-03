@@ -17,12 +17,12 @@ import {
   type ReservaFormInput,
   type ResumoReservas,
 } from '@gestao/shared-types';
-import { Papeis } from '../../common/decorators/papeis.decorator';
+import { Permissoes } from '../../common/decorators/permissoes.decorator';
 import { CorpoValidado } from '../../common/decorators/validado.decorator';
 import { ReservasService } from './reservas.service';
 
 @Controller('financeiro/reservas')
-@Papeis('admin', 'financeiro')
+@Permissoes('financeiro.visualizar')
 export class ReservasController {
   constructor(private readonly reservas: ReservasService) {}
 
@@ -33,11 +33,13 @@ export class ReservasController {
   }
 
   @Post()
+  @Permissoes('financeiro.criar')
   criar(@CorpoValidado(reservaFormSchema) dados: ReservaFormInput): Promise<Reserva> {
     return this.reservas.criar(dados);
   }
 
   @Patch(':id')
+  @Permissoes('financeiro.editar')
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @CorpoValidado(reservaFormSchema) dados: ReservaFormInput,
@@ -53,6 +55,7 @@ export class ReservasController {
    * um campo.
    */
   @Post(':id/movimentar')
+  @Permissoes('financeiro.editar')
   movimentar(
     @Param('id', ParseUUIDPipe) id: string,
     @CorpoValidado(movimentacaoFormSchema) dados: MovimentacaoFormInput,
@@ -61,6 +64,7 @@ export class ReservasController {
   }
 
   @Delete(':id')
+  @Permissoes('financeiro.excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.reservas.remover(id);

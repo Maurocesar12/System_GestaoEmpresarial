@@ -187,6 +187,55 @@ describe('financeiro (HTTP)', () => {
     });
   });
 
+  describe('importação e exportação financeira', () => {
+    it('importa somente os campos financeiros previstos no contrato', async () => {
+      const { body } = await req(tokenA)
+        .post('/api/financeiro/dados/importar')
+        .send({
+          lancamentos: [
+            {
+              tipo: 'entrada',
+              natureza: 'empresa',
+              descricao: '=2+2',
+              valor: '123,45',
+              data: '2026-10-03',
+              vencimento: null,
+              pagoEm: '2026-10-03',
+            },
+          ],
+        })
+        .expect(201);
+
+      expect(body.criados).toBe(1);
+
+      const { body: lista } = await req(tokenA)
+        .get('/api/financeiro/lancamentos?de=2026-10-01&ate=2026-10-31')
+        .expect(200);
+      expect(lista.dados).toEqual(
+        expect.arrayContaining([expect.objectContaining({ descricao: '=2+2', valor: '123.45' })]),
+      );
+    });
+
+    it('exporta CSV compatível com Excel e neutraliza fórmulas maliciosas', async () => {
+      const { body } = await req(tokenA)
+        .get('/api/financeiro/dados/exportar?de=2026-10-01&ate=2026-10-31')
+        .expect(200);
+
+      expect(body.nomeArquivo).toBe('financeiro-2026-10-01-a-2026-10-31.csv');
+      expect(body.conteudo.startsWith('\uFEFF')).toBe(true);
+      expect(body.conteudo).toContain('"\'=2+2"');
+      expect(body.conteudo).toContain('123,45');
+    });
+
+    it('não exporta lançamentos de outra empresa', async () => {
+      const { body } = await req(tokenB)
+        .get('/api/financeiro/dados/exportar?de=2026-10-01&ate=2026-10-31')
+        .expect(200);
+
+      expect(body.conteudo).not.toContain('=2+2');
+    });
+  });
+
   describe('contas a receber e a pagar', () => {
     /**
      * Empresa própria para este bloco.

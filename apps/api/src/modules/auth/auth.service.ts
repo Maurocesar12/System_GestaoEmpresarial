@@ -8,6 +8,7 @@ import {
   type LoginInput,
   type SessaoResponse,
   type UsuarioAutenticado,
+  permissoesDoUsuario,
 } from '@gestao/shared-types';
 import type { Env } from '../../config/env.schema';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -84,6 +85,10 @@ export class AuthService {
       nome: usuario.nome,
       email: usuario.email,
       papel: usuario.papel,
+      permissoes: permissoesDoUsuario(
+        usuario.papel,
+        usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
+      ),
       tenantId: usuario.tenantId,
       nomeEmpresa: tenant.nome,
     });
@@ -112,6 +117,10 @@ export class AuthService {
       ...this.montarTokens({
         id: usuario.id,
         papel: usuario.papel,
+        permissoes: permissoesDoUsuario(
+          usuario.papel,
+          usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
+        ),
         tenantId: usuario.tenantId,
       }),
       refreshToken: rotacionado.token,
@@ -120,6 +129,10 @@ export class AuthService {
         nome: usuario.nome,
         email: usuario.email,
         papel: usuario.papel,
+        permissoes: permissoesDoUsuario(
+          usuario.papel,
+          usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
+        ),
         tenantId: usuario.tenantId,
         nomeEmpresa: usuario.tenant.nome,
       },
@@ -138,6 +151,7 @@ export class AuthService {
       ...this.montarTokens({
         id: usuario.id,
         papel: usuario.papel,
+        permissoes: usuario.permissoes,
         tenantId: usuario.tenantId,
       }),
       refreshToken,
@@ -145,7 +159,9 @@ export class AuthService {
     };
   }
 
-  private montarTokens(dados: Pick<UsuarioAutenticado, 'id' | 'papel' | 'tenantId'>): {
+  private montarTokens(
+    dados: Pick<UsuarioAutenticado, 'id' | 'papel' | 'permissoes' | 'tenantId'>,
+  ): {
     accessToken: string;
     expiraEm: number;
   } {
@@ -153,9 +169,11 @@ export class AuthService {
     const expiraEm = minutos * 60;
 
     const payload: JwtPayload = {
+      tipo: 'acesso',
       sub: dados.id,
       tenantId: dados.tenantId,
       papel: dados.papel,
+      permissoes: dados.permissoes,
     };
 
     return {

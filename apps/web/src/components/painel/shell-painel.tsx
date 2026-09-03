@@ -8,7 +8,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { SimboloMarca } from '@/components/marca';
 import { AlternadorTema } from '@/components/ui/tema';
 import { cn } from '@/lib/utils';
-import { hrefAtivo, menuDoPapel } from './menu';
+import { hrefAtivo, menuDoUsuario } from './menu';
 
 /**
  * Estrutura da área autenticada.
@@ -40,7 +40,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
   const caminho = usePathname();
   const [gavetaAberta, setGavetaAberta] = useState(false);
 
-  const grupos = menuDoPapel(usuario.papel);
+  const grupos = menuDoUsuario(usuario);
   const ativo = hrefAtivo(grupos, caminho);
 
   // Esc fecha, como em qualquer sobreposição do sistema operacional.
