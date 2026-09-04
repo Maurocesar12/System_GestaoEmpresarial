@@ -108,18 +108,9 @@ export const PASSOS: readonly Passo[] = [
 /**
  * Recursos de inteligência artificial.
  *
- * ## Estes recursos ainda NÃO existem
- *
- * Nada aqui está implementado. A seção descreve o que está sendo construído, e
- * a página deixa isso explícito — cada item leva o rótulo "em breve" e o texto
- * de abertura diz com todas as letras que é o próximo passo, não o que a pessoa
- * encontra ao entrar hoje.
- *
- * Isso não é excesso de zelo. Quem assina um teste esperando conversar com a IA
- * e não encontra nada cancela na primeira hora — e não volta. Anunciar o que
- * vem, dizendo que vem, constrói expectativa sem queimar a confiança.
- *
- * Ao implementar cada um, mova o item para `RECURSOS` e tire daqui.
+ * `disponivel` separa o que já existe do roadmap. A página apresenta a previsão
+ * financeira como produto atual e identifica os demais recursos como próximos
+ * passos, sem prometer como pronto o que ainda está em desenvolvimento.
  */
 export interface RecursoIA {
   icone: LucideIcon;

@@ -8,6 +8,7 @@ import { Botao } from '@/components/ui/botao';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { Selo } from '@/components/ui/selo';
 import { gerarPrevisao } from './acoes';
+import { GraficoFluxoProjetado } from './grafico-fluxo-projetado';
 
 const TOM_RISCO = { baixo: 'sucesso', moderado: 'atencao', alto: 'perigo' } as const;
 
@@ -113,6 +114,7 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
             {resultado.quota.usado}/{resultado.quota.limite ?? '∞'} previsões no mês
           </span>
         </CartaoCabecalho>
+        <GraficoFluxoProjetado projecoes={resultado.projecoes} />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[44rem] text-sm">
             <thead className="text-muted-foreground border-b text-left text-xs">

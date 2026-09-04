@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
-import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { estilosBotao } from '@/components/ui/botao';
 import { DIAS_DE_TESTE, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
+import { DemonstracaoPrevisao } from './demonstracao-previsao';
 import { PainelDeExemplo } from './painel-de-exemplo';
+import { Revelar } from './revelar';
 
 export const metadata: Metadata = {
   title: 'CRM e financeiro para empresas de serviço',
@@ -36,7 +38,7 @@ function Hero() {
   return (
     <section className="border-b">
       <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:py-24">
-        <div className="flex flex-col items-start gap-6">
+        <Revelar className="flex flex-col items-start gap-6">
           <span className="bg-primary/10 text-primary rounded-full px-3 py-1 text-xs font-medium">
             Para quem vende serviço
           </span>
@@ -67,9 +69,11 @@ function Hero() {
             Não pedimos cartão. Você cria a empresa em um passo e já pode cadastrar o primeiro
             cliente.
           </p>
-        </div>
+        </Revelar>
 
-        <PainelDeExemplo />
+        <Revelar atrasoMs={100}>
+          <PainelDeExemplo />
+        </Revelar>
       </div>
     </section>
   );
@@ -114,7 +118,10 @@ function Recursos() {
 
         <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {RECURSOS.map((recurso) => (
-            <article key={recurso.titulo} className="flex flex-col gap-3">
+            <article
+              key={recurso.titulo}
+              className="cartao-elevavel flex flex-col gap-3 rounded-lg p-3"
+            >
               <recurso.icone aria-hidden className="text-primary size-5" />
               <h3 className="font-semibold tracking-tight">{recurso.titulo}</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">{recurso.descricao}</p>
@@ -140,7 +147,10 @@ function ComoFunciona() {
 
         <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {PASSOS.map((passo, indice) => (
-            <li key={passo.titulo} className="flex flex-col gap-3 border-t pt-6">
+            <li
+              key={passo.titulo}
+              className="cartao-elevavel flex flex-col gap-3 border-t p-3 pt-6"
+            >
               <span className="text-muted-foreground text-sm font-semibold tabular-nums">
                 {String(indice + 1).padStart(2, '0')}
               </span>
@@ -155,62 +165,110 @@ function ComoFunciona() {
 }
 
 function InteligenciaArtificial() {
+  const proximosRecursos = RECURSOS_IA.filter((recurso) => !recurso.disponivel);
+
   return (
-    <section id="ia" className="scroll-mt-16 border-b">
+    <section id="ia" className="bg-superficie scroll-mt-16 overflow-hidden border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <div className="flex max-w-2xl flex-col gap-4">
-          <span className="flex items-center gap-2">
-            <RotuloSecao>Inteligência artificial</RotuloSecao>
-            <span className="bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-xs font-medium">
-              Disponível no Pro
-            </span>
-          </span>
-
-          <h2 className="text-3xl font-semibold tracking-tight text-balance">
-            O sistema ajuda a enxergar o que vem pela frente.
-          </h2>
-
-          <p className="text-muted-foreground leading-relaxed">
-            A previsão financeira já transforma seus lançamentos em cenários de caixa e ações
-            práticas. Outros assistentes entram depois, sempre com confirmação humana.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {RECURSOS_IA.map((recurso) => (
-            <article
-              key={recurso.titulo}
-              className="bg-card flex flex-col gap-3 rounded-lg border p-6 shadow-[var(--sombra-sutil)]"
-            >
-              <span className="flex items-center justify-between gap-3">
-                <recurso.icone aria-hidden className="text-primary size-5" />
-                <span
-                  className={
-                    recurso.disponivel
-                      ? 'bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-[0.6875rem] font-medium'
-                      : 'text-muted-foreground border-border rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium'
-                  }
-                >
-                  {recurso.disponivel ? 'disponível no Pro' : 'em breve'}
+        <Revelar>
+          <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
+            <div className="flex flex-col items-start gap-5">
+              <span className="flex flex-wrap items-center gap-2">
+                <RotuloSecao>Previsão financeira com IA</RotuloSecao>
+                <span className="bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-xs font-medium">
+                  Disponível no Pro
                 </span>
               </span>
 
-              <h3 className="font-semibold tracking-tight">{recurso.titulo}</h3>
+              <h2 className="text-3xl font-semibold tracking-tight text-balance">
+                Veja o caixa dos próximos meses antes de tomar a decisão.
+              </h2>
 
-              {/* A pergunta do dono, nas palavras dele. É o que faz a pessoa se
-                  reconhecer antes de ler a explicação técnica. */}
-              <p className="text-muted-foreground text-sm italic">{recurso.pergunta}</p>
+              <p className="text-muted-foreground leading-relaxed">
+                A previsão combina o histórico financeiro com contas a pagar e a receber já
+                registradas. O resultado aparece em gráficos claros, aponta riscos e sugere onde
+                agir primeiro.
+              </p>
 
-              <p className="text-muted-foreground text-sm leading-relaxed">{recurso.descricao}</p>
-            </article>
-          ))}
-        </div>
+              <ol className="mt-2 flex flex-col gap-5">
+                {[
+                  {
+                    icone: Database,
+                    titulo: 'Organiza os números',
+                    descricao: 'Reúne entradas, saídas e compromissos futuros sem expor clientes.',
+                  },
+                  {
+                    icone: TrendingUp,
+                    titulo: 'Projeta cenários',
+                    descricao: 'Mostra a evolução provável do saldo e a faixa de variação.',
+                  },
+                  {
+                    icone: Sparkles,
+                    titulo: 'Transforma em ação',
+                    descricao: 'Explica riscos e recomenda próximos passos em linguagem simples.',
+                  },
+                ].map((passo, indice) => (
+                  <li key={passo.titulo} className="flex gap-3">
+                    <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
+                      <passo.icone className="size-4" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold">
+                        <span className="text-muted-foreground mr-2 tabular-nums">
+                          0{indice + 1}
+                        </span>
+                        {passo.titulo}
+                      </p>
+                      <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
+                        {passo.descricao}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <DemonstracaoPrevisao />
+          </div>
+        </Revelar>
+
+        <Revelar className="mt-16" atrasoMs={80}>
+          <div className="flex max-w-2xl flex-col gap-3">
+            <RotuloSecao>Próximos assistentes</RotuloSecao>
+            <h3 className="text-2xl font-semibold tracking-tight">
+              A inteligência continua crescendo junto com a operação.
+            </h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Estes recursos entram nas próximas etapas. Cada ação sensível continuará dependendo da
+              confirmação de uma pessoa.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {proximosRecursos.map((recurso) => (
+              <article
+                key={recurso.titulo}
+                className="cartao-elevavel bg-card flex flex-col gap-3 rounded-lg border p-5 shadow-[var(--sombra-sutil)]"
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <recurso.icone aria-hidden className="text-primary size-5" />
+                  <span className="text-muted-foreground border-border rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium">
+                    em breve
+                  </span>
+                </span>
+                <h4 className="font-semibold tracking-tight">{recurso.titulo}</h4>
+                <p className="text-muted-foreground text-sm italic">{recurso.pergunta}</p>
+                <p className="text-muted-foreground text-sm leading-relaxed">{recurso.descricao}</p>
+              </article>
+            ))}
+          </div>
+        </Revelar>
 
         <p className="text-muted-foreground mt-8 flex items-start gap-2.5 text-sm leading-relaxed">
           <Sparkles aria-hidden className="text-primary mt-0.5 size-4 shrink-0" />
           <span className="max-w-2xl">
-            A IA trabalha sobre totais agregados e não recebe nomes de clientes. A previsão é uma
-            estimativa gerencial e não substitui o contador.
+            A IA trabalha sobre totais agregados e não recebe nomes de clientes. As projeções são
+            apoio gerencial e não substituem a análise do contador.
           </span>
         </p>
       </div>
@@ -331,7 +389,7 @@ function CartaoPlano({
 }) {
   return (
     <article
-      className={`bg-card flex flex-col gap-6 rounded-lg border p-8 shadow-[var(--sombra-sutil)] ${destaque ? 'ring-primary/25 ring-1' : ''}`}
+      className={`cartao-elevavel bg-card flex flex-col gap-6 rounded-lg border p-8 shadow-[var(--sombra-sutil)] ${destaque ? 'ring-primary/25 ring-1' : ''}`}
     >
       <div>
         <h3 className="text-xl font-semibold">{nome}</h3>
