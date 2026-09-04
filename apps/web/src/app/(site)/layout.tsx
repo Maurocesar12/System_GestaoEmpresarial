@@ -22,6 +22,7 @@ const SECOES = [
   { href: '#como-funciona', rotulo: 'Como funciona' },
   { href: '#ia', rotulo: 'Inteligência artificial' },
   { href: '#seguranca', rotulo: 'Segurança' },
+  { href: '#planos', rotulo: 'Planos' },
 ];
 
 export default function LayoutSite({ children }: { children: React.ReactNode }) {

@@ -122,6 +122,13 @@ enum MarcoFunil {
   @@map("marco_funil")
 }
 
+enum ModoExecucaoIa {
+  openai
+  demonstracao
+
+  @@map("modo_execucao_ia")
+}
+
 // ============================================================================
 //  Plataforma
 // ============================================================================
@@ -139,9 +146,13 @@ model Plano {
 
   /// Limites aplicados como guard no backend.
   /// `null` significa ilimitado — diferente de zero, que bloqueia tudo.
-  limiteUsuarios      Int? @map("limite_usuarios")
-  limiteClientes      Int? @map("limite_clientes")
-  limiteEnviosMensais Int? @map("limite_envios_mensais")
+  usuariosInclusos           Int?    @map("usuarios_inclusos")
+  precoUsuarioAdicional      Decimal @default(0) @map("preco_usuario_adicional") @db.Decimal(14, 2)
+  limiteUsuarios             Int?    @map("limite_usuarios")
+  limiteClientes             Int?    @map("limite_clientes")
+  limiteEnviosMensais        Int?    @map("limite_envios_mensais")
+  limitePrevisoesIaMensais   Int?    @map("limite_previsoes_ia_mensais")
+  iaHabilitada               Boolean @default(false) @map("ia_habilitada")
 
   /// Plano fora de venda continua existindo: tenants antigos seguem nele.
   ativo Boolean @default(true)
@@ -157,9 +168,9 @@ model Plano {
 /// A empresa assinante. É a raiz de tudo — o `tenantId` das outras tabelas
 /// aponta para cá.
 model Tenant {
-  id   String  @id @default(uuid(7)) @db.Uuid
-  nome String  @db.VarChar(120)
-  cnpj String? @unique @db.VarChar(14)
+  id       String  @id @default(uuid(7)) @db.Uuid
+  nome     String  @db.VarChar(120)
+  cnpj     String? @unique @db.VarChar(14)
   email    String? @db.VarChar(180)
   telefone String? @db.VarChar(20)
 
@@ -196,6 +207,7 @@ model Tenant {
   camposPersonalizados  CampoPersonalizado[]
   etiquetas             Etiqueta[]
   clientesEtiquetas     ClienteEtiqueta[]
+  previsoesFinanceiras  PrevisaoFinanceira[]
 
   @@index([status])
   @@map("tenant")
@@ -239,8 +251,8 @@ model Usuario {
   ativo Boolean      @default(true)
 
   /// Nulo usa o conjunto padrão do papel; preenchido representa uma escolha explícita.
-  permissoes                  String[] @default([])
-  permissoesPersonalizadas    Boolean  @default(false) @map("permissoes_personalizadas")
+  permissoes               String[] @default([])
+  permissoesPersonalizadas Boolean  @default(false) @map("permissoes_personalizadas")
 
   ultimoLoginEm DateTime? @map("ultimo_login_em")
 
@@ -250,7 +262,6 @@ model Usuario {
   refreshTokens RefreshToken[]
 
   @@index([tenantId, criadoEm])
-
   @@index([tenantId, ativo])
   @@map("usuario")
 }
@@ -293,7 +304,7 @@ model ConviteEquipe {
   nome       String       @db.VarChar(120)
   email      String       @db.VarChar(180)
   papel      PapelUsuario
-  permissoes String[] @default([])
+  permissoes String[]     @default([])
   tokenHash  String       @unique @map("token_hash") @db.VarChar(64)
   expiraEm   DateTime     @map("expira_em")
   criadoEm   DateTime     @default(now()) @map("criado_em")
@@ -354,15 +365,15 @@ enum TipoCampoPersonalizado {
 }
 
 model CampoPersonalizado {
-  id       String @id @default(uuid(7)) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  nome       String @db.VarChar(80)
-  tipo       TipoCampoPersonalizado @default(texto)
-  obrigatorio Boolean @default(false)
-  opcoes     String[] @default([])
-  ordem      Int @default(0)
-  criadoEm   DateTime @default(now()) @map("criado_em")
+  id          String                 @id @default(uuid(7)) @db.Uuid
+  tenantId    String                 @map("tenant_id") @db.Uuid
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome        String                 @db.VarChar(80)
+  tipo        TipoCampoPersonalizado @default(texto)
+  obrigatorio Boolean                @default(false)
+  opcoes      String[]               @default([])
+  ordem       Int                    @default(0)
+  criadoEm    DateTime               @default(now()) @map("criado_em")
 
   @@unique([tenantId, nome])
   @@index([tenantId, ordem])
@@ -370,12 +381,12 @@ model CampoPersonalizado {
 }
 
 model Etiqueta {
-  id       String @id @default(uuid(7)) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  nome     String @db.VarChar(40)
-  cor      String @db.VarChar(7)
-  criadoEm DateTime @default(now()) @map("criado_em")
+  id       String            @id @default(uuid(7)) @db.Uuid
+  tenantId String            @map("tenant_id") @db.Uuid
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nome     String            @db.VarChar(40)
+  cor      String            @db.VarChar(7)
+  criadoEm DateTime          @default(now()) @map("criado_em")
   clientes ClienteEtiqueta[]
 
   @@unique([tenantId, nome])
@@ -383,11 +394,11 @@ model Etiqueta {
 }
 
 model ClienteEtiqueta {
-  tenantId  String @map("tenant_id") @db.Uuid
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  clienteId String @map("cliente_id") @db.Uuid
-  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  etiquetaId String @map("etiqueta_id") @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clienteId  String   @map("cliente_id") @db.Uuid
+  cliente    Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  etiquetaId String   @map("etiqueta_id") @db.Uuid
   etiqueta   Etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
 
   @@id([clienteId, etiquetaId])
@@ -607,7 +618,7 @@ model LancamentoFinanceiro {
 
   /// Quando o dinheiro efetivamente entrou ou saiu. Nulo enquanto está em
   /// aberto — é este campo, e não `data`, que o fluxo de caixa soma.
-  pagoEm     DateTime? @map("pago_em") @db.Date
+  pagoEm DateTime? @map("pago_em") @db.Date
 
   categoriaId String?              @map("categoria_id") @db.Uuid
   categoria   CategoriaFinanceira? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
@@ -668,6 +679,32 @@ model ReservaFinanceira {
 
   @@unique([tenantId, nome])
   @@map("reserva_financeira")
+}
+
+/// Previsão financeira gerada para a empresa. Os dados enviados ao provedor
+/// são somente totais agregados: nomes de clientes e descrições não saem do sistema.
+/// `usuarioId` não possui FK para manter o histórico mesmo após a saída da pessoa.
+model PrevisaoFinanceira {
+  id        String @id @default(uuid(7)) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usuarioId String @map("usuario_id") @db.Uuid
+
+  mesesHistorico   Int            @map("meses_historico")
+  mesesProjecao    Int            @map("meses_projecao")
+  modo             ModoExecucaoIa
+  modelo           String         @db.VarChar(80)
+  dadosBase        Json           @map("dados_base")
+  resultado        Json
+  inputTokens      Int            @default(0) @map("input_tokens")
+  outputTokens     Int            @default(0) @map("output_tokens")
+  /// Seis casas são necessárias porque uma geração costuma custar menos de US$ 0,01.
+  custoEstimadoUsd Decimal        @default(0) @map("custo_estimado_usd") @db.Decimal(14, 6)
+  criadoEm         DateTime       @default(now()) @map("criado_em")
+
+  @@index([tenantId, criadoEm])
+  @@index([tenantId, usuarioId, criadoEm])
+  @@map("previsao_financeira")
 }
 
 // ============================================================================

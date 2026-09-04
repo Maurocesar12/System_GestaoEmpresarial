@@ -26,6 +26,7 @@ import { AuthService } from '../../auth/auth.service';
 import { RefreshTokenService } from '../../auth/refresh-token.service';
 import { SenhaService } from '../../auth/senha.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
+import { calcularMensalidade } from '../planos/calcular-mensalidade';
 
 interface TokenConvite {
   tipo: 'convite-equipe';
@@ -47,15 +48,26 @@ export class EquipeService {
   ) {}
 
   async listar(): Promise<EquipeResponse> {
-    const { funcionarios, convites } = await this.prisma.comTenant((tx) =>
+    const { funcionarios, convites, tenant } = await this.prisma.comTenant((tx) =>
       Promise.all([
         tx.usuario.findMany({ orderBy: { criadoEm: 'asc' } }),
         tx.conviteEquipe.findMany({
           where: { expiraEm: { gt: new Date() } },
           orderBy: { criadoEm: 'desc' },
         }),
-      ]).then(([funcionarios, convites]) => ({ funcionarios, convites })),
+        tx.tenant.findUniqueOrThrow({ where: { id: tenantAtual() }, include: { plano: true } }),
+      ]).then(([funcionarios, convites, tenant]) => ({ funcionarios, convites, tenant })),
     );
+
+    const usuariosAtivos = funcionarios.filter((item) => item.ativo).length;
+    const ocupadas = usuariosAtivos + convites.length;
+    const limite = tenant.plano.limiteUsuarios;
+    const cobranca = calcularMensalidade({
+      precoBase: tenant.plano.preco,
+      usuariosAtivos,
+      usuariosInclusos: tenant.plano.usuariosInclusos,
+      precoUsuarioAdicional: tenant.plano.precoUsuarioAdicional,
+    });
 
     return {
       funcionarios: funcionarios.map((item) => this.paraFuncionario(item)),
@@ -68,6 +80,17 @@ export class EquipeService {
         expiraEm: item.expiraEm.toISOString(),
         criadoEm: item.criadoEm.toISOString(),
       })),
+      capacidade: {
+        planoNome: tenant.plano.nome,
+        limiteUsuarios: limite,
+        usuariosAtivos,
+        convitesPendentes: convites.length,
+        vagasDisponiveis: limite === null ? null : Math.max(0, limite - ocupadas),
+        usuariosInclusos: tenant.plano.usuariosInclusos,
+        usuariosAdicionais: cobranca.usuariosAdicionais,
+        precoPorUsuarioAdicional: tenant.plano.precoUsuarioAdicional.toFixed(2),
+        mensalidadeEstimada: cobranca.mensalidade.toFixed(2),
+      },
     };
   }
 

@@ -1,10 +1,12 @@
 'use client';
 
 import {
+  formatarBRL,
   GRUPOS_PERMISSOES,
   PERMISSOES_PADRAO_POR_PAPEL,
   type ConviteEquipe,
   type Funcionario,
+  type EquipeResponse,
   type PapelUsuario,
   type Permissao,
 } from '@gestao/shared-types';
@@ -25,24 +27,48 @@ const ROTULOS: Record<PapelUsuario, string> = {
   tecnico: 'Técnico',
 };
 
-export function GerenciadorEquipe({
-  funcionarios,
-  convites,
-}: {
-  funcionarios: Funcionario[];
-  convites: ConviteEquipe[];
-}) {
+export function GerenciadorEquipe({ funcionarios, convites, capacidade }: EquipeResponse) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="flex flex-col gap-3">
-        {funcionarios.map((funcionario) => (
-          <FormularioFuncionario key={funcionario.id} funcionario={funcionario} />
-        ))}
+    <div className="flex flex-col gap-6">
+      <div className="bg-card grid gap-4 rounded-lg border p-4 shadow-[var(--sombra-sutil)] sm:grid-cols-2 xl:grid-cols-5">
+        <Resumo rotulo="Plano" valor={capacidade.planoNome} />
+        <Resumo rotulo="Ativos" valor={String(capacidade.usuariosAtivos)} />
+        <Resumo rotulo="Convites pendentes" valor={String(capacidade.convitesPendentes)} />
+        <Resumo
+          rotulo="Vagas disponíveis"
+          valor={
+            capacidade.vagasDisponiveis === null
+              ? 'Sem limite'
+              : String(capacidade.vagasDisponiveis)
+          }
+        />
+        <Resumo rotulo="Mensalidade estimada" valor={formatarBRL(capacidade.mensalidadeEstimada)} />
+        <p className="text-muted-foreground border-border border-t pt-3 text-xs leading-relaxed sm:col-span-2 xl:col-span-5">
+          O plano inclui {capacidade.usuariosInclusos ?? 'todos os'} usuários. Acima disso, cada
+          usuário ativo adiciona {formatarBRL(capacidade.precoPorUsuarioAdicional)} por mês.
+          Convites pendentes reservam vaga, mas não são cobrados até serem aceitos.
+        </p>
       </div>
-      <div className="flex flex-col gap-6">
-        <FormularioConvite />
-        {convites.length > 0 && <ConvitesPendentes convites={convites} />}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex flex-col gap-3">
+          {funcionarios.map((funcionario) => (
+            <FormularioFuncionario key={funcionario.id} funcionario={funcionario} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-6">
+          <FormularioConvite />
+          {convites.length > 0 && <ConvitesPendentes convites={convites} />}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function Resumo({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div>
+      <p className="text-muted-foreground text-xs">{rotulo}</p>
+      <p className="mt-1 font-semibold tabular-nums">{valor}</p>
     </div>
   );
 }

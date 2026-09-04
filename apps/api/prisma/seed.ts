@@ -36,36 +36,49 @@ export const ETAPAS_FUNIL_PADRAO = [
 /**
  * Planos iniciais.
  *
- * Preços e limites ainda não estão definidos comercialmente (arquitetura §12) —
- * estes valores são um ponto de partida para desenvolver, não uma decisão de
- * negócio. `slug` é o identificador estável usado no código; o `nome` pode
- * mudar sem quebrar nada.
+ * Os slugs anteriores foram preservados para que empresas já cadastradas não
+ * percam a referência ao plano quando o nome comercial muda.
  */
 const PLANOS = [
   {
     slug: 'essencial',
-    nome: 'Essencial',
-    preco: '97.00',
-    limiteUsuarios: 3,
+    nome: 'Básico',
+    preco: '100.00',
+    usuariosInclusos: 2,
+    precoUsuarioAdicional: '20.00',
+    limiteUsuarios: 5,
     limiteClientes: 500,
     limiteEnviosMensais: 300,
+    iaHabilitada: false,
+    limitePrevisoesIaMensais: 0,
+    ativo: true,
   },
   {
     slug: 'profissional',
-    nome: 'Profissional',
-    preco: '197.00',
-    limiteUsuarios: 10,
+    nome: 'Pro',
+    preco: '200.00',
+    usuariosInclusos: 5,
+    precoUsuarioAdicional: '15.00',
+    limiteUsuarios: 20,
     limiteClientes: 3000,
     limiteEnviosMensais: 2000,
+    iaHabilitada: true,
+    limitePrevisoesIaMensais: 200,
+    ativo: true,
   },
   {
     slug: 'ilimitado',
     nome: 'Ilimitado',
     preco: '397.00',
     // null significa sem limite — diferente de zero, que bloquearia tudo.
+    usuariosInclusos: null,
+    precoUsuarioAdicional: '0.00',
     limiteUsuarios: null,
     limiteClientes: null,
     limiteEnviosMensais: null,
+    iaHabilitada: true,
+    limitePrevisoesIaMensais: null,
+    ativo: false,
   },
 ] as const;
 
@@ -81,9 +94,14 @@ async function main(): Promise<void> {
       update: {
         nome: plano.nome,
         preco: plano.preco,
+        usuariosInclusos: plano.usuariosInclusos,
+        precoUsuarioAdicional: plano.precoUsuarioAdicional,
         limiteUsuarios: plano.limiteUsuarios,
         limiteClientes: plano.limiteClientes,
         limiteEnviosMensais: plano.limiteEnviosMensais,
+        iaHabilitada: plano.iaHabilitada,
+        limitePrevisoesIaMensais: plano.limitePrevisoesIaMensais,
+        ativo: plano.ativo,
       },
     });
 

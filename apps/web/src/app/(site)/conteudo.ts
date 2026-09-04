@@ -127,9 +127,18 @@ export interface RecursoIA {
   descricao: string;
   /** A pergunta do dono que este recurso responde, nas palavras dele. */
   pergunta: string;
+  disponivel?: boolean;
 }
 
 export const RECURSOS_IA: readonly RecursoIA[] = [
+  {
+    icone: TrendingUp,
+    titulo: 'Previsão do fluxo de caixa',
+    pergunta: '“Meu caixa aguenta os próximos meses?”',
+    descricao:
+      'Cruza o histórico com contas já previstas, projeta o saldo dos próximos meses e explica os riscos e ações em linguagem simples.',
+    disponivel: true,
+  },
   {
     icone: MessageSquareText,
     titulo: 'Pergunte em português',
@@ -176,17 +185,3 @@ export const RECURSOS_IA: readonly RecursoIA[] = [
 
 /** Dias de teste — espelha `ONBOARDING_TRIAL_DIAS` no ambiente da API. */
 export const DIAS_DE_TESTE = 14;
-
-/**
- * O que está incluído no período de teste.
- *
- * Substitui a tabela de planos enquanto preço e limites não estão definidos
- * (arquitetura §12). Anunciar valor que ainda vai mudar é pior que não
- * anunciar: quem contrata por um preço e recebe outro não reclama, some.
- */
-export const INCLUIDO_NO_TESTE: readonly string[] = [
-  'Todas as funcionalidades liberadas, sem recurso bloqueado',
-  'Sem cartão de crédito para começar',
-  'Seus dados continuam seus — dá para exportar quando quiser',
-  'Sem fidelidade: se não servir, é só parar de usar',
-];

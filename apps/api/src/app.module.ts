@@ -23,6 +23,8 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { EquipeModule } from './modules/plataforma/equipe/equipe.module';
 import { AuditoriaModule } from './modules/plataforma/auditoria/auditoria.module';
 import { ConfiguracoesModule } from './modules/plataforma/configuracoes/configuracoes.module';
+import { PlanosModule } from './modules/plataforma/planos/planos.module';
+import { IaModule } from './modules/ia/ia.module';
 
 /**
  * Raiz da aplicação.
@@ -65,6 +67,7 @@ import { ConfiguracoesModule } from './modules/plataforma/configuracoes/configur
     EquipeModule,
     AuditoriaModule,
     ConfiguracoesModule,
+    PlanosModule,
     ClientesModule,
     AtendimentosModule,
     FunilModule,
@@ -73,6 +76,7 @@ import { ConfiguracoesModule } from './modules/plataforma/configuracoes/configur
     AgendamentosModule,
     LembretesModule,
     FinanceiroModule,
+    IaModule,
     HealthModule,
   ],
   providers: [

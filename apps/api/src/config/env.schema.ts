@@ -94,6 +94,20 @@ export const envSchema = z
       .regex(/^.{1,120}\s<[^\s<>@]+@[^\s<>@]+>$/, 'Use o formato Nome <email@dominio.com>')
       .default('Gestão Empresarial <nao-responda@localhost>'),
 
+    /**
+     * Chave da OpenAI usada exclusivamente pela API. Vazia ativa o provedor
+     * determinístico de demonstração, sem chamada externa nem custo.
+     */
+    OPENAI_API_KEY: z.preprocess(
+      (valor) => (valor === '' ? undefined : valor),
+      z.string().min(20).optional(),
+    ),
+    OPENAI_MODEL: z.string().trim().min(1).default('gpt-5.6-luna'),
+    OPENAI_BASE_URL: z.url().default('https://api.openai.com/v1'),
+    /** Preços configuráveis: a OpenAI pode alterá-los sem exigir deploy de código. */
+    OPENAI_CUSTO_INPUT_USD_MILHAO: z.coerce.number().nonnegative().default(0.2),
+    OPENAI_CUSTO_OUTPUT_USD_MILHAO: z.coerce.number().nonnegative().default(1.2),
+
     /** Endereço público do frontend, usado nos links de convite da equipe. */
     APP_URL: z.url().default('http://localhost:3000'),
 

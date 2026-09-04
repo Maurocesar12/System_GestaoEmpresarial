@@ -13,6 +13,8 @@ export * from './plataforma/equipe';
 export * from './plataforma/permissoes';
 export * from './plataforma/auditoria';
 export * from './plataforma/configuracoes';
+export * from './plataforma/planos';
+export * from './ia/previsao-financeira';
 export * from './crm/agendamentos';
 export * from './crm/atendimentos';
 export * from './crm/clientes';

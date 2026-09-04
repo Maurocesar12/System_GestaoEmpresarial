@@ -138,6 +138,20 @@ services:
       - key: EMAIL_REMETENTE
         sync: false
 
+      # OpenAI: deixe vazio enquanto estiver desenvolvendo. Nesse estado a
+      # previsão roda em demonstração, sem custo. Ao preencher a chave, a API
+      # passa automaticamente a usar o modelo real.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.6-luna
+      - key: OPENAI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: OPENAI_CUSTO_INPUT_USD_MILHAO
+        value: 0.20
+      - key: OPENAI_CUSTO_OUTPUT_USD_MILHAO
+        value: 1.20
+
       # Reservado para o painel interno (AdminModule), que ainda não existe.
       - key: ADMIN_DATABASE_URL
         value: ''

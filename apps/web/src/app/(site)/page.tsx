@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { estilosBotao } from '@/components/ui/botao';
-import { DIAS_DE_TESTE, INCLUIDO_NO_TESTE, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
+import { DIAS_DE_TESTE, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { PainelDeExemplo } from './painel-de-exemplo';
 
 export const metadata: Metadata = {
@@ -154,19 +154,6 @@ function ComoFunciona() {
   );
 }
 
-/**
- * Inteligência artificial.
- *
- * ## Por que a seção diz "em breve" em toda parte
- *
- * Nada aqui está pronto. Escondê-lo atrás de verbo no presente renderia mais
- * cadastros e um estrago maior: quem assina esperando conversar com a IA e não
- * encontra nada cancela na primeira hora, conta para os outros e não volta.
- *
- * O aviso aparece três vezes — no rótulo, no parágrafo de abertura e em cada
- * cartão — porque a pessoa raramente lê a página inteira. Ela varre, e precisa
- * bater o olho em qualquer ponto e entender que isso é o que vem por aí.
- */
 function InteligenciaArtificial() {
   return (
     <section id="ia" className="scroll-mt-16 border-b">
@@ -174,20 +161,18 @@ function InteligenciaArtificial() {
         <div className="flex max-w-2xl flex-col gap-4">
           <span className="flex items-center gap-2">
             <RotuloSecao>Inteligência artificial</RotuloSecao>
-            <span className="bg-atencao-suave text-atencao rounded-full px-2 py-0.5 text-xs font-medium">
-              Em desenvolvimento
+            <span className="bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-xs font-medium">
+              Disponível no Pro
             </span>
           </span>
 
           <h2 className="text-3xl font-semibold tracking-tight text-balance">
-            O sistema vai passar a responder, não só guardar.
+            O sistema ajuda a enxergar o que vem pela frente.
           </h2>
 
           <p className="text-muted-foreground leading-relaxed">
-            Estes recursos <strong className="text-foreground">ainda não estão no ar</strong> — são
-            o que estamos construindo agora. A ideia é simples: você já alimenta o sistema com o seu
-            dia a dia, então ele deveria conseguir responder o que você faria perguntando ao
-            contador.
+            A previsão financeira já transforma seus lançamentos em cenários de caixa e ações
+            práticas. Outros assistentes entram depois, sempre com confirmação humana.
           </p>
         </div>
 
@@ -199,8 +184,14 @@ function InteligenciaArtificial() {
             >
               <span className="flex items-center justify-between gap-3">
                 <recurso.icone aria-hidden className="text-primary size-5" />
-                <span className="text-muted-foreground border-border rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium">
-                  em breve
+                <span
+                  className={
+                    recurso.disponivel
+                      ? 'bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-[0.6875rem] font-medium'
+                      : 'text-muted-foreground border-border rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium'
+                  }
+                >
+                  {recurso.disponivel ? 'disponível no Pro' : 'em breve'}
                 </span>
               </span>
 
@@ -218,8 +209,8 @@ function InteligenciaArtificial() {
         <p className="text-muted-foreground mt-8 flex items-start gap-2.5 text-sm leading-relaxed">
           <Sparkles aria-hidden className="text-primary mt-0.5 size-4 shrink-0" />
           <span className="max-w-2xl">
-            Quem entrar agora ajuda a decidir o que vem primeiro. Se um desses recursos resolveria
-            um problema seu, diga — a ordem ainda não está fechada.
+            A IA trabalha sobre totais agregados e não recebe nomes de clientes. A previsão é uma
+            estimativa gerencial e não substitui o contador.
           </span>
         </p>
       </div>
@@ -285,50 +276,86 @@ function Seguranca() {
   );
 }
 
-/**
- * O período de teste, no lugar da tabela de preços.
- *
- * Os valores ainda não estão definidos (arquitetura §12). Anunciar um preço que
- * vai mudar é pior do que não anunciar nenhum: quem contrata por um valor e
- * recebe outro não reclama, some — e leva junto a confiança de quem ele contou.
- *
- * Quando os planos forem fechados, esta seção volta a ser uma tabela.
- */
 function Teste() {
   return (
     <section id="planos" className="scroll-mt-16 border-b">
-      <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
+      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <CabecalhoSecao
           rotulo="Preço"
-          titulo={`Experimente ${DIAS_DE_TESTE} dias antes de qualquer conversa sobre valor.`}
+          titulo={`Escolha o tamanho certo depois de testar por ${DIAS_DE_TESTE} dias.`}
         >
-          Ainda estamos fechando os planos, e preferimos definir o preço ouvindo quem está usando.
-          Enquanto isso, o sistema fica liberado por inteiro — sem recurso escondido atrás de plano
-          melhor.
+          Comece sem cartão. O Básico organiza a operação; o Pro amplia a equipe, a carteira e
+          acrescenta a previsão financeira com IA.
         </CabecalhoSecao>
-
-        <div className="bg-card flex flex-col gap-6 rounded-lg border p-8 shadow-[var(--sombra-sutil)]">
-          <ul className="flex flex-col gap-3.5">
-            {INCLUIDO_NO_TESTE.map((item) => (
-              <li key={item} className="flex items-start gap-3 text-sm leading-relaxed">
-                <Check aria-hidden className="text-primary mt-0.5 size-4 shrink-0" />
-                {item}
-              </li>
-            ))}
-          </ul>
-
-          <Link href="/cadastro" className={estilosBotao({ tamanho: 'lg' })}>
-            Começar agora
-            <ArrowRight aria-hidden />
-          </Link>
-
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Quando os planos saírem, avisamos com antecedência. Ninguém é cobrado sem escolher
-            continuar.
-          </p>
+        <div className="mt-12 grid gap-6 lg:grid-cols-2">
+          <CartaoPlano
+            nome="Básico"
+            preco="100"
+            itens={[
+              '2 usuários incluídos',
+              'Até 5 usuários · R$ 20 por adicional',
+              '500 clientes',
+              'CRM, agenda e financeiro',
+              'Importação e exportação de dados',
+            ]}
+          />
+          <CartaoPlano
+            nome="Pro"
+            preco="200"
+            destaque
+            itens={[
+              '5 usuários incluídos',
+              'Até 20 usuários · R$ 15 por adicional',
+              '3.000 clientes',
+              'Tudo do Básico',
+              'Previsão financeira com IA',
+              '200 previsões por mês',
+            ]}
+          />
         </div>
       </div>
     </section>
+  );
+}
+
+function CartaoPlano({
+  nome,
+  preco,
+  itens,
+  destaque = false,
+}: {
+  nome: string;
+  preco: string;
+  itens: string[];
+  destaque?: boolean;
+}) {
+  return (
+    <article
+      className={`bg-card flex flex-col gap-6 rounded-lg border p-8 shadow-[var(--sombra-sutil)] ${destaque ? 'ring-primary/25 ring-1' : ''}`}
+    >
+      <div>
+        <h3 className="text-xl font-semibold">{nome}</h3>
+        <p className="mt-2">
+          <span className="text-4xl font-semibold tracking-tight">R$ {preco}</span>
+          <span className="text-muted-foreground">/mês</span>
+        </p>
+      </div>
+      <ul className="flex flex-col gap-3">
+        {itens.map((item) => (
+          <li key={item} className="flex gap-3 text-sm">
+            <Check className="text-primary size-4 shrink-0" />
+            {item}
+          </li>
+        ))}
+      </ul>
+      <Link
+        href="/cadastro"
+        className={estilosBotao({ variante: destaque ? 'primario' : 'secundario', tamanho: 'lg' })}
+      >
+        Testar grátis
+        <ArrowRight />
+      </Link>
+    </article>
   );
 }
 

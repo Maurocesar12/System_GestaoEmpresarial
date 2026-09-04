@@ -24,6 +24,8 @@ export const PERMISSOES = [
   'financeiro.excluir',
   'financeiro.importar',
   'financeiro.exportar',
+  'ia.previsao_financeira',
+  'ia.visualizar_consumo',
   'equipe.gerenciar',
   'auditoria.visualizar',
   'empresa.configurar',
@@ -52,6 +54,8 @@ export const PERMISSOES_PADRAO_POR_PAPEL: Record<PapelUsuario, readonly Permissa
     'financeiro.excluir',
     'financeiro.importar',
     'financeiro.exportar',
+    'ia.previsao_financeira',
+    'ia.visualizar_consumo',
   ],
   atendente: [
     ...CRM_LEITURA,
@@ -120,6 +124,13 @@ export const GRUPOS_PERMISSOES: ReadonlyArray<{
       { codigo: 'financeiro.excluir', rotulo: 'Excluir lançamentos' },
       { codigo: 'financeiro.importar', rotulo: 'Importar lançamentos' },
       { codigo: 'financeiro.exportar', rotulo: 'Exportar lançamentos' },
+    ],
+  },
+  {
+    titulo: 'Inteligência artificial',
+    itens: [
+      { codigo: 'ia.previsao_financeira', rotulo: 'Gerar previsão financeira' },
+      { codigo: 'ia.visualizar_consumo', rotulo: 'Visualizar consumo de IA' },
     ],
   },
   {

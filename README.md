@@ -54,7 +54,11 @@ Já implementado:
 - Envio automático dos lembretes por e-mail: varredura agendada, fila BullMQ e
   worker. Depende de `REDIS_URL`; sem ela os lembretes ficam pendentes.
 - Financeiro com categorias, lançamentos, fluxo de caixa e margem por serviço.
-- Guards por papel: `admin`, `financeiro`, `atendente`, `tecnico`.
+- Previsão financeira com IA no plano Pro, com modo local sem custo para desenvolvimento.
+- Consumo de IA, tokens e custo estimado atribuídos por empresa e usuário.
+- Planos Básico (R$ 100) e Pro (R$ 200), com vagas incluídas, cobrança estimada
+  por usuário ativo adicional e limites aplicados pela API.
+- Permissões por ação para `admin`, `financeiro`, `atendente`, `tecnico`.
 
 Ainda planejado:
 
@@ -259,19 +263,21 @@ Arquivo local: `apps/api/.env`.
 
 Principais variáveis:
 
-| Variável                  | Descrição                                      |
-| ------------------------- | ---------------------------------------------- |
-| `DATABASE_URL`            | Conexão da aplicação com PostgreSQL            |
-| `TEST_DATABASE_URL`       | Conexão usada pelos testes de integração       |
-| `ADMIN_DATABASE_URL`      | Conexão administrativa futura                  |
-| `JWT_SECRET`              | Segredo para assinar JWT, mínimo 32 caracteres |
-| `CORS_ORIGINS`            | Origens liberadas, separadas por vírgula       |
-| `APP_URL`                 | URL do frontend usada nos convites da equipe   |
-| `ONBOARDING_PLANO_PADRAO` | Plano usado no cadastro inicial                |
-| `ONBOARDING_TRIAL_DIAS`   | Duração do trial                               |
-| `REDIS_URL`               | Reservado para BullMQ/Upstash                  |
-| `SMTP_URL`                | Conexão SMTP usada em convites e lembretes     |
-| `EMAIL_REMETENTE`         | Nome e e-mail do domínio remetente             |
+| Variável                  | Descrição                                       |
+| ------------------------- | ----------------------------------------------- |
+| `DATABASE_URL`            | Conexão da aplicação com PostgreSQL             |
+| `TEST_DATABASE_URL`       | Conexão usada pelos testes de integração        |
+| `ADMIN_DATABASE_URL`      | Conexão administrativa futura                   |
+| `JWT_SECRET`              | Segredo para assinar JWT, mínimo 32 caracteres  |
+| `CORS_ORIGINS`            | Origens liberadas, separadas por vírgula        |
+| `APP_URL`                 | URL do frontend usada nos convites da equipe    |
+| `ONBOARDING_PLANO_PADRAO` | Plano usado no cadastro inicial                 |
+| `ONBOARDING_TRIAL_DIAS`   | Duração do trial                                |
+| `REDIS_URL`               | Reservado para BullMQ/Upstash                   |
+| `SMTP_URL`                | Conexão SMTP usada em convites e lembretes      |
+| `EMAIL_REMETENTE`         | Nome e e-mail do domínio remetente              |
+| `OPENAI_API_KEY`          | Chave privada da OpenAI; vazia usa demonstração |
+| `OPENAI_MODEL`            | Modelo usado na análise financeira              |
 
 Veja o modelo completo em [apps/api/.env.example](apps/api/.env.example).
 
@@ -334,11 +340,13 @@ Checklist de produção:
 - Configurar `SMTP_URL` e `EMAIL_REMETENTE`; sem eles os lembretes são apenas
   registrados no log, e nenhum e-mail chega ao cliente.
 - Configurar `APP_URL` com a URL pública da Vercel, sem barra no final.
+- Configurar `OPENAI_API_KEY` no Render quando quiser sair do modo de demonstração.
 
 ## Documentação
 
 - [Arquitetura](docs/arquitetura.md)
 - [Status técnico](docs/status.md)
+- [Inteligência artificial e planos](docs/ia-e-planos.md)
 - [Schema Prisma](apps/api/prisma/schema.prisma)
 - [Migrations](apps/api/prisma/migrations)
 

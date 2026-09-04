@@ -53,4 +53,15 @@ export interface ConviteEquipe {
 export interface EquipeResponse {
   funcionarios: Funcionario[];
   convites: ConviteEquipe[];
+  capacidade: {
+    planoNome: string;
+    limiteUsuarios: number | null;
+    usuariosAtivos: number;
+    convitesPendentes: number;
+    vagasDisponiveis: number | null;
+    usuariosInclusos: number | null;
+    usuariosAdicionais: number;
+    precoPorUsuarioAdicional: string;
+    mensalidadeEstimada: string;
+  };
 }

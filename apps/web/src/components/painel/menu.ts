@@ -12,6 +12,8 @@ import {
   Settings,
   Users,
   ScrollText,
+  BrainCircuit,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 import { possuiPermissao, type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
@@ -116,14 +118,36 @@ export const MENU: readonly GrupoMenu[] = [
         icone: PiggyBank,
         permissao: 'financeiro.visualizar',
       },
+      {
+        href: '/painel/financeiro/previsao',
+        rotulo: 'Previsão com IA',
+        icone: BrainCircuit,
+        permissao: 'ia.previsao_financeira',
+      },
     ],
   },
   {
     titulo: 'Administração',
     itens: [
+      {
+        href: '/painel/plano',
+        rotulo: 'Plano',
+        icone: CreditCard,
+        permissao: 'ia.visualizar_consumo',
+      },
       { href: '/painel/equipe', rotulo: 'Equipe', icone: Users, permissao: 'equipe.gerenciar' },
-      { href: '/painel/auditoria', rotulo: 'Auditoria', icone: ScrollText, permissao: 'auditoria.visualizar' },
-      { href: '/painel/configuracoes', rotulo: 'Configurações', icone: Settings, permissao: 'empresa.configurar' },
+      {
+        href: '/painel/auditoria',
+        rotulo: 'Auditoria',
+        icone: ScrollText,
+        permissao: 'auditoria.visualizar',
+      },
+      {
+        href: '/painel/configuracoes',
+        rotulo: 'Configurações',
+        icone: Settings,
+        permissao: 'empresa.configurar',
+      },
     ],
   },
 ];

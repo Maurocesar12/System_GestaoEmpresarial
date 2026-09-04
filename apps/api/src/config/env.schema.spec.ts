@@ -38,3 +38,24 @@ describe('configuração de e-mail', () => {
     ).toThrow(/domínio verificado/);
   });
 });
+
+describe('configuração de inteligência artificial', () => {
+  it('usa demonstração quando a chave está vazia', () => {
+    const config = validateEnv({ ...BASE, OPENAI_API_KEY: '' });
+
+    expect(config.OPENAI_API_KEY).toBeUndefined();
+    expect(config.OPENAI_MODEL).toBe('gpt-5.6-luna');
+  });
+
+  it('aceita chave e preços configuráveis para acompanhar o custo', () => {
+    const config = validateEnv({
+      ...BASE,
+      OPENAI_API_KEY: 'sk-projeto-chave-comprida-de-teste',
+      OPENAI_CUSTO_INPUT_USD_MILHAO: '0.25',
+      OPENAI_CUSTO_OUTPUT_USD_MILHAO: '1.50',
+    });
+
+    expect(config.OPENAI_API_KEY).toContain('sk-');
+    expect(config.OPENAI_CUSTO_OUTPUT_USD_MILHAO).toBe(1.5);
+  });
+});
