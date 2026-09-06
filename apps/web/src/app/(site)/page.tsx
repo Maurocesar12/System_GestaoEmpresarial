@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { estilosBotao } from '@/components/ui/botao';
 import { DIAS_DE_TESTE, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { DemonstracaoPrevisao } from './demonstracao-previsao';
-import { PainelDeExemplo } from './painel-de-exemplo';
+import { Hero } from './hero';
 import { Revelar } from './revelar';
 
 export const metadata: Metadata = {
@@ -24,58 +24,6 @@ export default function PaginaInicial() {
       <Teste />
       <ChamadaFinal />
     </>
-  );
-}
-
-/**
- * Abertura.
- *
- * Alinhada à esquerda, e não centralizada. Texto centralizado obriga o olho a
- * procurar o início de cada linha e é a marca registrada de página feita a
- * partir de template — além de limitar o comprimento do título.
- */
-function Hero() {
-  return (
-    <section className="border-b">
-      <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:py-24">
-        <Revelar className="flex flex-col items-start gap-6">
-          <span className="bg-primary/10 text-primary rounded-full px-3 py-1 text-xs font-medium">
-            Para quem vende serviço
-          </span>
-
-          <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-            Descubra quais serviços seus realmente dão lucro.
-          </h1>
-
-          <p className="text-muted-foreground max-w-xl text-lg leading-relaxed">
-            Seus clientes, orçamentos e agenda num lugar só — e ligados ao dinheiro que entra e sai.
-            No fim do mês você não precisa fechar planilha: a conta de cada trabalho já está feita.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/cadastro" className={estilosBotao({ tamanho: 'lg' })}>
-              Testar {DIAS_DE_TESTE} dias de graça
-              <ArrowRight aria-hidden />
-            </Link>
-            <Link
-              href="/entrar"
-              className={estilosBotao({ variante: 'secundario', tamanho: 'lg' })}
-            >
-              Já tenho conta
-            </Link>
-          </div>
-
-          <p className="text-muted-foreground text-sm">
-            Não pedimos cartão. Você cria a empresa em um passo e já pode cadastrar o primeiro
-            cliente.
-          </p>
-        </Revelar>
-
-        <Revelar atrasoMs={100}>
-          <PainelDeExemplo />
-        </Revelar>
-      </div>
-    </section>
   );
 }
 

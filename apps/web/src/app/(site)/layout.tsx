@@ -3,6 +3,7 @@ import { Marca } from '@/components/marca';
 import { estilosBotao } from '@/components/ui/botao';
 import { AlternadorTema } from '@/components/ui/tema';
 import { SITE } from '@/configuracao/site';
+import { NavegacaoMobile } from './navegacao-mobile';
 
 /**
  * Layout das páginas públicas.
@@ -20,7 +21,7 @@ import { SITE } from '@/configuracao/site';
 const SECOES = [
   { href: '#recursos', rotulo: 'O que faz' },
   { href: '#como-funciona', rotulo: 'Como funciona' },
-  { href: '#ia', rotulo: 'Inteligência artificial' },
+  { href: '#ia', rotulo: 'Previsão com IA' },
   { href: '#seguranca', rotulo: 'Segurança' },
   { href: '#planos', rotulo: 'Planos' },
 ];
@@ -33,12 +34,12 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
         continua legível, sem a barra virar um bloco opaco que rouba altura útil
         em notebook de tela baixa.
       */}
-      <header className="bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
+      <header className="bg-background/80 sticky top-0 z-40 h-[var(--altura-cabecalho-site)] shrink-0 border-b backdrop-blur">
         {/*
           Padding menor no celular: a 390px, o nome da marca mais os dois botões
           não cabem com `px-6`, e o nome quebrava em duas linhas.
         */}
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:gap-6 sm:px-6">
+        <div className="mx-auto flex h-full w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:gap-6 sm:px-8 lg:px-12">
           <Link href="/" aria-label="Página inicial" className="whitespace-nowrap">
             <Marca className="text-sm sm:text-base" />
           </Link>
@@ -48,7 +49,7 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
             quatro âncoras deixam de caber em tablet sem espremer os botões de
             entrar e criar conta, que são o que a página existe para oferecer.
           */}
-          <nav className="hidden items-center gap-7 lg:flex" aria-label="Seções da página">
+          <nav className="hidden items-center gap-5 lg:flex" aria-label="Seções da página">
             {SECOES.map((secao) => (
               <a
                 key={secao.href}
@@ -60,14 +61,15 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto hidden items-center gap-2 sm:flex lg:ml-0">
             <Link href="/entrar" className={estilosBotao({ variante: 'sutil', tamanho: 'sm' })}>
               Entrar
             </Link>
             <Link href="/cadastro" className={estilosBotao({ tamanho: 'sm' })}>
-              Criar conta
+              Testar grátis
             </Link>
           </div>
+          <NavegacaoMobile secoes={SECOES} />
         </div>
       </header>
 

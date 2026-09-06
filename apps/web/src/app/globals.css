@@ -3,6 +3,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Superfície do vídeo exportado e contraste do título comercial. */
+:root {
+  --altura-cabecalho-site: 4rem;
+  --hero-video-fundo: #faf9f6;
+  --hero-video-texto: #756c63;
+  --hero-enfase: oklch(0.49 0.055 62);
+}
+
+.dark {
+  --hero-enfase: oklch(0.77 0.055 62);
+}
+
 /*
   Sistema visual do produto.
 
