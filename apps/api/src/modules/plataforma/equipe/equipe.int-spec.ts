@@ -99,7 +99,7 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
     expect(mensagem.corpo).toContain('/aceitar-convite?token=');
 
     const { body: auditoria } = await autenticado(tokenAdminA).get('/api/auditoria').expect(200);
-    expect(auditoria).toEqual(
+    expect(auditoria.dados).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ entidade: 'funcionario', acao: 'convidou' }),
       ]),

@@ -195,7 +195,11 @@ export class FinanceiroService {
         include: INCLUDE_PADRAO,
       });
       await this.auditoria.registrar(tx, {
-        entidade: 'lancamento', entidadeId: criado.id, acao: 'criou', depois: this.paraResposta(criado),
+        entidade: 'lancamento',
+        entidadeId: criado.id,
+        acao: 'criou',
+        resumo: this.resumirLancamento('Lançamento criado', criado),
+        depois: this.paraResposta(criado),
       });
       return criado;
     });
@@ -217,7 +221,10 @@ export class FinanceiroService {
         garantirVinculos(tx, dados),
       ]);
       if (!anterior) {
-        throw new NotFoundException({ codigo: CODIGOS_ERRO.NAO_ENCONTRADO, mensagem: 'Lançamento não encontrado.' });
+        throw new NotFoundException({
+          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+          mensagem: 'Lançamento não encontrado.',
+        });
       }
 
       const alterado = await tx.lancamentoFinanceiro.update({
@@ -226,8 +233,12 @@ export class FinanceiroService {
         include: INCLUDE_PADRAO,
       });
       await this.auditoria.registrar(tx, {
-        entidade: 'lancamento', entidadeId: id, acao: 'alterou',
-        antes: this.paraResposta(anterior), depois: this.paraResposta(alterado),
+        entidade: 'lancamento',
+        entidadeId: id,
+        acao: 'alterou',
+        resumo: this.resumirLancamento('Lançamento alterado', alterado),
+        antes: this.paraResposta(anterior),
+        depois: this.paraResposta(alterado),
       });
       return alterado;
     });
@@ -254,11 +265,20 @@ export class FinanceiroService {
     // O `deleteMany` sob RLS só apaga o que é do tenant; contar o resultado
     // distingue "não existe" de "é de outra empresa" sem uma consulta extra.
     const { count } = await this.prisma.comTenant(async (tx) => {
-      const anterior = await tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_PADRAO });
-      const resultado = await tx.lancamentoFinanceiro.deleteMany({ where: { id } });
-      if (anterior && resultado.count) await this.auditoria.registrar(tx, {
-        entidade: 'lancamento', entidadeId: id, acao: 'excluiu', antes: this.paraResposta(anterior),
+      const anterior = await tx.lancamentoFinanceiro.findUnique({
+        where: { id },
+        include: INCLUDE_PADRAO,
       });
+      const resultado = await tx.lancamentoFinanceiro.deleteMany({ where: { id } });
+      if (anterior && resultado.count) {
+        await this.auditoria.registrar(tx, {
+          entidade: 'lancamento',
+          entidadeId: id,
+          acao: 'excluiu',
+          resumo: this.resumirLancamento('Lançamento excluído', anterior),
+          antes: this.paraResposta(anterior),
+        });
+      }
       return resultado;
     });
 
@@ -276,13 +296,17 @@ export class FinanceiroService {
       const registros = [];
       for (const item of dados.lancamentos) {
         registros.push({
-          id: uuidv7(), tenantId: tenantAtual(),
+          id: uuidv7(),
+          tenantId: tenantAtual(),
           ...this.paraBanco({ ...item, categoriaId: null, servicoId: null, clienteId: null }),
         });
       }
       await tx.lancamentoFinanceiro.createMany({ data: registros });
       await this.auditoria.registrar(tx, {
-        entidade: 'importacao_financeira', entidadeId: importacaoId, acao: 'criou',
+        entidade: 'importacao_financeira',
+        entidadeId: importacaoId,
+        acao: 'criou',
+        resumo: `Importação financeira: ${registros.length} lançamento(s)`,
         depois: { quantidade: registros.length },
       });
     });
@@ -290,26 +314,35 @@ export class FinanceiroService {
   }
 
   async exportar(query: PeriodoQuery): Promise<ExportacaoFinanceira> {
-    const registros = await this.prisma.comTenant((tx) => tx.lancamentoFinanceiro.findMany({
-      where: {
-        data: {
-          gte: new Date(`${query.de}T00:00:00.000Z`),
-          lte: new Date(`${query.ate}T00:00:00.000Z`),
+    const registros = await this.prisma.comTenant((tx) =>
+      tx.lancamentoFinanceiro.findMany({
+        where: {
+          data: {
+            gte: new Date(`${query.de}T00:00:00.000Z`),
+            lte: new Date(`${query.ate}T00:00:00.000Z`),
+          },
+          ...(query.natureza ? { natureza: query.natureza } : {}),
         },
-        ...(query.natureza ? { natureza: query.natureza } : {}),
-      },
-      orderBy: [{ data: 'asc' }, { criadoEm: 'asc' }],
-    }));
+        orderBy: [{ data: 'asc' }, { criadoEm: 'asc' }],
+      }),
+    );
     const escapar = (valor: string | null) => {
       const seguro = valor && /^[=+\-@]/.test(valor) ? `'${valor}` : (valor ?? '');
       return `"${seguro.replace(/"/g, '""')}"`;
     };
     const linhas = [
       ['tipo', 'natureza', 'descricao', 'valor', 'data', 'vencimento', 'pagoEm'].join(';'),
-      ...registros.map((item) => [
-        item.tipo, item.natureza, escapar(item.descricao), item.valor.toFixed(2).replace('.', ','),
-        paraDia(item.data), item.vencimento ? paraDia(item.vencimento) : '', item.pagoEm ? paraDia(item.pagoEm) : '',
-      ].join(';')),
+      ...registros.map((item) =>
+        [
+          item.tipo,
+          item.natureza,
+          escapar(item.descricao),
+          item.valor.toFixed(2).replace('.', ','),
+          paraDia(item.data),
+          item.vencimento ? paraDia(item.vencimento) : '',
+          item.pagoEm ? paraDia(item.pagoEm) : '',
+        ].join(';'),
+      ),
     ];
     return {
       nomeArquivo: `financeiro-${query.de}-a-${query.ate}.csv`,
@@ -356,8 +389,12 @@ export class FinanceiroService {
         include: INCLUDE_PADRAO,
       });
       await this.auditoria.registrar(tx, {
-        entidade: 'lancamento', entidadeId: id, acao: 'alterou',
-        antes: { pagoEm: null }, depois: { pagoEm: alterado.pagoEm?.toISOString() ?? null },
+        entidade: 'lancamento',
+        entidadeId: id,
+        acao: 'movimentou',
+        resumo: this.resumirLancamento('Baixa registrada', alterado),
+        antes: { pagoEm: null },
+        depois: { pagoEm: alterado.pagoEm?.toISOString() ?? null },
       });
       return alterado;
     });
@@ -399,8 +436,12 @@ export class FinanceiroService {
         include: INCLUDE_PADRAO,
       });
       await this.auditoria.registrar(tx, {
-        entidade: 'lancamento', entidadeId: id, acao: 'alterou',
-        antes: { pagoEm: atual.pagoEm.toISOString() }, depois: { pagoEm: null },
+        entidade: 'lancamento',
+        entidadeId: id,
+        acao: 'movimentou',
+        resumo: this.resumirLancamento('Baixa estornada', alterado),
+        antes: { pagoEm: atual.pagoEm.toISOString() },
+        depois: { pagoEm: null },
       });
       return alterado;
     });
@@ -710,5 +751,13 @@ export class FinanceiroService {
       clienteNome: registro.cliente?.nome ?? null,
       criadoEm: registro.criadoEm.toISOString(),
     };
+  }
+
+  private resumirLancamento(prefixo: string, registro: LancamentoBanco): string {
+    const tipo = registro.tipo === 'entrada' ? 'entrada' : 'saída';
+    const natureza = registro.natureza === 'pessoal' ? 'pessoal' : 'empresa';
+    const cliente = registro.cliente?.nome ? ` · cliente: ${registro.cliente.nome}` : '';
+
+    return `${prefixo}: ${registro.descricao} · ${tipo} ${natureza} · R$ ${registro.valor.toFixed(2)}${cliente}`;
   }
 }

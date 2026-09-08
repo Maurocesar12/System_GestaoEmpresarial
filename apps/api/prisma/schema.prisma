@@ -146,13 +146,13 @@ model Plano {
 
   /// Limites aplicados como guard no backend.
   /// `null` significa ilimitado — diferente de zero, que bloqueia tudo.
-  usuariosInclusos           Int?    @map("usuarios_inclusos")
-  precoUsuarioAdicional      Decimal @default(0) @map("preco_usuario_adicional") @db.Decimal(14, 2)
-  limiteUsuarios             Int?    @map("limite_usuarios")
-  limiteClientes             Int?    @map("limite_clientes")
-  limiteEnviosMensais        Int?    @map("limite_envios_mensais")
-  limitePrevisoesIaMensais   Int?    @map("limite_previsoes_ia_mensais")
-  iaHabilitada               Boolean @default(false) @map("ia_habilitada")
+  usuariosInclusos         Int?    @map("usuarios_inclusos")
+  precoUsuarioAdicional    Decimal @default(0) @map("preco_usuario_adicional") @db.Decimal(14, 2)
+  limiteUsuarios           Int?    @map("limite_usuarios")
+  limiteClientes           Int?    @map("limite_clientes")
+  limiteEnviosMensais      Int?    @map("limite_envios_mensais")
+  limitePrevisoesIaMensais Int?    @map("limite_previsoes_ia_mensais")
+  iaHabilitada             Boolean @default(false) @map("ia_habilitada")
 
   /// Plano fora de venda continua existindo: tenants antigos seguem nele.
   ativo Boolean @default(true)
@@ -727,6 +727,11 @@ model LogAuditoria {
   entidade   String @db.VarChar(60)
   entidadeId String @map("entidade_id") @db.Uuid
   acao       String @db.VarChar(20)
+
+  /// Texto pesquisável do evento, preservado mesmo quando o registro original
+  /// é apagado. Ex.: nome do cliente excluído, descrição do lançamento, valor
+  /// movimentado em reserva ou pró-labore.
+  resumo String? @db.Text
 
   /// Valores antes e depois, para reconstruir o que mudou.
   antes  Json?

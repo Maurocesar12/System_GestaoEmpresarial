@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -117,7 +122,11 @@ export class ClientesService {
       const etapa = await this.funil.colocarNaPrimeiraEtapa(tx, criado.id);
 
       await this.auditoria.registrar(tx, {
-        entidade: 'cliente', entidadeId: criado.id, acao: 'criou', depois: this.paraResposta(criado),
+        entidade: 'cliente',
+        entidadeId: criado.id,
+        acao: 'criou',
+        resumo: `Cliente criado: ${criado.nome}`,
+        depois: this.paraResposta(criado),
       });
 
       return { cliente: criado, etapa };
@@ -126,7 +135,11 @@ export class ClientesService {
     // A etapa vai na resposta para o contrato ficar igual ao do `GET /clientes/:id`.
     // Sem isso, a tela precisaria de uma segunda requisição só para saber onde o
     // cliente caiu no funil.
-    return { ...this.paraResposta(cliente), etiquetas: [...new Set(dados.etiquetas)], etapaFunil: etapa };
+    return {
+      ...this.paraResposta(cliente),
+      etiquetas: [...new Set(dados.etiquetas)],
+      etapaFunil: etapa,
+    };
   }
 
   /**
@@ -209,7 +222,11 @@ export class ClientesService {
 
       for (const novo of novos) {
         await this.auditoria.registrar(tx, {
-          entidade: 'cliente', entidadeId: novo.id, acao: 'criou', depois: { ...novo },
+          entidade: 'cliente',
+          entidadeId: novo.id,
+          acao: 'criou',
+          resumo: `Cliente importado: ${novo.nome}`,
+          depois: { ...novo },
         });
       }
 
@@ -227,7 +244,8 @@ export class ClientesService {
       // `buscarPorId` aqui abriria uma segunda transação e ainda traria a
       // posição no funil junto, que não é usada para nada nesta conferência.
       const existe = await tx.cliente.findUnique({
-        where: { id }, include: { etiquetas: { select: { etiquetaId: true } } },
+        where: { id },
+        include: { etiquetas: { select: { etiquetaId: true } } },
       });
 
       if (!existe) {
@@ -239,13 +257,18 @@ export class ClientesService {
 
       await this.garantirPersonalizacao(tx, dados);
       const alterado = await tx.cliente.update({
-        where: { id }, data: this.paraBancoCliente(dados),
+        where: { id },
+        data: this.paraBancoCliente(dados),
         include: { etiquetas: { select: { etiquetaId: true } } },
       });
       await this.salvarEtiquetas(tx, id, dados.etiquetas);
       await this.auditoria.registrar(tx, {
-        entidade: 'cliente', entidadeId: id, acao: 'alterou',
-        antes: this.paraResposta(existe), depois: this.paraResposta(alterado),
+        entidade: 'cliente',
+        entidadeId: id,
+        acao: 'alterou',
+        resumo: `Cliente alterado: ${alterado.nome}`,
+        antes: this.paraResposta(existe),
+        depois: this.paraResposta(alterado),
       });
       return alterado;
     });
@@ -262,7 +285,11 @@ export class ClientesService {
       const resultado = await tx.cliente.deleteMany({ where: { id } });
       if (cliente && resultado.count) {
         await this.auditoria.registrar(tx, {
-          entidade: 'cliente', entidadeId: id, acao: 'excluiu', antes: this.paraResposta(cliente),
+          entidade: 'cliente',
+          entidadeId: id,
+          acao: 'excluiu',
+          resumo: `Cliente excluído: ${cliente.nome}`,
+          antes: this.paraResposta(cliente),
         });
       }
       return resultado;
@@ -482,32 +509,68 @@ export class ClientesService {
     return campos;
   }
 
-  private async garantirPersonalizacao(tx: TransacaoComTenant, dados: ClienteFormInput): Promise<void> {
+  private async garantirPersonalizacao(
+    tx: TransacaoComTenant,
+    dados: ClienteFormInput,
+  ): Promise<void> {
     const definicoes = await tx.campoPersonalizado.findMany();
     const porId = new Map(definicoes.map((item) => [item.id, item]));
     for (const [id, valor] of Object.entries(dados.camposPersonalizados)) {
       const campo = porId.get(id);
-      if (!campo) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: 'Um campo personalizado não existe mais.' });
-      if (valor && campo.tipo === 'numero' && !Number.isFinite(Number(valor.replace(',', '.')))) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `${campo.nome} precisa ser um número.` });
-      if (valor && campo.tipo === 'data' && !/^\d{4}-\d{2}-\d{2}$/.test(valor)) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `${campo.nome} precisa ser uma data válida.` });
-      if (valor && campo.tipo === 'selecao' && !campo.opcoes.includes(valor)) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `Escolha uma opção válida para ${campo.nome}.` });
+      if (!campo)
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.VALIDACAO,
+          mensagem: 'Um campo personalizado não existe mais.',
+        });
+      if (valor && campo.tipo === 'numero' && !Number.isFinite(Number(valor.replace(',', '.'))))
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.VALIDACAO,
+          mensagem: `${campo.nome} precisa ser um número.`,
+        });
+      if (valor && campo.tipo === 'data' && !/^\d{4}-\d{2}-\d{2}$/.test(valor))
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.VALIDACAO,
+          mensagem: `${campo.nome} precisa ser uma data válida.`,
+        });
+      if (valor && campo.tipo === 'selecao' && !campo.opcoes.includes(valor))
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.VALIDACAO,
+          mensagem: `Escolha uma opção válida para ${campo.nome}.`,
+        });
     }
-    const faltando = definicoes.find((item) => item.obrigatorio && !dados.camposPersonalizados[item.id]?.trim());
-    if (faltando) throw new BadRequestException({ codigo: CODIGOS_ERRO.VALIDACAO, mensagem: `Preencha o campo obrigatório ${faltando.nome}.` });
+    const faltando = definicoes.find(
+      (item) => item.obrigatorio && !dados.camposPersonalizados[item.id]?.trim(),
+    );
+    if (faltando)
+      throw new BadRequestException({
+        codigo: CODIGOS_ERRO.VALIDACAO,
+        mensagem: `Preencha o campo obrigatório ${faltando.nome}.`,
+      });
 
     const ids = dados.etiquetas;
     if (!ids.length) return;
     const total = await tx.etiqueta.count({ where: { id: { in: ids } } });
     if (total !== new Set(ids).size) {
-      throw new NotFoundException({ codigo: CODIGOS_ERRO.NAO_ENCONTRADO, mensagem: 'Uma das etiquetas não existe.' });
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Uma das etiquetas não existe.',
+      });
     }
   }
 
-  private async salvarEtiquetas(tx: TransacaoComTenant, clienteId: string, ids: string[]): Promise<void> {
+  private async salvarEtiquetas(
+    tx: TransacaoComTenant,
+    clienteId: string,
+    ids: string[],
+  ): Promise<void> {
     await tx.clienteEtiqueta.deleteMany({ where: { clienteId } });
     if (ids.length) {
       await tx.clienteEtiqueta.createMany({
-        data: [...new Set(ids)].map((etiquetaId) => ({ tenantId: tenantAtual(), clienteId, etiquetaId })),
+        data: [...new Set(ids)].map((etiquetaId) => ({
+          tenantId: tenantAtual(),
+          clienteId,
+          etiquetaId,
+        })),
       });
     }
   }

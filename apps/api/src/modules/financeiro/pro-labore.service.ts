@@ -18,6 +18,7 @@ import {
   ultimoDiaDoMesPassado,
 } from './datas';
 import { FinanceiroService } from './financeiro.service';
+import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 
 /** Em quantos meses a reserva deve alcançar a meta, quando há uma. */
 const MESES_PARA_COMPLETAR_RESERVA = 12;
@@ -34,6 +35,7 @@ export class ProLaboreService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financeiro: FinanceiroService,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   /** Histórico completo, do mais recente para o mais antigo. */
@@ -79,7 +81,7 @@ export class ProLaboreService {
         data: { vigenciaFim: fim },
       });
 
-      return tx.proLabore.create({
+      const novo = await tx.proLabore.create({
         data: {
           id: uuidv7(),
           tenantId: tenantAtual(),
@@ -87,6 +89,16 @@ export class ProLaboreService {
           vigenciaInicio: inicio,
         },
       });
+
+      await this.auditoria.registrar(tx, {
+        entidade: 'pro_labore',
+        entidadeId: novo.id,
+        acao: 'criou',
+        resumo: `Pró-labore definido: R$ ${novo.valor.toFixed(2)} a partir de ${paraDia(novo.vigenciaInicio)}`,
+        depois: this.paraResposta(novo),
+      });
+
+      return novo;
     });
 
     return this.paraResposta(criado);
@@ -103,7 +115,6 @@ export class ProLaboreService {
     await this.prisma.comTenant(async (tx) => {
       const alvo = await tx.proLabore.findUnique({
         where: { id },
-        select: { vigenciaInicio: true, vigenciaFim: true },
       });
 
       if (!alvo) {
@@ -129,6 +140,14 @@ export class ProLaboreService {
           });
         }
       }
+
+      await this.auditoria.registrar(tx, {
+        entidade: 'pro_labore',
+        entidadeId: id,
+        acao: 'excluiu',
+        resumo: `Pró-labore excluído: R$ ${alvo.valor.toFixed(2)} desde ${paraDia(alvo.vigenciaInicio)}`,
+        antes: this.paraResposta(alvo),
+      });
     });
   }
 

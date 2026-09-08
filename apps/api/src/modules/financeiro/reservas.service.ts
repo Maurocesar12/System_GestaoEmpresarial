@@ -18,6 +18,7 @@ import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { ZERO } from './decimal';
 import { primeiroDiaDeMesesAtras, ultimoDiaDoMesPassado } from './datas';
 import { FinanceiroService } from './financeiro.service';
+import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 
 /** Quantos meses fechados entram na média do custo fixo mensal. */
 const MESES_DA_MEDIA = 3;
@@ -34,6 +35,7 @@ export class ReservasService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financeiro: FinanceiroService,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   /**
@@ -86,7 +88,7 @@ export class ReservasService {
         });
       }
 
-      return tx.reservaFinanceira.create({
+      const criada = await tx.reservaFinanceira.create({
         data: {
           id: uuidv7(),
           tenantId: tenantAtual(),
@@ -95,6 +97,16 @@ export class ReservasService {
           meta: dados.meta,
         },
       });
+
+      await this.auditoria.registrar(tx, {
+        entidade: 'reserva',
+        entidadeId: criada.id,
+        acao: 'criou',
+        resumo: this.resumirReserva('Reserva criada', criada),
+        depois: this.paraResposta(criada),
+      });
+
+      return criada;
     });
 
     return this.paraResposta(reserva);
@@ -106,7 +118,7 @@ export class ReservasService {
       // existe usando um nome já ocupado responderia 409 "já existe uma reserva
       // com este nome" — uma mensagem sobre o recurso errado, quando a resposta
       // correta é 404.
-      await this.garantirExiste(tx, id);
+      const anterior = await this.buscarOuFalhar(tx, id);
 
       const existente = await tx.reservaFinanceira.findFirst({
         where: { nome: dados.nome, id: { not: id } },
@@ -120,10 +132,21 @@ export class ReservasService {
         });
       }
 
-      return tx.reservaFinanceira.update({
+      const alterada = await tx.reservaFinanceira.update({
         where: { id },
         data: { nome: dados.nome, valorAtual: dados.valorAtual, meta: dados.meta },
       });
+
+      await this.auditoria.registrar(tx, {
+        entidade: 'reserva',
+        entidadeId: id,
+        acao: 'alterou',
+        resumo: this.resumirReserva('Reserva alterada', alterada),
+        antes: this.paraResposta(anterior),
+        depois: this.paraResposta(alterada),
+      });
+
+      return alterada;
     });
 
     return this.paraResposta(reserva);
@@ -143,7 +166,6 @@ export class ReservasService {
     const reserva = await this.prisma.comTenant(async (tx) => {
       const atual = await tx.reservaFinanceira.findUnique({
         where: { id },
-        select: { valorAtual: true },
       });
 
       if (!atual) {
@@ -164,16 +186,43 @@ export class ReservasService {
         });
       }
 
-      return tx.reservaFinanceira.update({ where: { id }, data: { valorAtual: novo } });
+      const alterada = await tx.reservaFinanceira.update({
+        where: { id },
+        data: { valorAtual: novo },
+      });
+
+      await this.auditoria.registrar(tx, {
+        entidade: 'reserva',
+        entidadeId: id,
+        acao: 'movimentou',
+        resumo: `${dados.tipo === 'aporte' ? 'Aporte' : 'Resgate'} em reserva: ${alterada.nome} · R$ ${valor.toFixed(2)} · saldo R$ ${alterada.valorAtual.toFixed(2)}`,
+        antes: this.paraResposta(atual),
+        depois: this.paraResposta(alterada),
+      });
+
+      return alterada;
     });
 
     return this.paraResposta(reserva);
   }
 
   async remover(id: string): Promise<void> {
-    const { count } = await this.prisma.comTenant((tx) =>
-      tx.reservaFinanceira.deleteMany({ where: { id } }),
-    );
+    const { count } = await this.prisma.comTenant(async (tx) => {
+      const anterior = await tx.reservaFinanceira.findUnique({ where: { id } });
+      const resultado = await tx.reservaFinanceira.deleteMany({ where: { id } });
+
+      if (anterior && resultado.count) {
+        await this.auditoria.registrar(tx, {
+          entidade: 'reserva',
+          entidadeId: id,
+          acao: 'excluiu',
+          resumo: this.resumirReserva('Reserva excluída', anterior),
+          antes: this.paraResposta(anterior),
+        });
+      }
+
+      return resultado;
+    });
 
     if (count === 0) {
       throw new NotFoundException({
@@ -183,7 +232,10 @@ export class ReservasService {
     }
   }
 
-  private async garantirExiste(tx: TransacaoComTenant, id: string): Promise<void> {
+  private async buscarOuFalhar(
+    tx: TransacaoComTenant,
+    id: string,
+  ): Promise<Prisma.ReservaFinanceiraGetPayload<object>> {
     const existe = await tx.reservaFinanceira.findUnique({ where: { id }, select: { id: true } });
 
     if (!existe) {
@@ -192,6 +244,8 @@ export class ReservasService {
         mensagem: 'Reserva não encontrada.',
       });
     }
+
+    return tx.reservaFinanceira.findUniqueOrThrow({ where: { id } });
   }
 
   private paraResposta(registro: Prisma.ReservaFinanceiraGetPayload<object>): Reserva {
@@ -211,5 +265,13 @@ export class ReservasService {
       criadoEm: registro.criadoEm.toISOString(),
       atualizadoEm: registro.atualizadoEm.toISOString(),
     };
+  }
+
+  private resumirReserva(
+    prefixo: string,
+    registro: Prisma.ReservaFinanceiraGetPayload<object>,
+  ): string {
+    const meta = registro.meta ? ` · meta R$ ${registro.meta.toFixed(2)}` : '';
+    return `${prefixo}: ${registro.nome} · saldo R$ ${registro.valorAtual.toFixed(2)}${meta}`;
   }
 }
