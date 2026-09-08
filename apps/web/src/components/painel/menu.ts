@@ -137,8 +137,8 @@ export const MENU: readonly GrupoMenu[] = [
       },
       { href: '/painel/equipe', rotulo: 'Equipe', icone: Users, permissao: 'equipe.gerenciar' },
       {
-        href: '/painel/auditoria',
-        rotulo: 'Auditoria',
+        href: '/painel/historico',
+        rotulo: 'Histórico',
         icone: ScrollText,
         permissao: 'auditoria.visualizar',
       },
