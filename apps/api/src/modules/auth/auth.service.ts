@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -25,6 +25,8 @@ import { SenhaService } from './senha.service';
  */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -39,7 +41,20 @@ export class AuthService {
     // permite — e só ela: a tabela `tenant` continua isolada, por isso não há
     // `include` aqui. A empresa é lida logo abaixo, já dentro do contexto.
     const usuario = await this.prisma.semTenant('identificar o usuário pelo e-mail', (db) =>
-      db.usuario.findFirst({ where: { email } }),
+      db.usuario.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          tenantId: true,
+          nome: true,
+          email: true,
+          senhaHash: true,
+          papel: true,
+          ativo: true,
+          permissoes: true,
+          permissoesPersonalizadas: true,
+        },
+      }),
     );
 
     if (!usuario) {
@@ -65,33 +80,28 @@ export class AuthService {
       });
     }
 
-    // A partir daqui já sabemos a empresa, então tudo roda dentro do contexto
-    // dela — ler os dados do tenant e registrar o acesso na mesma transação.
-    const tenant = await this.prisma.comTenantExplicito(usuario.tenantId, async (tx) => {
-      const empresa = await tx.tenant.findUniqueOrThrow({ where: { id: usuario.tenantId } });
-
-      await tx.usuario.update({
-        where: { id: usuario.id },
-        data: { ultimoLoginEm: new Date() },
-      });
-
-      return empresa;
-    });
-
+    const tenant = await this.buscarTenantDoLogin(usuario.tenantId);
     this.garantirTenantOperante(tenant.status);
 
-    return this.montarSessao({
-      id: usuario.id,
-      nome: usuario.nome,
-      email: usuario.email,
-      papel: usuario.papel,
-      permissoes: permissoesDoUsuario(
-        usuario.papel,
-        usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
-      ),
-      tenantId: usuario.tenantId,
-      nomeEmpresa: tenant.nome,
-    });
+    const permissoes = permissoesDoUsuario(
+      usuario.papel,
+      usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
+    );
+    const refreshToken = await this.refreshTokens.emitir(usuario.tenantId, usuario.id);
+    this.registrarUltimoLogin(usuario.tenantId, usuario.id);
+
+    return this.montarSessao(
+      {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+        papel: usuario.papel,
+        permissoes,
+        tenantId: usuario.tenantId,
+        nomeEmpresa: tenant.nome,
+      },
+      refreshToken,
+    );
   }
 
   /** Troca um refresh token por uma sessão nova. */
@@ -144,8 +154,9 @@ export class AuthService {
   }
 
   /** Emite os tokens e monta a resposta de sessão. */
-  async montarSessao(usuario: UsuarioAutenticado): Promise<SessaoResponse> {
-    const refreshToken = await this.refreshTokens.emitir(usuario.tenantId, usuario.id);
+  async montarSessao(usuario: UsuarioAutenticado, refreshToken?: string): Promise<SessaoResponse> {
+    const tokenAtual =
+      refreshToken ?? (await this.refreshTokens.emitir(usuario.tenantId, usuario.id));
 
     return {
       ...this.montarTokens({
@@ -154,9 +165,35 @@ export class AuthService {
         permissoes: usuario.permissoes,
         tenantId: usuario.tenantId,
       }),
-      refreshToken,
+      refreshToken: tokenAtual,
       usuario,
     };
+  }
+
+  private buscarTenantDoLogin(tenantId: string): Promise<{ nome: string; status: StatusTenant }> {
+    return this.prisma.comTenantExplicito(tenantId, (tx) =>
+      tx.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { nome: true, status: true },
+      }),
+    );
+  }
+
+  private registrarUltimoLogin(tenantId: string, usuarioId: string): void {
+    void this.prisma
+      .comTenantExplicito(tenantId, (tx) =>
+        tx.usuario.update({
+          where: { id: usuarioId },
+          data: { ultimoLoginEm: new Date() },
+          select: { id: true },
+        }),
+      )
+      .catch((erro: unknown) => {
+        const detalhe = erro instanceof Error ? erro.message : String(erro);
+        this.logger.warn(
+          `Não foi possível registrar último login do usuário ${usuarioId}: ${detalhe}`,
+        );
+      });
   }
 
   private montarTokens(

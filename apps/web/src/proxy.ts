@@ -33,6 +33,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const COOKIE_ACCESS = 'gestao_access';
 const COOKIE_REFRESH = 'gestao_refresh';
+const COOKIE_USUARIO = 'gestao_usuario';
 
 /** Rotas que exigem sessão. */
 const ROTAS_PROTEGIDAS = ['/painel'];
@@ -44,6 +45,7 @@ interface SessaoRenovada {
   accessToken: string;
   refreshToken: string;
   expiraEm: number;
+  usuario?: unknown;
 }
 
 export async function proxy(request: NextRequest) {
@@ -65,6 +67,7 @@ export async function proxy(request: NextRequest) {
     // detectado como reutilizado. Limpa o que sobrou e segue sem sessão.
     const resposta = decidirRota(request, false);
     resposta.cookies.delete(COOKIE_REFRESH);
+    resposta.cookies.delete(COOKIE_USUARIO);
     return resposta;
   }
 
@@ -133,6 +136,13 @@ function gravarCookies(resposta: NextResponse, sessao: SessaoRenovada, seguro: b
     ...base,
     maxAge: 60 * 60 * 24 * 7,
   });
+
+  if (sessao.usuario) {
+    resposta.cookies.set(COOKIE_USUARIO, encodeURIComponent(JSON.stringify(sessao.usuario)), {
+      ...base,
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
 }
 
 export const config = {

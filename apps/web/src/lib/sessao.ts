@@ -1,6 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import type { SessaoResponse } from '@gestao/shared-types';
+import { PAPEIS_USUARIO, PERMISSOES, type SessaoResponse } from '@gestao/shared-types';
+import { z } from 'zod';
 
 /**
  * Guarda a sessão em cookies (arquitetura §9.1).
@@ -23,6 +24,17 @@ import type { SessaoResponse } from '@gestao/shared-types';
 
 const COOKIE_ACCESS = 'gestao_access';
 const COOKIE_REFRESH = 'gestao_refresh';
+const COOKIE_USUARIO = 'gestao_usuario';
+
+const usuarioCookieSchema = z.object({
+  id: z.string(),
+  nome: z.string(),
+  email: z.string(),
+  papel: z.enum(PAPEIS_USUARIO),
+  permissoes: z.array(z.enum(PERMISSOES)),
+  tenantId: z.string(),
+  nomeEmpresa: z.string(),
+});
 
 export async function gravarSessao(sessao: SessaoResponse): Promise<void> {
   const jar = await cookies();
@@ -48,6 +60,11 @@ export async function gravarSessao(sessao: SessaoResponse): Promise<void> {
     // pedir a senha de novo.
     maxAge: 60 * 60 * 24 * 7,
   });
+
+  jar.set(COOKIE_USUARIO, encodeURIComponent(JSON.stringify(sessao.usuario)), {
+    ...base,
+    maxAge: 60 * 60 * 24 * 7,
+  });
 }
 
 export async function lerAccessToken(): Promise<string | undefined> {
@@ -60,8 +77,24 @@ export async function lerRefreshToken(): Promise<string | undefined> {
   return jar.get(COOKIE_REFRESH)?.value;
 }
 
+export async function lerUsuarioDaSessao(): Promise<SessaoResponse['usuario'] | undefined> {
+  const jar = await cookies();
+  const bruto = jar.get(COOKIE_USUARIO)?.value;
+
+  if (!bruto) {
+    return undefined;
+  }
+
+  try {
+    return usuarioCookieSchema.parse(JSON.parse(decodeURIComponent(bruto)));
+  } catch {
+    return undefined;
+  }
+}
+
 export async function limparSessao(): Promise<void> {
   const jar = await cookies();
   jar.delete(COOKIE_ACCESS);
   jar.delete(COOKIE_REFRESH);
+  jar.delete(COOKIE_USUARIO);
 }

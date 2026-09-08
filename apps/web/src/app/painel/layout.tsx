@@ -7,6 +7,7 @@ import { ShellPainel } from '@/components/painel/shell-painel';
 import { ProvedorDeAvisos } from '@/components/ui/avisos';
 import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao } from '@/lib/api-servidor';
+import { lerUsuarioDaSessao } from '@/lib/sessao';
 import { sair } from '../(auth)/acoes';
 
 export const metadata: Metadata = {
@@ -27,25 +28,27 @@ export const metadata: Metadata = {
  * com segurança.
  */
 export default async function LayoutPainel({ children }: { children: React.ReactNode }) {
-  let usuario: UsuarioAutenticado;
+  let usuario = await lerUsuarioDaSessao();
 
-  try {
-    usuario = await apiComSessao<UsuarioAutenticado>('/auth/eu');
-  } catch (erro) {
-    // `unstable_rethrow` deixa passar os erros que o próprio Next usa para
-    // controlar o fluxo — `redirect()` e `notFound()` são implementados como
-    // exceções. Sem ele, este `catch` engoliria o redirecionamento para
-    // `/sair` que o cliente da API dispara quando a sessão é recusada, e a
-    // pessoa veria "servidor indisponível" no lugar da tela de entrada.
-    unstable_rethrow(erro);
+  if (!usuario) {
+    try {
+      usuario = await apiComSessao<UsuarioAutenticado>('/auth/eu');
+    } catch (erro) {
+      // `unstable_rethrow` deixa passar os erros que o próprio Next usa para
+      // controlar o fluxo — `redirect()` e `notFound()` são implementados como
+      // exceções. Sem ele, este `catch` engoliria o redirecionamento para
+      // `/sair` que o cliente da API dispara quando a sessão é recusada, e a
+      // pessoa veria "servidor indisponível" no lugar da tela de entrada.
+      unstable_rethrow(erro);
 
-    // Sobrou o que é falha de verdade: API fora do ar, rede caída, erro 500.
-    //
-    // Antes daqui existir, a exceção subia sem tratamento e o painel virava uma
-    // página de erro do Next — sem menu, sem "sair" e sem caminho de volta,
-    // porque `/entrar` devolve para `/painel` enquanto o cookie de sessão
-    // existir. Em desenvolvimento isso acontecia a cada reinício da API.
-    return <PainelIndisponivel />;
+      // Sobrou o que é falha de verdade: API fora do ar, rede caída, erro 500.
+      //
+      // Antes daqui existir, a exceção subia sem tratamento e o painel virava uma
+      // página de erro do Next — sem menu, sem "sair" e sem caminho de volta,
+      // porque `/entrar` devolve para `/painel` enquanto o cookie de sessão
+      // existir. Em desenvolvimento isso acontecia a cada reinício da API.
+      return <PainelIndisponivel />;
+    }
   }
 
   return (
