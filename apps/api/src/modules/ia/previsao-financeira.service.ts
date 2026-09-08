@@ -238,7 +238,7 @@ export class PrevisaoFinanceiraService {
           codigo: CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO,
           mensagem: tenant.plano.iaHabilitada
             ? 'O limite mensal de previsões do plano foi atingido.'
-            : `Você atingiu o limite gratuito de ${limite} previsões neste mês. Para melhor aproveitamento, contrate o pacote de IA por R$ ${PACOTE_IA_PRECO_MENSAL_BRL}/mês.`,
+            : `Você atingiu o limite gratuito de ${limite} previsões neste mês. Para melhor aproveitamento, contrate a IA Premium por R$ ${PACOTE_IA_PRECO_MENSAL_BRL}/mês.`,
         });
       }
       const previsao = await tx.previsaoFinanceira.create({

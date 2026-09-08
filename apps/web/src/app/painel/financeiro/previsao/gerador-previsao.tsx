@@ -41,10 +41,10 @@ export function GeradorPrevisao({
     <div className="flex flex-col gap-6">
       <AvisoPlanoIa limiteMensal={limiteMensal} pacotePagoAtivo={pacotePagoAtivo} />
 
-      {modo === 'demonstracao' && (
+      {pacotePagoAtivo && modo === 'demonstracao' && (
         <div className="bg-atencao-suave text-atencao rounded-lg border border-current/20 px-4 py-3 text-sm">
-          A integração paga de IA ainda não está conectada. Enquanto isso, a previsão usa análise
-          local gratuita e mantém o limite mensal do plano.
+          IA Premium aguardando conexão: configure a chave da OpenAI/ChatGPT no servidor para usar o
+          modelo avançado. Até lá, esta tela continua usando a análise local.
         </div>
       )}
 
@@ -112,7 +112,8 @@ function AvisoPlanoIa({
 
     return (
       <div className="bg-sucesso-suave text-sucesso rounded-lg border border-current/20 px-4 py-3 text-sm">
-        Pacote de IA ativo: sua empresa pode gerar {textoLimite} previsões por mês.
+        IA Premium ativa: sua empresa pode gerar {textoLimite} previsões por mês com o modelo
+        avançado.
       </div>
     );
   }
@@ -121,15 +122,15 @@ function AvisoPlanoIa({
     <Cartao>
       <CartaoConteudo className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold">Previsão gratuita liberada</p>
+          <p className="text-sm font-semibold">Modo gratuito ativo</p>
           <p className="text-muted-foreground mt-1 text-sm">
             Você pode gerar {LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS} previsões por mês sem custo.
-            Quando atingir o limite, o app avisa e oferece o pacote de IA por R${' '}
-            {PACOTE_IA_PRECO_MENSAL_BRL}/mês.
+            Quando atingir o limite, o app avisa e oferece a IA Premium por R${' '}
+            {PACOTE_IA_PRECO_MENSAL_BRL}/mês para melhor aproveitamento.
           </p>
         </div>
         <Link href="/painel/plano" className={estilosBotao({ variante: 'secundario' })}>
-          Ver pacote
+          Ver Premium
         </Link>
       </CartaoConteudo>
     </Cartao>
@@ -195,7 +196,7 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
           {resultado.aviso} ·{' '}
           {resultado.modo === 'openai'
             ? `${resultado.consumo.inputTokens + resultado.consumo.outputTokens} tokens · US$ ${resultado.consumo.custoEstimadoUsd}`
-            : 'análise local sem custo'}
+            : 'modo gratuito sem custo'}
         </p>
       </Cartao>
     </div>

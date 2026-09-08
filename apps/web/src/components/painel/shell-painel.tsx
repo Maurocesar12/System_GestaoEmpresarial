@@ -1,7 +1,7 @@
 'use client';
 
 import type { UsuarioAutenticado } from '@gestao/shared-types';
-import { LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -36,12 +36,23 @@ const ROTULO_PAPEL: Record<UsuarioAutenticado['papel'], string> = {
   tecnico: 'Técnico',
 };
 
+const CHAVE_MENU_ENCOLHIDO = 'gestao:menu-encolhido';
+
 export function ShellPainel({ usuario, aoSair, children }: Props) {
   const caminho = usePathname();
   const [gavetaAberta, setGavetaAberta] = useState(false);
+  const [menuEncolhido, setMenuEncolhido] = useState(false);
 
   const grupos = menuDoUsuario(usuario);
   const ativo = hrefAtivo(grupos, caminho);
+
+  useEffect(() => {
+    try {
+      setMenuEncolhido(localStorage.getItem(CHAVE_MENU_ENCOLHIDO) === '1');
+    } catch {
+      // Armazenamento bloqueado: a preferência simplesmente volta ao padrão.
+    }
+  }, []);
 
   // Esc fecha, como em qualquer sobreposição do sistema operacional.
   useEffect(() => {
@@ -55,11 +66,32 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
     return () => document.removeEventListener('keydown', aoTeclar);
   }, [gavetaAberta]);
 
-  const navegacao = (
-    <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-4" aria-label="Seções">
+  function alternarMenuEncolhido() {
+    setMenuEncolhido((atual) => {
+      const proximo = !atual;
+      try {
+        localStorage.setItem(CHAVE_MENU_ENCOLHIDO, proximo ? '1' : '0');
+      } catch {
+        // A ação visual ainda funciona mesmo se o navegador bloquear storage.
+      }
+      return proximo;
+    });
+  }
+
+  const navegacao = (encolhido = false) => (
+    <nav
+      className={cn(
+        'flex flex-1 flex-col overflow-y-auto py-4',
+        encolhido ? 'items-center gap-5 px-2' : 'gap-6 px-3',
+      )}
+      aria-label="Seções"
+    >
       {grupos.map((grupo) => (
-        <div key={grupo.titulo ?? 'principal'} className="flex flex-col gap-1">
-          {grupo.titulo && (
+        <div
+          key={grupo.titulo ?? 'principal'}
+          className={cn('flex flex-col gap-1', encolhido && 'items-center')}
+        >
+          {grupo.titulo && !encolhido && (
             <p className="text-muted-foreground px-3 pb-1 text-[0.6875rem] font-semibold tracking-wider uppercase">
               {grupo.titulo}
             </p>
@@ -80,15 +112,17 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
                 // `aria-current` informa a posição a quem usa leitor de tela.
                 // Fundo colorido, sozinho, não diz nada para essa pessoa.
                 aria-current={estaAtivo ? 'page' : undefined}
+                title={encolhido ? item.rotulo : undefined}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
+                  'flex items-center rounded-md text-sm transition-colors',
+                  encolhido ? 'size-10 justify-center' : 'gap-2.5 px-3 py-2',
                   estaAtivo
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 )}
               >
                 <item.icone aria-hidden className="size-4 shrink-0" />
-                {item.rotulo}
+                {!encolhido && item.rotulo}
               </Link>
             );
           })}
@@ -97,29 +131,55 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
     </nav>
   );
 
-  const identificacao = (
-    <div className="flex min-w-0 items-center gap-3 px-4 py-4">
-      <SimboloMarca />
-      <div className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-semibold tracking-tight">{usuario.nomeEmpresa}</span>
-        <span className="text-muted-foreground truncate text-xs">
-          {usuario.nome} · {ROTULO_PAPEL[usuario.papel]}
-        </span>
+  const identificacao = (encolhido = false) => (
+    <div
+      className={cn(
+        'flex min-w-0 items-center gap-3 px-4 py-4',
+        encolhido && 'flex-col gap-2 px-2',
+      )}
+    >
+      <div className={cn('flex min-w-0 items-center gap-3', encolhido && 'justify-center')}>
+        <SimboloMarca />
+        {!encolhido && (
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold tracking-tight">
+              {usuario.nomeEmpresa}
+            </span>
+            <span className="text-muted-foreground truncate text-xs">
+              {usuario.nome} · {ROTULO_PAPEL[usuario.papel]}
+            </span>
+          </div>
+        )}
       </div>
+      {encolhido && (
+        <span className="sr-only">
+          {usuario.nomeEmpresa} · {usuario.nome} · {ROTULO_PAPEL[usuario.papel]}
+        </span>
+      )}
     </div>
   );
 
-  const rodape = (
-    <div className="flex items-center justify-between gap-2 border-t px-3 py-3">
-      <AlternadorTema />
+  const rodape = (encolhido = false) => (
+    <div
+      className={cn(
+        'flex items-center gap-2 border-t px-3 py-3',
+        encolhido ? 'flex-col justify-center' : 'justify-between',
+      )}
+    >
+      {!encolhido && <AlternadorTema />}
 
       <form action={aoSair}>
         <button
           type="submit"
-          className="text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors"
+          title={encolhido ? 'Sair' : undefined}
+          aria-label={encolhido ? 'Sair' : undefined}
+          className={cn(
+            'text-muted-foreground hover:bg-accent hover:text-foreground flex items-center rounded-md text-sm transition-colors',
+            encolhido ? 'size-9 justify-center' : 'gap-2 px-2.5 py-1.5',
+          )}
         >
           <LogOut aria-hidden className="size-4" />
-          Sair
+          {!encolhido && 'Sair'}
         </button>
       </form>
     </div>
@@ -128,10 +188,39 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
   return (
     <div className="fundo-painel min-h-screen">
       {/* Lateral fixa, a partir de telas médias. */}
-      <aside className="bg-superficie fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r md:flex">
-        {identificacao}
-        {navegacao}
-        {rodape}
+      <aside
+        className={cn(
+          'bg-superficie fixed inset-y-0 left-0 z-30 hidden flex-col border-r transition-[width] duration-[180ms] md:flex',
+          menuEncolhido ? 'w-20' : 'w-60',
+        )}
+      >
+        <div className="flex items-start justify-between gap-2">
+          {identificacao(menuEncolhido)}
+          {!menuEncolhido && (
+            <button
+              type="button"
+              onClick={alternarMenuEncolhido}
+              aria-label="Encolher menu"
+              title="Encolher menu"
+              className="text-muted-foreground hover:bg-accent hover:text-foreground m-3 rounded-md p-1.5 transition-colors"
+            >
+              <PanelLeftClose aria-hidden className="size-4" />
+            </button>
+          )}
+        </div>
+        {menuEncolhido && (
+          <button
+            type="button"
+            onClick={alternarMenuEncolhido}
+            aria-label="Expandir menu"
+            title="Expandir menu"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground mx-auto mb-1 rounded-md p-2 transition-colors"
+          >
+            <PanelLeftOpen aria-hidden className="size-4" />
+          </button>
+        )}
+        {navegacao(menuEncolhido)}
+        {rodape(menuEncolhido)}
       </aside>
 
       {/* Barra superior, só em tela estreita: é onde mora o botão da gaveta. */}
@@ -161,7 +250,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
 
           <div className="bg-superficie absolute inset-y-0 left-0 flex w-64 flex-col border-r shadow-[var(--sombra-media)]">
             <div className="flex items-start justify-between">
-              {identificacao}
+              {identificacao(false)}
 
               <button
                 type="button"
@@ -173,13 +262,18 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
               </button>
             </div>
 
-            {navegacao}
-            {rodape}
+            {navegacao(false)}
+            {rodape(false)}
           </div>
         </div>
       )}
 
-      <div className="min-h-screen md:pl-60">
+      <div
+        className={cn(
+          'min-h-screen transition-[padding-left] duration-[180ms]',
+          menuEncolhido ? 'md:pl-20' : 'md:pl-60',
+        )}
+      >
         {/*
           Largura máxima generosa e não centralizada em excesso: tabela e quadro
           de funil precisam de espaço horizontal. O limite existe só para o

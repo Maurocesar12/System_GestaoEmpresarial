@@ -73,7 +73,7 @@ export default async function PaginaPlano() {
           ]}
         />
         <Plano
-          nome="Pro"
+          nome="IA Premium"
           preco="200"
           atual={atual.plano.slug === 'profissional'}
           destaque
@@ -83,7 +83,7 @@ export default async function PaginaPlano() {
             'R$ 15 por usuário ativo adicional',
             '3.000 clientes',
             'CRM e financeiro completos',
-            'Previsão financeira com IA',
+            'Previsão financeira com modelo avançado',
             `${PACOTE_IA_PREVISOES_MENSAIS} previsões por mês`,
           ]}
         />
