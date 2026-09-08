@@ -9,6 +9,8 @@ import {
   type Paginado,
   type RegistroAuditoria,
 } from '@gestao/shared-types';
+import { unstable_rethrow } from 'next/navigation';
+import { AvisoErro } from '@/components/ui/aviso-erro';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Campo } from '@/components/ui/campo';
@@ -24,6 +26,7 @@ import {
   TabelaLinha,
   TabelaRolavel,
 } from '@/components/ui/tabela';
+import { ApiRequestError } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export const metadata: Metadata = { title: 'Histórico' };
@@ -78,9 +81,7 @@ export default async function PaginaHistorico({ searchParams }: Props) {
     if (filtros[chave]) query.set(chave, filtros[chave]);
   }
 
-  const { dados: registros, meta } = await apiComSessao<Paginado<RegistroAuditoria>>(
-    `/auditoria?${query.toString()}`,
-  );
+  const historico = await carregarHistorico(query);
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,58 +92,98 @@ export default async function PaginaHistorico({ searchParams }: Props) {
 
       <Filtros filtros={filtros} />
 
-      {registros.length === 0 ? (
-        <EstadoVazio
-          icone={ScrollText}
-          titulo="Nenhum histórico encontrado"
-          descricao="Ajuste os filtros ou pesquise por outro nome, valor, descrição ou período."
-        />
-      ) : (
-        <>
-          <Cartao>
-            <TabelaRolavel>
-              <TabelaCabecalho>
-                <TabelaColuna>Data</TabelaColuna>
-                <TabelaColuna>Responsável</TabelaColuna>
-                <TabelaColuna>Ação</TabelaColuna>
-                <TabelaColuna>Registro</TabelaColuna>
-                <TabelaColuna>Resumo</TabelaColuna>
-              </TabelaCabecalho>
-              <TabelaCorpo>
-                {registros.map((registro) => (
-                  <TabelaLinha key={registro.id}>
-                    <TabelaCelula suave className="whitespace-nowrap">
-                      {new Intl.DateTimeFormat('pt-BR', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      }).format(new Date(registro.criadoEm))}
-                    </TabelaCelula>
-                    <TabelaCelula>{registro.usuarioNome}</TabelaCelula>
-                    <TabelaCelula>{rotularAcao(registro.acao)}</TabelaCelula>
-                    <TabelaCelula>{rotularEntidade(registro.entidade)}</TabelaCelula>
-                    <TabelaCelula className="min-w-[20rem]">
-                      <span className="line-clamp-2">{registro.resumo}</span>
-                    </TabelaCelula>
-                  </TabelaLinha>
-                ))}
-              </TabelaCorpo>
-            </TabelaRolavel>
-          </Cartao>
-
-          <Paginacao
-            meta={meta}
-            base={ROTA_HISTORICO}
-            parametros={{
-              busca: filtros.busca,
-              entidade: filtros.entidade,
-              acao: filtros.acao,
-              de: filtros.de,
-              ate: filtros.ate,
-            }}
-          />
-        </>
-      )}
+      <ConteudoHistorico historico={historico} filtros={filtros} />
     </div>
+  );
+}
+
+async function carregarHistorico(query: URLSearchParams): Promise<
+  | {
+      sucesso: true;
+      registros: RegistroAuditoria[];
+      meta: Paginado<RegistroAuditoria>['meta'];
+    }
+  | { sucesso: false; erro: string }
+> {
+  try {
+    const { dados, meta } = await apiComSessao<Paginado<RegistroAuditoria>>(
+      `/auditoria?${query.toString()}`,
+    );
+
+    return { sucesso: true, registros: dados, meta };
+  } catch (erro) {
+    unstable_rethrow(erro);
+
+    return {
+      sucesso: false,
+      erro: mensagemDaApi(erro, 'Não foi possível carregar o histórico agora.'),
+    };
+  }
+}
+
+function ConteudoHistorico({
+  filtros,
+  historico,
+}: {
+  filtros: Awaited<Props['searchParams']>;
+  historico: Awaited<ReturnType<typeof carregarHistorico>>;
+}) {
+  if (!historico.sucesso) return <AvisoErro mensagem={historico.erro} />;
+
+  if (historico.registros.length === 0) {
+    return (
+      <EstadoVazio
+        icone={ScrollText}
+        titulo="Nenhum histórico encontrado"
+        descricao="Ajuste os filtros ou pesquise por outro nome, valor, descrição ou período."
+      />
+    );
+  }
+
+  return (
+    <>
+      <Cartao>
+        <TabelaRolavel>
+          <TabelaCabecalho>
+            <TabelaColuna>Data</TabelaColuna>
+            <TabelaColuna>Responsável</TabelaColuna>
+            <TabelaColuna>Ação</TabelaColuna>
+            <TabelaColuna>Registro</TabelaColuna>
+            <TabelaColuna>Resumo</TabelaColuna>
+          </TabelaCabecalho>
+          <TabelaCorpo>
+            {historico.registros.map((registro) => (
+              <TabelaLinha key={registro.id}>
+                <TabelaCelula suave className="whitespace-nowrap">
+                  {new Intl.DateTimeFormat('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  }).format(new Date(registro.criadoEm))}
+                </TabelaCelula>
+                <TabelaCelula>{registro.usuarioNome}</TabelaCelula>
+                <TabelaCelula>{rotularAcao(registro.acao)}</TabelaCelula>
+                <TabelaCelula>{rotularEntidade(registro.entidade)}</TabelaCelula>
+                <TabelaCelula className="min-w-[20rem]">
+                  <span className="line-clamp-2">{registro.resumo}</span>
+                </TabelaCelula>
+              </TabelaLinha>
+            ))}
+          </TabelaCorpo>
+        </TabelaRolavel>
+      </Cartao>
+
+      <Paginacao
+        meta={historico.meta}
+        base={ROTA_HISTORICO}
+        parametros={{
+          busca: filtros.busca,
+          entidade: filtros.entidade,
+          acao: filtros.acao,
+          de: filtros.de,
+          ate: filtros.ate,
+        }}
+      />
+    </>
   );
 }
 
@@ -199,4 +240,8 @@ function rotularEntidade(entidade: string): string {
 
 function rotularAcao(acao: string): string {
   return acao in ROTULO_ACAO ? ROTULO_ACAO[acao as AcaoAuditoria] : acao;
+}
+
+function mensagemDaApi(erro: unknown, fallback: string): string {
+  return erro instanceof ApiRequestError ? erro.message : fallback;
 }

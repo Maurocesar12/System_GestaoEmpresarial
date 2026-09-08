@@ -19,11 +19,13 @@ import { GraficoFluxoProjetado } from './grafico-fluxo-projetado';
 const TOM_RISCO = { baixo: 'sucesso', moderado: 'atencao', alto: 'perigo' } as const;
 
 export function GeradorPrevisao({
+  erroInicial,
   modo,
   limiteMensal,
   pacotePagoAtivo,
   resultadoInicial,
 }: {
+  erroInicial?: string;
   modo: 'openai' | 'demonstracao';
   limiteMensal: number | null;
   pacotePagoAtivo: boolean;
@@ -32,7 +34,7 @@ export function GeradorPrevisao({
   const [resultado, setResultado] = useState<PrevisaoFinanceiraResponse | undefined>(
     resultadoInicial ?? undefined,
   );
-  const [erro, setErro] = useState<string>();
+  const [erro, setErro] = useState<string | undefined>(erroInicial);
   const [mesesHistorico, setMesesHistorico] = useState(6);
   const [mesesProjecao, setMesesProjecao] = useState(3);
   const [gerando, iniciar] = useTransition();
