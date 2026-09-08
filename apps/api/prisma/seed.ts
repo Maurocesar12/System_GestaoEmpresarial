@@ -50,7 +50,7 @@ const PLANOS = [
     limiteClientes: 500,
     limiteEnviosMensais: 300,
     iaHabilitada: false,
-    limitePrevisoesIaMensais: 0,
+    limitePrevisoesIaMensais: 3,
     ativo: true,
   },
   {

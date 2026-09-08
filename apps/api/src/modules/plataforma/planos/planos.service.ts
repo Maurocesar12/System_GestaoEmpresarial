@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { PlanoAtualResponse } from '@gestao/shared-types';
+import {
+  LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
+  type PlanoAtualResponse,
+} from '@gestao/shared-types';
 import type { Env } from '../../../config/env.schema';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
@@ -54,7 +57,9 @@ export class PlanosService {
       limites: {
         usuarios: tenant.plano.limiteUsuarios,
         clientes: tenant.plano.limiteClientes,
-        previsoesIaMensais: tenant.plano.limitePrevisoesIaMensais,
+        previsoesIaMensais: tenant.plano.iaHabilitada
+          ? tenant.plano.limitePrevisoesIaMensais
+          : LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
       },
       uso: { usuarios, clientes, previsoesIaNoMes: previsoes },
       assinatura: {

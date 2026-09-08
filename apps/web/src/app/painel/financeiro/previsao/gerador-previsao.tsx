@@ -1,10 +1,16 @@
 'use client';
 
-import { formatarBRL, type PrevisaoFinanceiraResponse } from '@gestao/shared-types';
+import Link from 'next/link';
+import {
+  formatarBRL,
+  LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
+  PACOTE_IA_PRECO_MENSAL_BRL,
+  type PrevisaoFinanceiraResponse,
+} from '@gestao/shared-types';
 import { AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
-import { Botao } from '@/components/ui/botao';
+import { Botao, estilosBotao } from '@/components/ui/botao';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { Selo } from '@/components/ui/selo';
 import { gerarPrevisao } from './acoes';
@@ -14,9 +20,13 @@ const TOM_RISCO = { baixo: 'sucesso', moderado: 'atencao', alto: 'perigo' } as c
 
 export function GeradorPrevisao({
   modo,
+  limiteMensal,
+  pacotePagoAtivo,
   resultadoInicial,
 }: {
   modo: 'openai' | 'demonstracao';
+  limiteMensal: number | null;
+  pacotePagoAtivo: boolean;
   resultadoInicial: PrevisaoFinanceiraResponse | null;
 }) {
   const [resultado, setResultado] = useState<PrevisaoFinanceiraResponse | undefined>(
@@ -29,10 +39,12 @@ export function GeradorPrevisao({
 
   return (
     <div className="flex flex-col gap-6">
+      <AvisoPlanoIa limiteMensal={limiteMensal} pacotePagoAtivo={pacotePagoAtivo} />
+
       {modo === 'demonstracao' && (
         <div className="bg-atencao-suave text-atencao rounded-lg border border-current/20 px-4 py-3 text-sm">
-          Modo de demonstração ativo: a conta OpenAI ainda não está conectada. O cálculo funciona
-          localmente e não gera custo.
+          A integração paga de IA ainda não está conectada. Enquanto isso, a previsão usa análise
+          local gratuita e mantém o limite mensal do plano.
         </div>
       )}
 
@@ -85,6 +97,42 @@ export function GeradorPrevisao({
       {erro && <AvisoErro mensagem={erro} />}
       {resultado && <ResultadoPrevisao resultado={resultado} />}
     </div>
+  );
+}
+
+function AvisoPlanoIa({
+  limiteMensal,
+  pacotePagoAtivo,
+}: {
+  limiteMensal: number | null;
+  pacotePagoAtivo: boolean;
+}) {
+  if (pacotePagoAtivo) {
+    const textoLimite = limiteMensal === null ? 'sem limite mensal' : `até ${limiteMensal}`;
+
+    return (
+      <div className="bg-sucesso-suave text-sucesso rounded-lg border border-current/20 px-4 py-3 text-sm">
+        Pacote de IA ativo: sua empresa pode gerar {textoLimite} previsões por mês.
+      </div>
+    );
+  }
+
+  return (
+    <Cartao>
+      <CartaoConteudo className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold">Previsão gratuita liberada</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Você pode gerar {LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS} previsões por mês sem custo.
+            Quando atingir o limite, o app avisa e oferece o pacote de IA por R${' '}
+            {PACOTE_IA_PRECO_MENSAL_BRL}/mês.
+          </p>
+        </div>
+        <Link href="/painel/plano" className={estilosBotao({ variante: 'secundario' })}>
+          Ver pacote
+        </Link>
+      </CartaoConteudo>
+    </Cartao>
   );
 }
 

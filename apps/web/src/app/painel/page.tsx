@@ -9,6 +9,7 @@ import {
   formatarBRL,
   type Agendamento,
   type Cliente,
+  type FluxoDeCaixa,
   type LembreteFollowUp,
   type Orcamento,
   type Paginado,
@@ -27,6 +28,7 @@ import {
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
 import { apiComSessao } from '@/lib/api-servidor';
 import { formatarQuando } from '@/lib/formatacao';
+import { GraficoResumoPainel } from './grafico-resumo-painel';
 
 export const metadata: Metadata = {
   title: 'Painel',
@@ -40,7 +42,8 @@ export const metadata: Metadata = {
  * muda o dia de quem abre o sistema é saber onde agir.
  */
 export default async function PaginaPainel() {
-  const [clientes, quadro, resumo, orcamentos, agendados, confirmados, lembretes] =
+  const periodosDoResumo = ultimosMeses(6);
+  const [clientes, quadro, resumo, orcamentos, agendados, confirmados, lembretes, fluxosDoResumo] =
     await Promise.all([
       apiComSessao<Paginado<Cliente>>('/clientes?porPagina=1'),
       apiComSessao<QuadroFunil>('/funil'),
@@ -49,6 +52,13 @@ export default async function PaginaPainel() {
       apiComSessao<Paginado<Agendamento>>('/agendamentos?status=agendado&porPagina=5'),
       apiComSessao<Paginado<Agendamento>>('/agendamentos?status=confirmado&porPagina=5'),
       apiComSessao<Paginado<LembreteFollowUp>>('/lembretes?status=pendente&porPagina=5'),
+      Promise.all(
+        periodosDoResumo.map((periodo) =>
+          apiComSessao<FluxoDeCaixa>(
+            `/financeiro/fluxo-de-caixa?de=${periodo.de}&ate=${periodo.ate}`,
+          ),
+        ),
+      ),
     ]);
 
   if (clientes.meta.total === 0) {
@@ -113,6 +123,8 @@ export default async function PaginaPainel() {
           href="/painel/clientes"
         />
       </FaixaDeIndicadores>
+
+      <GraficoResumoPainel fluxos={fluxosDoResumo} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Bloco
@@ -335,4 +347,20 @@ function PrimeirosPassos() {
       </ol>
     </div>
   );
+}
+
+function ultimosMeses(quantidade: number): Array<{ de: string; ate: string }> {
+  const hoje = new Date();
+  return Array.from({ length: quantidade }, (_, indice) => {
+    const data = new Date(hoje.getFullYear(), hoje.getMonth() - quantidade + indice + 1, 1);
+    const fim = new Date(data.getFullYear(), data.getMonth() + 1, 0);
+    return { de: formatarDataIso(data), ate: formatarDataIso(fim) };
+  });
+}
+
+function formatarDataIso(data: Date): string {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }

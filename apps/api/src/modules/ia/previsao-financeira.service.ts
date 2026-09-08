@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import {
   CODIGOS_ERRO,
+  LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
+  PACOTE_IA_PRECO_MENSAL_BRL,
   type ConsumoIaResponse,
   type GerarPrevisaoFinanceiraInput,
   type MesFinanceiro,
@@ -11,6 +13,7 @@ import {
 } from '@gestao/shared-types';
 import type { Env } from '../../config/env.schema';
 import { Prisma } from '../../generated/prisma/client';
+import { AssistenteDemonstracao } from '../../infra/ia/assistente-demonstracao';
 import { AssistenteIa } from '../../infra/ia/assistente-ia';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { exigirContextoTenant, tenantAtual } from '../../infra/tenant/tenant-context';
@@ -22,8 +25,17 @@ interface DadosCalculados {
   projecoes: MesProjetado[];
 }
 
+interface ReservaPrevisao {
+  id: string;
+  usado: number;
+  limite: number | null;
+  pacotePagoAtivo: boolean;
+}
+
 @Injectable()
 export class PrevisaoFinanceiraService {
+  private readonly assistenteGratuito = new AssistenteDemonstracao();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly assistente: AssistenteIa,
@@ -44,7 +56,7 @@ export class PrevisaoFinanceiraService {
           where: { criadoEm: { gte: inicio }, modelo: { not: 'processando' } },
         }),
       ]);
-      return { previsao, limite: tenant.plano.limitePrevisoesIaMensais, usado };
+      return { previsao, limite: limitePrevisoesIa(tenant.plano), usado };
     });
     if (!dados.previsao) return null;
 
@@ -141,7 +153,8 @@ export class PrevisaoFinanceiraService {
     const identificadorSeguro = createHash('sha256')
       .update(`${tenantId}:${usuarioId}`)
       .digest('hex');
-    const resultado = await this.assistente.analisarPrevisao({
+    const assistente = reserva.pacotePagoAtivo ? this.assistente : this.assistenteGratuito;
+    const resultado = await assistente.analisarPrevisao({
       identificadorSeguro,
       saldoAtual: calculados.saldoAtual,
       historico: calculados.historico,
@@ -198,7 +211,7 @@ export class PrevisaoFinanceiraService {
     usuarioId: string,
     dados: GerarPrevisaoFinanceiraInput,
     calculados: DadosCalculados,
-  ): Promise<{ id: string; usado: number; limite: number | null }> {
+  ): Promise<ReservaPrevisao> {
     const inicioDoMes = inicioMes(new Date());
     // Uma geração em andamento ocupa cota para impedir cliques concorrentes de
     // ultrapassarem o limite. Se o processo cair, a reserva envelhece em dez
@@ -210,12 +223,6 @@ export class PrevisaoFinanceiraService {
         where: { id: tenantId },
         include: { plano: true },
       });
-      if (!tenant.plano.iaHabilitada) {
-        throw new ForbiddenException({
-          codigo: CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO,
-          mensagem: 'A previsão com IA está disponível no plano Pro.',
-        });
-      }
       const usado = await tx.previsaoFinanceira.count({
         where: {
           criadoEm: { gte: inicioDoMes },
@@ -225,11 +232,13 @@ export class PrevisaoFinanceiraService {
           ],
         },
       });
-      const limite = tenant.plano.limitePrevisoesIaMensais;
+      const limite = limitePrevisoesIa(tenant.plano);
       if (limite !== null && usado >= limite) {
         throw new ForbiddenException({
           codigo: CODIGOS_ERRO.LIMITE_PLANO_EXCEDIDO,
-          mensagem: 'O limite mensal de previsões do plano foi atingido.',
+          mensagem: tenant.plano.iaHabilitada
+            ? 'O limite mensal de previsões do plano foi atingido.'
+            : `Você atingiu o limite gratuito de ${limite} previsões neste mês. Para melhor aproveitamento, contrate o pacote de IA por R$ ${PACOTE_IA_PRECO_MENSAL_BRL}/mês.`,
         });
       }
       const previsao = await tx.previsaoFinanceira.create({
@@ -244,7 +253,12 @@ export class PrevisaoFinanceiraService {
           resultado: { status: 'processando' },
         },
       });
-      return { id: previsao.id, usado: usado + 1, limite };
+      return {
+        id: previsao.id,
+        usado: usado + 1,
+        limite,
+        pacotePagoAtivo: tenant.plano.iaHabilitada,
+      };
     });
   }
 
@@ -363,4 +377,12 @@ function mediaPonderada(valores: Prisma.Decimal[]): Prisma.Decimal {
 }
 function maiorDecimal(a: Prisma.Decimal, b: Prisma.Decimal): Prisma.Decimal {
   return a.greaterThan(b) ? a : b;
+}
+function limitePrevisoesIa(plano: {
+  iaHabilitada: boolean;
+  limitePrevisoesIaMensais: number | null;
+}): number | null {
+  return plano.iaHabilitada
+    ? plano.limitePrevisoesIaMensais
+    : LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS;
 }

@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+export const LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS = 3;
+export const PACOTE_IA_PRECO_MENSAL_BRL = '200,00';
+export const PACOTE_IA_PREVISOES_MENSAIS = 200;
+
 export const gerarPrevisaoFinanceiraSchema = z.object({
   mesesHistorico: z.number().int().min(3).max(12).default(6),
   mesesProjecao: z.number().int().min(1).max(6).default(3),

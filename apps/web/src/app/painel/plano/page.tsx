@@ -1,5 +1,11 @@
 import type { Metadata } from 'next';
-import { formatarBRL, type ConsumoIaResponse, type PlanoAtualResponse } from '@gestao/shared-types';
+import {
+  formatarBRL,
+  LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
+  PACOTE_IA_PREVISOES_MENSAIS,
+  type ConsumoIaResponse,
+  type PlanoAtualResponse,
+} from '@gestao/shared-types';
 import { Check } from 'lucide-react';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
@@ -63,7 +69,7 @@ export default async function PaginaPlano() {
             'R$ 20 por usuário ativo adicional',
             '500 clientes',
             'CRM e financeiro completos',
-            'Sem inteligência artificial',
+            `${LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS} previsões gratuitas com IA por mês`,
           ]}
         />
         <Plano
@@ -78,7 +84,7 @@ export default async function PaginaPlano() {
             '3.000 clientes',
             'CRM e financeiro completos',
             'Previsão financeira com IA',
-            '200 previsões por mês',
+            `${PACOTE_IA_PREVISOES_MENSAIS} previsões por mês`,
           ]}
         />
       </div>
