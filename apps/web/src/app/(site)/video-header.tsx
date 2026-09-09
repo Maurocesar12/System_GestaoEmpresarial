@@ -1,3 +1,4 @@
+import { CalendarDays, ChartNoAxesCombined, UsersRound } from 'lucide-react';
 import styles from './hero.module.css';
 
 /** Reprodução nativa: sem controles, estado React ou scripts de animação. */
@@ -19,6 +20,19 @@ export function VideoHeader() {
         >
           <source src="/media/header/header-gestao-fullhd-hq.mp4" type="video/mp4" />
         </video>
+      </div>
+      <div className={styles['hero-float-clientes']} aria-hidden="true">
+        <UsersRound />
+        <span><strong>128</strong> clientes ativos</span>
+      </div>
+      <div className={styles['hero-float-agenda']} aria-hidden="true">
+        <CalendarDays />
+        <span><strong>Agenda</strong> organizada</span>
+      </div>
+      <div className={styles['hero-objects-3d']} aria-hidden="true">
+        <span />
+        <span />
+        <span><ChartNoAxesCombined /></span>
       </div>
       <figcaption className={styles['hero-video-caption']}>
         <span>

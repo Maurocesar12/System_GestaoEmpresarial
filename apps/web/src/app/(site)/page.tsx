@@ -119,7 +119,7 @@ function InteligenciaArtificial() {
     <section id="ia" className="bg-superficie scroll-mt-16 overflow-hidden border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <Revelar>
-          <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
             <div className="flex flex-col items-start gap-5">
               <span className="flex flex-wrap items-center gap-2">
                 <RotuloSecao>Previsão financeira com IA</RotuloSecao>
@@ -137,45 +137,47 @@ function InteligenciaArtificial() {
                 registradas. O resultado aparece em gráficos claros, aponta riscos e sugere onde
                 agir primeiro.
               </p>
-
-              <ol className="mt-2 flex flex-col gap-5">
-                {[
-                  {
-                    icone: Database,
-                    titulo: 'Organiza os números',
-                    descricao: 'Reúne entradas, saídas e compromissos futuros sem expor clientes.',
-                  },
-                  {
-                    icone: TrendingUp,
-                    titulo: 'Projeta cenários',
-                    descricao: 'Mostra a evolução provável do saldo e a faixa de variação.',
-                  },
-                  {
-                    icone: Sparkles,
-                    titulo: 'Transforma em ação',
-                    descricao: 'Explica riscos e recomenda próximos passos em linguagem simples.',
-                  },
-                ].map((passo, indice) => (
-                  <li key={passo.titulo} className="flex gap-3">
-                    <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
-                      <passo.icone className="size-4" aria-hidden />
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold">
-                        <span className="text-muted-foreground mr-2 tabular-nums">
-                          0{indice + 1}
-                        </span>
-                        {passo.titulo}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
-                        {passo.descricao}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
             </div>
 
+            <ol className="grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
+              {[
+                {
+                  icone: Database,
+                  titulo: 'Organiza os números',
+                  descricao: 'Reúne entradas, saídas e compromissos futuros sem expor clientes.',
+                },
+                {
+                  icone: TrendingUp,
+                  titulo: 'Projeta cenários',
+                  descricao: 'Mostra a evolução provável do saldo e a faixa de variação.',
+                },
+                {
+                  icone: Sparkles,
+                  titulo: 'Transforma em ação',
+                  descricao: 'Explica riscos e recomenda próximos passos em linguagem simples.',
+                },
+              ].map((passo, indice) => (
+                <li key={passo.titulo} className="flex gap-3">
+                  <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
+                    <passo.icone className="size-4" aria-hidden />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">
+                      <span className="text-muted-foreground mr-2 tabular-nums">
+                        0{indice + 1}
+                      </span>
+                      {passo.titulo}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
+                      {passo.descricao}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="mt-10">
             <DemonstracaoPrevisao />
           </div>
         </Revelar>
