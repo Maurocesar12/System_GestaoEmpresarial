@@ -113,6 +113,28 @@ export class ChatIaService {
   private gerarResposta(pergunta: string, contexto: ContextoChat): string {
     const texto = normalizar(pergunta);
 
+    if (contem(texto, ['como usar', 'funcionalidade', 'o que voce faz', 'como funciona', 'como criar', 'como cadastrar', 'como organizar'])) {
+      return 'Posso consultar resumos permitidos e orientar o uso do sistema.\n\nClientes: mantenha os contatos e as etiquetas organizados. No CRM, acompanhe os cards pelas etapas do funil.\n\nOrçamentos: registre propostas e acompanhe aprovações. Agenda e Lembretes ajudam a organizar atendimentos e retornos.\n\nFinanceiro: registre entradas, saídas, vencimentos e baixas. Categorias, Reservas e Pró-labore ajudam a separar despesas e retiradas. A Previsão usa o histórico e as contas futuras registradas.\n\nHistórico permite consultar registros antigos disponíveis à sua conta. Eu não altero registros nem envio mensagens por você; os recursos visíveis dependem das suas permissões.';
+    }
+
+    if (contem(texto, ['dica', 'atencao', 'prioridade', 'recomenda', 'melhorar', 'economizar', 'reserva', 'pro-labore', 'pro labore', 'lucro', 'custo'])) {
+      return dicasGerenciais(contexto);
+    }
+
+    if (contem(texto, ['resumo', 'panorama'])) return respostaGeral(contexto);
+
+    if (contem(texto, ['crm', 'funil', 'card', 'etiqueta'])) {
+      return 'No CRM, organize os cards por etapa e use etiquetas para identificar prioridades e tipos de cliente. Revise oportunidades paradas e registre lembretes de retorno. Não tenho nesta consulta os dados de movimentação dos cards para apontar quais estão parados.';
+    }
+
+    if (contem(texto, ['previsao', 'projecao'])) {
+      return 'Em Financeiro > Previsão, escolha o histórico e o período projetado. Confira o saldo acumulado, as entradas e saídas e as recomendações. O modo gratuito usa análise local por regras; atualize as contas e as baixas antes de gerar. Não estou consultando sua última previsão nesta conversa.';
+    }
+
+    if (contem(texto, ['historico', 'excluido', 'exclusao', 'auditoria'])) {
+      return 'Consulte a aba Histórico para buscar registros antigos disponíveis à sua conta. Esta conversa não acessa os detalhes de exclusões nem restaura registros.';
+    }
+
     if (contem(texto, ['caixa', 'financeiro', 'entrada', 'saida', 'saldo', 'pagar', 'receber'])) {
       return contexto.financeiro
         ? respostaFinanceira(contexto.financeiro)
@@ -148,6 +170,7 @@ export class ChatIaService {
 
   private sugerirProximasPerguntas(contexto: ContextoChat): string[] {
     const sugestoes = [];
+    if (contexto.financeiro) sugestoes.push('Quais dicas financeiras são prioridade?');
     if (contexto.financeiro) sugestoes.push('Como está meu caixa este mês?');
     if (contexto.orcamentos) sugestoes.push('Quanto tenho em orçamento aberto?');
     if (contexto.lembretes) sugestoes.push('Tenho follow-ups atrasados?');
@@ -193,9 +216,11 @@ function respostaFinanceira(financeiro: NonNullable<ContextoChat['financeiro']>)
   const leitura =
     saldo < 0
       ? 'O mês está com saldo negativo; vale priorizar recebimentos e revisar saídas próximas.'
-      : 'O mês está com saldo positivo; vale manter as baixas atualizadas para preservar essa leitura.';
+      : saldo === 0
+        ? 'O movimento líquido do mês está zerado; confirme se todas as baixas foram registradas.'
+        : 'As entradas superam as saídas no mês; mantenha as baixas atualizadas.';
 
-  return `Neste mês entraram ${formatarBRL(financeiro.entradasMes)} e saíram ${formatarBRL(financeiro.saidasMes)}, deixando saldo de ${formatarBRL(financeiro.saldoMes)}. Em aberto, há ${formatarBRL(financeiro.aReceber)} a receber e ${formatarBRL(financeiro.aPagar)} a pagar. ${leitura}`;
+  return `Neste mês entraram ${formatarBRL(financeiro.entradasMes)} e saíram ${formatarBRL(financeiro.saidasMes)}, com movimento líquido de ${formatarBRL(financeiro.saldoMes)}. Esse movimento não representa o saldo bancário total nem o lucro contábil.\n\nEm aberto, considerando todos os vencimentos, há ${formatarBRL(financeiro.aReceber)} a receber e ${formatarBRL(financeiro.aPagar)} a pagar. ${leitura}`;
 }
 
 function respostaOrcamentos(orcamentos: NonNullable<ContextoChat['orcamentos']>): string {
@@ -204,7 +229,7 @@ function respostaOrcamentos(orcamentos: NonNullable<ContextoChat['orcamentos']>)
 
 function respostaGeral(contexto: ContextoChat): string {
   const partes = [
-    'Sou a IA gratuita do sistema. Posso te dar um resumo rápido com os dados que você tem permissão para ver.',
+    'Sou o assistente gratuito, com análise local por regras dos dados que você tem permissão para ver.',
   ];
 
   if (contexto.financeiro) partes.push(respostaFinanceira(contexto.financeiro));
@@ -220,7 +245,23 @@ function respostaGeral(contexto: ContextoChat): string {
     );
   }
 
-  return partes.join(' ');
+  if (contexto.agenda) partes.push(`Há ${contexto.agenda.proximos} compromisso(s) futuros agendados ou confirmados.`);
+  return partes.join('\n\n');
+}
+
+function dicasGerenciais(contexto: ContextoChat): string {
+  const dicas: string[] = [];
+  if (contexto.financeiro) {
+    dicas.push(respostaFinanceira(contexto.financeiro));
+    if (Number(contexto.financeiro.saldoMes) < 0) dicas.push('Prioridade: revise as saídas por categoria e confira os recebimentos pendentes antes de assumir novos compromissos.');
+    if (Number(contexto.financeiro.aPagar) > Number(contexto.financeiro.aReceber)) dicas.push('As contas a pagar em aberto superam as contas a receber. Compare os vencimentos no Financeiro e o caixa disponível; essa diferença sozinha não significa falta de caixa.');
+    dicas.push('Rotina financeira: dê baixa somente após confirmar o pagamento, separe o pró-labore das despesas da empresa e planeje reservas a partir dos gastos essenciais.');
+    dicas.push('Antes de definir preços, confira custos diretos, despesas, taxas e impostos com o responsável contábil. Faturamento e saldo positivo não são sinônimos de lucro.');
+  }
+  if (contexto.orcamentos?.abertos) dicas.push(`Comercial: acompanhe os ${contexto.orcamentos.abertos} orçamentos abertos (${formatarBRL(contexto.orcamentos.valorAberto)}) com retornos combinados. Não conte propostas abertas como recebimento garantido.`);
+  if (contexto.lembretes?.atrasados) dicas.push(`Atendimento: revise primeiro os ${contexto.lembretes.atrasados} lembretes atrasados e reagende os retornos necessários.`);
+  if (contexto.agenda?.proximos) dicas.push(`Agenda: confirme os ${contexto.agenda.proximos} atendimentos futuros e confira se os serviços realizados tiveram os lançamentos correspondentes.`);
+  return dicas.length ? dicas.join('\n\n') : 'Não há dados autorizados suficientes para personalizar dicas. Posso explicar como usar as funcionalidades do sistema.';
 }
 
 function valorPorTipo(

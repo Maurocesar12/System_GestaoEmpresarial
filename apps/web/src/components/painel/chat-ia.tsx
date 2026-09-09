@@ -87,7 +87,7 @@ export function ChatIa() {
                 className={`flex ${mensagem.autor === 'usuario' ? 'justify-end' : 'justify-start'}`}
               >
                 <p
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
                     mensagem.autor === 'usuario'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground'
