@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import type { MesProjetado } from '@gestao/shared-types';
 
 const LARGURA = 760;
@@ -11,12 +14,8 @@ const FORMATADOR_COMPACTO = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 1,
 });
 
-/**
- * Gráfico combinado da previsão: barras explicam o fluxo mensal e a linha
- * mostra o efeito acumulado no caixa. A tabela continua abaixo para consulta
- * dos valores exatos.
- */
 export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[] }) {
+  const [visao, setVisao] = useState<'saldo' | 'fluxo'>('saldo');
   if (projecoes.length === 0) return null;
 
   const dados = projecoes.map((item) => ({
@@ -25,7 +24,9 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
     saidas: Number(item.saidas),
     saldoAcumulado: Number(item.saldoAcumulado),
   }));
-  const valores = dados.flatMap((item) => [item.entradas, item.saidas, item.saldoAcumulado, 0]);
+  const valores = dados.flatMap((item) =>
+    visao === 'saldo' ? [item.saldoAcumulado, 0] : [item.entradas, item.saidas, 0],
+  );
   const minimoBruto = Math.min(...valores);
   const maximoBruto = Math.max(...valores);
   const folga = Math.max((maximoBruto - minimoBruto) * 0.12, 1);
@@ -52,13 +53,20 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
   return (
     <div className="border-b p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-xs">
-          Compare entradas, saídas e o saldo que se acumula mês a mês.
-        </p>
+        <div role="group" aria-label="Visualização da previsão" className="flex rounded-md bg-muted p-1">
+          {(['saldo', 'fluxo'] as const).map((opcao) => (
+            <button key={opcao} type="button" aria-pressed={visao === opcao}
+              onClick={() => setVisao(opcao)}
+              className={`min-h-9 rounded px-3 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 ${visao === opcao ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+              {opcao === 'saldo' ? 'Saldo acumulado' : 'Entradas e saídas'}
+            </button>
+          ))}
+        </div>
         <div className="text-muted-foreground flex flex-wrap gap-3 text-[0.6875rem]">
-          <Legenda classe="bg-grafico-1" rotulo="Entradas" />
-          <Legenda classe="bg-grafico-3" rotulo="Saídas" />
-          <Legenda classe="bg-grafico-2" rotulo="Saldo acumulado" linha />
+          {visao === 'fluxo' ? <>
+            <Legenda classe="bg-foreground" rotulo="Entradas" />
+            <Legenda classe="bg-zinc-300" rotulo="Saídas" />
+          </> : <Legenda classe="bg-foreground" rotulo="Saldo projetado" linha />}
         </div>
       </div>
 
@@ -66,8 +74,8 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
         <svg
           viewBox={`0 0 ${LARGURA} ${ALTURA}`}
           role="img"
-          aria-label="Gráfico de entradas, saídas e saldo acumulado da previsão financeira"
-          className="min-w-[40rem]"
+          aria-label={visao === 'saldo' ? 'Saldo acumulado projetado por mês' : 'Entradas e saídas projetadas por mês'}
+          className="w-full min-w-[32rem]"
         >
           {marcacoes.map((valor) => {
             const posicaoY = y(valor);
@@ -105,12 +113,12 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
             const centro = MARGEM.esquerda + larguraGrupo * (indice + 0.5);
             return (
               <g key={item.mes}>
-                <Barra
+                {visao === 'fluxo' && <><Barra
                   x={centro - larguraBarra - 2}
                   yZero={yZero}
                   yValor={y(item.entradas)}
                   largura={larguraBarra}
-                  classe="fill-grafico-1"
+                  classe="fill-foreground"
                   titulo={`Entradas: ${FORMATADOR_COMPACTO.format(item.entradas)}`}
                 />
                 <Barra
@@ -118,9 +126,9 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
                   yZero={yZero}
                   yValor={y(item.saidas)}
                   largura={larguraBarra}
-                  classe="fill-grafico-3"
+                  classe="fill-zinc-300"
                   titulo={`Saídas: ${FORMATADOR_COMPACTO.format(item.saidas)}`}
-                />
+                /></>}
                 <text
                   x={centro}
                   y={ALTURA - 14}
@@ -133,11 +141,14 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
             );
           })}
 
-          <path
+          {visao === 'saldo' && <><path
+            d={`${linha} L ${MARGEM.esquerda + larguraGrupo * (dados.length - 0.5)} ${yZero} L ${MARGEM.esquerda + larguraGrupo * 0.5} ${yZero} Z`}
+            className="fill-foreground/5"
+          /><path
             d={linha}
             fill="none"
-            className="stroke-grafico-2 grafico-linha-animada"
-            strokeWidth="3"
+            className="stroke-foreground"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -149,12 +160,13 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
                 cx={x}
                 cy={y(item.saldoAcumulado)}
                 r="4"
-                className="fill-grafico-2"
+                className="fill-background stroke-foreground"
+                strokeWidth="2"
               >
                 <title>Saldo acumulado: {FORMATADOR_COMPACTO.format(item.saldoAcumulado)}</title>
               </circle>
             );
-          })}
+          })}</>}
         </svg>
       </div>
     </div>

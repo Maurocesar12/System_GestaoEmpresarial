@@ -11,7 +11,7 @@ import { AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao, estilosBotao } from '@/components/ui/botao';
-import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
+import { CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { Selo } from '@/components/ui/selo';
 import { gerarPrevisao } from './acoes';
 import { GraficoFluxoProjetado } from './grafico-fluxo-projetado';
@@ -45,13 +45,11 @@ export function GeradorPrevisao({
 
       {pacotePagoAtivo && modo === 'demonstracao' && (
         <div className="bg-atencao-suave text-atencao rounded-lg border border-current/20 px-4 py-3 text-sm">
-          IA Premium aguardando conexão: configure a chave da OpenAI/ChatGPT no servidor para usar o
-          modelo avançado. Até lá, esta tela continua usando a análise local.
+          O modelo avançado está indisponível no momento. A previsão continua disponível com análise local.
         </div>
       )}
 
-      <Cartao>
-        <CartaoConteudo className="flex flex-wrap items-end gap-4">
+      <section aria-label="Período da previsão" className="flex flex-wrap items-end gap-4 border-y py-5">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium">Histórico analisado</span>
             <select
@@ -87,17 +85,25 @@ export function GeradorPrevisao({
                 setErro(undefined);
                 const resposta = await gerarPrevisao({ mesesHistorico, mesesProjecao });
                 setErro(resposta.erro);
-                setResultado(resposta.dados);
+                if (resposta.dados) setResultado(resposta.dados);
               })
             }
           >
             <Sparkles /> Gerar previsão
           </Botao>
-        </CartaoConteudo>
-      </Cartao>
+      </section>
 
       {erro && <AvisoErro mensagem={erro} />}
-      {resultado && <ResultadoPrevisao resultado={resultado} />}
+      <div aria-live="polite" aria-busy={gerando}>
+        {gerando && <p role="status" className="mb-4 text-sm text-muted-foreground">Analisando o histórico e as contas futuras…</p>}
+        {resultado ? <ResultadoPrevisao resultado={resultado} /> : !gerando && (
+          <div className="flex min-h-56 flex-col items-center justify-center gap-3 border-b px-4 text-center">
+            <Sparkles aria-hidden className="size-6 text-muted-foreground" />
+            <h2 className="text-base font-semibold">Sua próxima decisão começa pelos números</h2>
+            <p className="max-w-md text-sm text-muted-foreground">Nenhuma previsão gerada. O saldo projetado e as recomendações aparecerão aqui.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -113,36 +119,48 @@ function AvisoPlanoIa({
     const textoLimite = limiteMensal === null ? 'sem limite mensal' : `até ${limiteMensal}`;
 
     return (
-      <div className="bg-sucesso-suave text-sucesso rounded-lg border border-current/20 px-4 py-3 text-sm">
-        IA Premium ativa: sua empresa pode gerar {textoLimite} previsões por mês com o modelo
-        avançado.
+      <div className="border-b pb-3 text-sm text-muted-foreground">
+        <span className="font-semibold text-foreground">IA Premium</span> · {textoLimite} previsões por mês.
       </div>
     );
   }
 
   return (
-    <Cartao>
-      <CartaoConteudo className="flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold">Modo gratuito ativo</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            Você pode gerar {LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS} previsões por mês sem custo.
-            Quando atingir o limite, o app avisa e oferece a IA Premium por R${' '}
-            {PACOTE_IA_PRECO_MENSAL_BRL}/mês para melhor aproveitamento.
+            {limiteMensal ?? LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS} previsões por mês incluídas · Premium por R$ {PACOTE_IA_PRECO_MENSAL_BRL}/mês.
           </p>
         </div>
         <Link href="/painel/plano" className={estilosBotao({ variante: 'secundario' })}>
           Ver Premium
         </Link>
-      </CartaoConteudo>
-    </Cartao>
+    </div>
   );
 }
 
 function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraResponse }) {
+  const ultimoMes = resultado.projecoes.at(-1);
+  const entradas = resultado.projecoes.reduce((total, mes) => total + Number(mes.entradas), 0);
+  const saidas = resultado.projecoes.reduce((total, mes) => total + Number(mes.saidas), 0);
   return (
     <div className="flex flex-col gap-6">
-      <Cartao>
+      <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+        <span>{resultado.modo === 'openai' ? 'Análise com IA' : 'Análise local gratuita'}</span>
+        <span>Gerada em {new Date(resultado.geradoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+      </div>
+      {ultimoMes && <dl className="grid grid-cols-1 gap-5 border-b pb-6 sm:grid-cols-3">
+        {[
+          { titulo: 'Saldo ao final do período', valor: Number(ultimoMes.saldoAcumulado) },
+          { titulo: 'Entradas projetadas', valor: entradas },
+          { titulo: 'Saídas projetadas', valor: saidas },
+        ].map((item) => <div key={item.titulo} className="min-w-0">
+          <dt className="text-xs text-muted-foreground">{item.titulo}</dt>
+          <dd className={`mt-2 break-words text-2xl font-semibold tabular-nums ${item.valor < 0 ? 'text-destructive' : ''}`}>{formatarBRL(String(item.valor))}</dd>
+        </div>)}
+      </dl>}
+      <section className="order-last border-t pt-6" aria-label="Análise gerencial">
         <CartaoCabecalho>
           <CartaoTitulo>Análise gerencial</CartaoTitulo>
           <Selo tom={TOM_RISCO[resultado.analise.nivelRisco]} comPonto>
@@ -156,9 +174,10 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
             <Lista titulo="Próximas ações" itens={resultado.analise.acoesRecomendadas} />
           </div>
         </CartaoConteudo>
-      </Cartao>
+        {resultado.analise.avisos.length > 0 && <div className="px-4 pb-4"><Lista titulo="Sobre esta previsão" itens={resultado.analise.avisos} alerta /></div>}
+      </section>
 
-      <Cartao>
+      <section className="min-w-0" aria-label="Fluxo projetado">
         <CartaoCabecalho>
           <CartaoTitulo>Fluxo projetado</CartaoTitulo>
           <span className="text-muted-foreground text-xs">
@@ -166,6 +185,8 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
           </span>
         </CartaoCabecalho>
         <GraficoFluxoProjetado projecoes={resultado.projecoes} />
+        <details className="border-b">
+          <summary className="cursor-pointer px-4 py-4 text-sm font-medium">Detalhamento mensal</summary>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[44rem] text-sm">
             <thead className="text-muted-foreground border-b text-left text-xs">
@@ -185,7 +206,7 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
                   <td className="px-4 py-3 tabular-nums">{formatarBRL(item.saidas)}</td>
                   <td className="px-4 py-3 tabular-nums">{formatarBRL(item.saldo)}</td>
                   <td
-                    className={`px-4 py-3 font-semibold tabular-nums ${Number(item.saldoAcumulado) < 0 ? 'text-destructive' : 'text-sucesso'}`}
+                    className={`px-4 py-3 font-semibold tabular-nums ${Number(item.saldoAcumulado) < 0 ? 'text-destructive' : ''}`}
                   >
                     {formatarBRL(item.saldoAcumulado)}
                   </td>
@@ -194,13 +215,11 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
             </tbody>
           </table>
         </div>
+        </details>
         <p className="text-muted-foreground border-t px-4 py-3 text-xs">
-          {resultado.aviso} ·{' '}
-          {resultado.modo === 'openai'
-            ? `${resultado.consumo.inputTokens + resultado.consumo.outputTokens} tokens · US$ ${resultado.consumo.custoEstimadoUsd}`
-            : 'modo gratuito sem custo'}
+          {resultado.aviso}
         </p>
-      </Cartao>
+      </section>
     </div>
   );
 }
