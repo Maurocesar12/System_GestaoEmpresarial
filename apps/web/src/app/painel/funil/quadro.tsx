@@ -22,10 +22,23 @@ import {
   type ClienteNoFunil,
   type QuadroFunil,
 } from '@gestao/shared-types';
-import { Clock, ExternalLink, GripVertical, Mail, MessageCircle, Phone } from 'lucide-react';
+import {
+  CircleDollarSign,
+  Clock,
+  ExternalLink,
+  Filter,
+  GripVertical,
+  Mail,
+  MessageCircle,
+  Phone,
+  Search,
+  Tag,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
-import { useOptimistic, useState, useTransition } from 'react';
+import { useMemo, useOptimistic, useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
+import { estilosControle } from '@/components/ui/campo';
 import { linkEmail, linkTelefone, linkWhatsApp } from '@/lib/contato';
 import { cn } from '@/lib/utils';
 import { moverCliente } from './acoes';
@@ -54,6 +67,8 @@ export function Quadro({ quadro }: { quadro: QuadroFunil }) {
   const [erro, setErro] = useState<string>();
   const [, iniciarMovimento] = useTransition();
   const [arrastando, setArrastando] = useState<ClienteNoFunil | null>(null);
+  const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState<FiltroRapido>('todos');
 
   // Qual cartão está aberto. Guarda o id, e não o objeto: assim o cartão aberto
   // acompanha as atualizações do quadro em vez de exibir uma cópia congelada
@@ -129,9 +144,81 @@ export function Quadro({ quadro }: { quadro: QuadroFunil }) {
         .find((item) => item.cliente.id === abertoId)
     : undefined;
 
+  const metricas = useMemo(() => calcularMetricas(colunas), [colunas]);
+  const colunasVisiveis = useMemo(
+    () => filtrarColunas(colunas, busca, filtro),
+    [busca, colunas, filtro],
+  );
+  const totalVisivel = colunasVisiveis.reduce((soma, coluna) => soma + coluna.clientes.length, 0);
+
   return (
     <div className="flex flex-col gap-4">
       {erro && <AvisoErro mensagem={erro} />}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metrica
+          icone={CircleDollarSign}
+          rotulo="Valor em negociação"
+          valor={formatarBRL(metricas.valorPipeline)}
+          detalhe={`${metricas.propostas} proposta(s) aberta(s)`}
+        />
+        <Metrica
+          icone={Users}
+          rotulo="Clientes no funil"
+          valor={String(metricas.clientes)}
+          detalhe={`${quadro.totalForaDoFunil} fora do funil`}
+        />
+        <Metrica
+          icone={Clock}
+          rotulo="Parados"
+          valor={String(metricas.parados)}
+          detalhe={`A partir de ${DIAS_PARA_ALERTA} dias na etapa`}
+          alerta={metricas.parados > 0}
+        />
+        <Metrica
+          icone={Filter}
+          rotulo="Etapas ativas"
+          valor={String(metricas.etapasComClientes)}
+          detalhe={`${colunas.length} etapa(s) configurada(s)`}
+        />
+      </section>
+
+      <div className="bg-card flex flex-col gap-3 rounded-xl border p-3 shadow-[var(--sombra-sutil)] lg:flex-row lg:items-center lg:justify-between">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">Buscar no funil</span>
+          <Search
+            aria-hidden
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+          />
+          <input
+            value={busca}
+            onChange={(evento) => setBusca(evento.target.value)}
+            placeholder="Buscar por cliente, telefone, e-mail, origem ou serviço"
+            className={cn(estilosControle, 'h-10 bg-background pl-9')}
+          />
+        </label>
+
+        <div className="grid grid-cols-3 rounded-lg border bg-background p-1 sm:flex">
+          {FILTROS_RAPIDOS.map((item) => {
+            const ativo = filtro === item.valor;
+            return (
+              <button
+                key={item.valor}
+                type="button"
+                onClick={() => setFiltro(item.valor)}
+                className={cn(
+                  'h-8 rounded-md px-3 text-xs font-medium whitespace-nowrap transition-colors',
+                  ativo
+                    ? 'bg-primary text-primary-foreground shadow-[var(--sombra-sutil)]'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+              >
+                {item.rotulo}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/*
         O `id` fixo não é enfeite: sem ele, o dnd-kit gera o
@@ -148,19 +235,27 @@ export function Quadro({ quadro }: { quadro: QuadroFunil }) {
       */}
       <DndContext id="funil" sensors={sensores} onDragStart={aoPegar} onDragEnd={aoSoltar}>
         {/* O quadro rola na horizontal; a página, não. */}
-        <div className="flex items-start gap-3 overflow-x-auto pb-5">
-          {colunas.map((coluna, indice) => (
-            <Coluna
-              key={coluna.etapa.id}
-              id={coluna.etapa.id}
-              nome={coluna.etapa.nome}
-              indice={indice}
-              clientes={coluna.clientes}
-              etapas={colunas.map((c) => c.etapa)}
-              aoTrocarEtapa={mover}
-              aoAbrir={setAbertoId}
-            />
-          ))}
+        <div className="bg-card/70 rounded-2xl border p-3 shadow-[var(--sombra-sutil)]">
+          <div className="flex items-start gap-3 overflow-x-auto pb-4">
+            {colunasVisiveis.map((coluna, indice) => (
+              <Coluna
+                key={coluna.etapa.id}
+                id={coluna.etapa.id}
+                nome={coluna.etapa.nome}
+                indice={indice}
+                clientes={coluna.clientes}
+                etapas={colunas.map((c) => c.etapa)}
+                aoTrocarEtapa={mover}
+                aoAbrir={setAbertoId}
+              />
+            ))}
+          </div>
+
+          {totalVisivel === 0 && (
+            <p className="text-muted-foreground px-4 pb-3 text-sm">
+              Nenhum cartão encontrado com estes filtros.
+            </p>
+          )}
         </div>
 
         {/*
@@ -194,6 +289,97 @@ export function Quadro({ quadro }: { quadro: QuadroFunil }) {
           aoFechar={() => setAbertoId(null)}
         />
       )}
+    </div>
+  );
+}
+
+type FiltroRapido = 'todos' | 'atrasados' | 'propostas';
+
+const FILTROS_RAPIDOS: { valor: FiltroRapido; rotulo: string }[] = [
+  { valor: 'todos', rotulo: 'Todos' },
+  { valor: 'atrasados', rotulo: 'Parados' },
+  { valor: 'propostas', rotulo: 'Com proposta' },
+];
+
+function calcularMetricas(colunas: QuadroFunil['colunas']) {
+  const clientes = colunas.flatMap((coluna) => coluna.clientes);
+  const valorPipeline = somarDinheiro(
+    clientes.map((cliente) => cliente.orcamentoAberto?.valor ?? '0.00'),
+  );
+
+  return {
+    clientes: clientes.length,
+    propostas: clientes.filter((cliente) => cliente.orcamentoAberto).length,
+    parados: clientes.filter((cliente) => diasNaEtapa(cliente.atualizadoEm) >= DIAS_PARA_ALERTA)
+      .length,
+    etapasComClientes: colunas.filter((coluna) => coluna.clientes.length > 0).length,
+    valorPipeline,
+  };
+}
+
+function filtrarColunas(
+  colunas: QuadroFunil['colunas'],
+  busca: string,
+  filtro: FiltroRapido,
+): QuadroFunil['colunas'] {
+  const termo = normalizar(busca);
+
+  return colunas.map((coluna) => ({
+    ...coluna,
+    clientes: coluna.clientes.filter((cliente) => {
+      if (filtro === 'atrasados' && diasNaEtapa(cliente.atualizadoEm) < DIAS_PARA_ALERTA) {
+        return false;
+      }
+
+      if (filtro === 'propostas' && !cliente.orcamentoAberto) {
+        return false;
+      }
+
+      if (!termo) return true;
+
+      return normalizar(
+        [
+          cliente.nome,
+          cliente.telefone,
+          cliente.email,
+          cliente.origem,
+          cliente.orcamentoAberto?.servicoNome,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      ).includes(termo);
+    }),
+  }));
+}
+
+function Metrica({
+  icone: Icone,
+  rotulo,
+  valor,
+  detalhe,
+  alerta = false,
+}: {
+  icone: typeof CircleDollarSign;
+  rotulo: string;
+  valor: string;
+  detalhe: string;
+  alerta?: boolean;
+}) {
+  return (
+    <div className="bg-card flex min-h-28 items-start justify-between gap-4 rounded-xl border p-4 shadow-[var(--sombra-sutil)]">
+      <div className="min-w-0">
+        <p className="text-muted-foreground text-xs font-medium">{rotulo}</p>
+        <p className="mt-2 truncate text-2xl font-semibold tracking-tight tabular-nums">{valor}</p>
+        <p className="text-muted-foreground mt-1 truncate text-xs">{detalhe}</p>
+      </div>
+      <span
+        className={cn(
+          'flex size-9 shrink-0 items-center justify-center rounded-lg',
+          alerta ? 'bg-atencao-suave text-atencao' : 'bg-primary/10 text-primary',
+        )}
+      >
+        <Icone aria-hidden className="size-4" />
+      </span>
     </div>
   );
 }
@@ -251,7 +437,7 @@ function Coluna({
     <section
       ref={setNodeRef}
       className={cn(
-        'bg-superficie/95 flex max-h-[calc(100vh-13rem)] w-72 shrink-0 flex-col rounded-xl border shadow-[var(--sombra-sutil)] backdrop-blur-sm transition-colors',
+        'bg-superficie/95 flex max-h-[calc(100vh-18rem)] min-h-[34rem] w-[19rem] shrink-0 flex-col rounded-xl border shadow-[var(--sombra-sutil)] backdrop-blur-sm transition-colors',
         // Realce durante o arrasto: sem ele, não fica claro onde o cartão cai.
         isOver && 'border-primary bg-primary/5',
       )}
@@ -261,7 +447,8 @@ function Coluna({
         visível — saber em que etapa se está enquanto se percorre trinta
         clientes é o mínimo para não se perder.
       */}
-      <header className="bg-superficie/95 sticky top-0 z-10 flex flex-col gap-1 rounded-t-xl px-3 py-3 backdrop-blur-sm">
+      <header className="bg-superficie/95 sticky top-0 z-10 flex flex-col gap-2 rounded-t-xl border-b px-3 py-3 backdrop-blur-sm">
+        <span aria-hidden className={cn('h-1 rounded-full', COR_DA_ETAPA[indice % 5])} />
         <div className="flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
             {/* O ponto colorido dá à etapa uma identidade que o olho reconhece
@@ -283,7 +470,7 @@ function Coluna({
         )}
       </header>
 
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
         {clientes.map((cliente) => (
           <CartaoDoFunil
             key={cliente.id}
@@ -299,7 +486,7 @@ function Coluna({
         {clientes.length === 0 && (
           <p
             className={cn(
-              'rounded-lg border border-dashed px-3 py-6 text-center text-xs transition-colors',
+              'rounded-lg border border-dashed px-3 py-8 text-center text-xs transition-colors',
               isOver ? 'border-primary text-primary' : 'text-muted-foreground',
             )}
           >
@@ -349,7 +536,7 @@ function CartaoDoFunil({
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
-        'bg-card flex flex-col gap-2 rounded-lg border p-3 shadow-[var(--sombra-sutil)]',
+        'group bg-card flex flex-col gap-2 rounded-lg border p-3 shadow-[var(--sombra-sutil)]',
         'transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-input hover:shadow-[var(--sombra-media)]',
         // A faixa lateral marca o cartão parado sem gastar espaço com texto.
         parado && 'border-l-atencao border-l-2',
@@ -423,6 +610,21 @@ function CartaoDoFunil({
             )}
           </div>
         )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {cliente.origem && (
+            <span className="bg-accent text-muted-foreground inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+              <Tag aria-hidden className="size-3" />
+              <span className="truncate">{cliente.origem}</span>
+            </span>
+          )}
+          {email && (
+            <span className="text-muted-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.6875rem]">
+              <Mail aria-hidden className="size-3" />
+              e-mail
+            </span>
+          )}
+        </div>
 
         <p
           className={cn(
@@ -546,4 +748,11 @@ function iniciais(nome: string): string {
   if (partes.length === 1) return partes[0]!.slice(0, 2).toUpperCase();
 
   return `${partes[0]![0]}${partes[partes.length - 1]![0]}`.toUpperCase();
+}
+
+function normalizar(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
 }

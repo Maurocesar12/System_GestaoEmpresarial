@@ -1,7 +1,7 @@
 'use client';
 
 import type { UsuarioAutenticado } from '@gestao/shared-types';
-import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -195,31 +195,20 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
           menuEncolhido ? 'w-20' : 'w-60',
         )}
       >
-        <div className="flex items-start justify-between gap-2">
-          {identificacao(menuEncolhido)}
-          {!menuEncolhido && (
-            <button
-              type="button"
-              onClick={alternarMenuEncolhido}
-              aria-label="Encolher menu"
-              title="Encolher menu"
-              className="text-muted-foreground hover:bg-accent hover:text-foreground m-3 rounded-md p-1.5 transition-colors"
-            >
-              <PanelLeftClose aria-hidden className="size-4" />
-            </button>
+        {identificacao(menuEncolhido)}
+        <button
+          type="button"
+          onClick={alternarMenuEncolhido}
+          aria-label={menuEncolhido ? 'Expandir menu' : 'Encolher menu'}
+          title={menuEncolhido ? 'Expandir menu' : 'Encolher menu'}
+          className="bg-card text-muted-foreground hover:border-primary hover:text-primary absolute top-5 -right-3 flex size-7 items-center justify-center rounded-full border shadow-[var(--sombra-sutil)] transition-colors"
+        >
+          {menuEncolhido ? (
+            <ChevronRight aria-hidden className="size-4" />
+          ) : (
+            <ChevronLeft aria-hidden className="size-4" />
           )}
-        </div>
-        {menuEncolhido && (
-          <button
-            type="button"
-            onClick={alternarMenuEncolhido}
-            aria-label="Expandir menu"
-            title="Expandir menu"
-            className="text-muted-foreground hover:bg-accent hover:text-foreground mx-auto mb-1 rounded-md p-2 transition-colors"
-          >
-            <PanelLeftOpen aria-hidden className="size-4" />
-          </button>
-        )}
+        </button>
         {navegacao(menuEncolhido)}
         {rodape(menuEncolhido)}
       </aside>

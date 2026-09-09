@@ -1,9 +1,10 @@
 'use client';
 
-import { Plus, X } from 'lucide-react';
+import { Mail, Phone, Plus, Tag, X } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 import { Botao } from '@/components/ui/botao';
 import { estilosControle } from '@/components/ui/campo';
+import { mascararTelefone } from '@/lib/mascaras';
 import { cn } from '@/lib/utils';
 import { adicionarCartao } from './acoes';
 
@@ -23,6 +24,9 @@ import { adicionarCartao } from './acoes';
 export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome: string }) {
   const [aberto, setAberto] = useState(false);
   const [nome, setNome] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [email, setEmail] = useState('');
+  const [origem, setOrigem] = useState('');
   const [erro, setErro] = useState<string>();
   const [salvando, iniciar] = useTransition();
 
@@ -31,6 +35,9 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
   function fechar(): void {
     setAberto(false);
     setNome('');
+    setTelefone('');
+    setEmail('');
+    setOrigem('');
     setErro(undefined);
   }
 
@@ -45,11 +52,11 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
 
       const resultado = await adicionarCartao(etapaId, {
         nome: nome.trim(),
-        email: null,
-        telefone: null,
+        email: email.trim() || null,
+        telefone: telefone.trim() || null,
         documento: null,
         observacoes: null,
-        origem: null,
+        origem: origem.trim() || null,
         utmSource: null,
         utmMedium: null,
         utmCampaign: null,
@@ -65,6 +72,9 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
       // Limpa e mantém aberto: quem cadastra um lead costuma cadastrar três.
       // Reabrir o formulário a cada nome seria um clique por cliente.
       setNome('');
+      setTelefone('');
+      setEmail('');
+      setOrigem('');
       campo.current?.focus();
     });
   }
@@ -87,7 +97,7 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="bg-card flex flex-col gap-2 rounded-lg border p-2 shadow-[var(--sombra-sutil)]">
       <label className="sr-only" htmlFor={`novo-${etapaId}`}>
         Nome do cliente para a etapa {etapaNome}
       </label>
@@ -111,6 +121,37 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
         className={cn(estilosControle, 'h-9 bg-card')}
       />
 
+      <CampoCompacto icone={Phone} rotulo="Telefone">
+        <input
+          value={telefone}
+          onChange={(evento) => setTelefone(evento.target.value)}
+          onBlur={(evento) => setTelefone(mascararTelefone(evento.target.value))}
+          placeholder="Telefone"
+          disabled={salvando}
+          className="h-full min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+        />
+      </CampoCompacto>
+
+      <CampoCompacto icone={Mail} rotulo="E-mail">
+        <input
+          value={email}
+          onChange={(evento) => setEmail(evento.target.value)}
+          placeholder="E-mail"
+          disabled={salvando}
+          className="h-full min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+        />
+      </CampoCompacto>
+
+      <CampoCompacto icone={Tag} rotulo="Origem">
+        <input
+          value={origem}
+          onChange={(evento) => setOrigem(evento.target.value)}
+          placeholder="Origem"
+          disabled={salvando}
+          className="h-full min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+        />
+      </CampoCompacto>
+
       {erro && (
         <p role="alert" className="text-destructive text-xs">
           {erro}
@@ -129,5 +170,23 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
         </Botao>
       </div>
     </div>
+  );
+}
+
+function CampoCompacto({
+  icone: Icone,
+  rotulo,
+  children,
+}: {
+  icone: typeof Phone;
+  rotulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="focus-within:border-ring focus-within:ring-ring/20 flex h-8 items-center gap-2 rounded-md border bg-background px-2 transition-[border-color,box-shadow] focus-within:ring-2">
+      <Icone aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
+      <span className="sr-only">{rotulo}</span>
+      {children}
+    </label>
   );
 }
