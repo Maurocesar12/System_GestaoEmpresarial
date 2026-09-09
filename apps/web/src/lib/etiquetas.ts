@@ -2,6 +2,19 @@ import type { CSSProperties } from 'react';
 
 const COR_PADRAO = '#111111';
 
+export const PALETA_ETIQUETAS = [
+  { nome: 'Verde', cor: '#4BCE97' },
+  { nome: 'Amarelo', cor: '#F5CD47' },
+  { nome: 'Laranja', cor: '#FEA362' },
+  { nome: 'Vermelho', cor: '#F87168' },
+  { nome: 'Roxo', cor: '#9F8FEF' },
+  { nome: 'Azul', cor: '#579DFF' },
+  { nome: 'Ciano', cor: '#6CC3E0' },
+  { nome: 'Lima', cor: '#94C748' },
+  { nome: 'Rosa', cor: '#E774BB' },
+  { nome: 'Cinza', cor: '#8590A2' },
+] as const;
+
 export function estilosEtiqueta(cor: string, preenchida = true): CSSProperties {
   const hex = corValida(cor) ? cor : COR_PADRAO;
 

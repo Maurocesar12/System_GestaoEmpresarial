@@ -717,7 +717,7 @@ function CartaoDoFunil({
 function EtiquetaDoCliente({ nome, cor }: { nome: string; cor: string }) {
   return (
     <span
-      className="inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium"
+      className="inline-flex min-h-5 max-w-full items-center rounded-[4px] border px-2 py-0.5 text-[0.6875rem] font-semibold shadow-[inset_0_-1px_rgb(0_0_0_/_0.08)]"
       style={estilosEtiqueta(cor)}
       title={nome}
     >

@@ -184,7 +184,7 @@ export function NovoCartao({
                 onClick={() => alternarEtiqueta(etiqueta.id)}
                 aria-pressed={selecionada}
                 className={cn(
-                  'max-w-full rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium transition-[box-shadow,opacity]',
+                  'max-w-full rounded-[4px] border px-2 py-0.5 text-[0.6875rem] font-semibold transition-[box-shadow,opacity,transform]',
                   selecionada ? 'opacity-100 shadow-[var(--sombra-sutil)]' : 'opacity-55',
                 )}
                 style={estilosEtiqueta(etiqueta.cor, selecionada)}

@@ -139,7 +139,7 @@ export function CartaoAberto({
               {cliente.etiquetas.map((etiqueta) => (
                 <span
                   key={etiqueta.id}
-                  className="inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-xs font-medium"
+                  className="inline-flex max-w-full items-center rounded-[4px] border px-2.5 py-1 text-xs font-semibold shadow-[inset_0_-1px_rgb(0_0_0_/_0.08)]"
                   style={estilosEtiqueta(etiqueta.cor)}
                 >
                   <span className="truncate">{etiqueta.nome}</span>

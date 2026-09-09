@@ -5,7 +5,7 @@ import {
   type Etiqueta,
   type TipoCampoPersonalizado,
 } from '@gestao/shared-types';
-import { MailCheck, Plus, Trash2 } from 'lucide-react';
+import { Check, MailCheck, Plus, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { useAvisos } from '@/components/ui/avisos';
@@ -13,6 +13,7 @@ import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import { Selecao } from '@/components/ui/selecao';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
+import { PALETA_ETIQUETAS, estilosEtiqueta } from '@/lib/etiquetas';
 import { salvarConfiguracoes, testarEmail } from './acoes';
 
 type CampoEditavel = Omit<CampoPersonalizado, 'id'> & { id?: string };
@@ -198,7 +199,15 @@ export function FormularioConfiguracoes({ iniciais }: { iniciais: ConfiguracoesE
             type="button"
             variante="secundario"
             tamanho="sm"
-            onClick={() => setEtiquetas([...etiquetas, { nome: '', cor: '#111111' }])}
+            onClick={() =>
+              setEtiquetas([
+                ...etiquetas,
+                {
+                  nome: '',
+                  cor: PALETA_ETIQUETAS[etiquetas.length % PALETA_ETIQUETAS.length]!.cor,
+                },
+              ])
+            }
           >
             <Plus />
             Etiqueta
@@ -208,28 +217,65 @@ export function FormularioConfiguracoes({ iniciais }: { iniciais: ConfiguracoesE
           {etiquetas.map((etiqueta, indice) => (
             <div
               key={etiqueta.id ?? indice}
-              className="grid items-end gap-3 rounded-md border p-3 sm:grid-cols-[5rem_1fr_auto]"
+              className="grid items-end gap-3 rounded-md border p-3 sm:grid-cols-[1fr_auto]"
             >
-              <label className="flex flex-col gap-1.5 text-sm font-medium">
-                Cor
-                <input
-                  type="color"
-                  className="h-10 w-full rounded-md border bg-card p-1"
-                  value={etiqueta.cor}
-                  onChange={(e) => alterarEtiqueta(indice, { cor: e.target.value })}
-                />
-              </label>
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">Cor da etiqueta</span>
+                  <span
+                    className="max-w-44 truncate rounded-[4px] border px-2.5 py-1 text-xs font-semibold"
+                    style={estilosEtiqueta(etiqueta.cor)}
+                  >
+                    {etiqueta.nome.trim() || 'Nova etiqueta'}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {PALETA_ETIQUETAS.map((opcao) => {
+                    const selecionada = etiqueta.cor.toUpperCase() === opcao.cor;
+
+                    return (
+                      <button
+                        key={opcao.cor}
+                        type="button"
+                        aria-label={`Usar ${opcao.nome}`}
+                        aria-pressed={selecionada}
+                        title={opcao.nome}
+                        onClick={() => alterarEtiqueta(indice, { cor: opcao.cor })}
+                        className="flex size-8 items-center justify-center rounded-[5px] border border-black/10 shadow-sm transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        style={{ backgroundColor: opcao.cor }}
+                      >
+                        {selecionada && (
+                          <Check aria-hidden className="size-4" style={{ color: estilosEtiqueta(opcao.cor).color }} />
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  <label className="relative flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-[5px] border shadow-sm" title="Cor personalizada">
+                    <span className="sr-only">Escolher cor personalizada</span>
+                    <input
+                      type="color"
+                      className="absolute inset-[-8px] size-12 cursor-pointer border-0 p-0"
+                      value={etiqueta.cor}
+                      onChange={(evento) => alterarEtiqueta(indice, { cor: evento.target.value })}
+                    />
+                  </label>
+                </div>
+              </div>
+
               <Campo
                 rotulo="Nome"
                 value={etiqueta.nome}
-                onChange={(e) => alterarEtiqueta(indice, { nome: e.target.value })}
+                onChange={(evento) => alterarEtiqueta(indice, { nome: evento.target.value })}
               />
+
               <Botao
                 type="button"
                 variante="sutil"
                 tamanho="icone"
                 aria-label="Remover etiqueta"
-                onClick={() => setEtiquetas(etiquetas.filter((_, i) => i !== indice))}
+                onClick={() => setEtiquetas(etiquetas.filter((_, item) => item !== indice))}
               >
                 <Trash2 />
               </Botao>
