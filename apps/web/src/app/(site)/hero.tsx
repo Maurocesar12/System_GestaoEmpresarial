@@ -1,14 +1,6 @@
 import styles from './hero.module.css';
 import Link from 'next/link';
-import {
-  ArrowDown,
-  ArrowRight,
-  CalendarDays,
-  Check,
-  ChartNoAxesCombined,
-  UsersRound,
-} from 'lucide-react';
-import { DIAS_DE_TESTE } from './conteudo';
+import { ArrowDown, ArrowRight, CalendarDays, ChartNoAxesCombined, UsersRound } from 'lucide-react';
 import { VideoHeader } from './video-header';
 
 const ATALHOS = [
@@ -52,20 +44,12 @@ export function Hero() {
             </p>
             <div className={styles['hero-actions']}>
               <Link href="/cadastro" className={styles['hero-primary']}>
-                Começar meu teste grátis <ArrowRight aria-hidden />
+                Criar minha conta <ArrowRight aria-hidden />
               </Link>
               <a href="#como-funciona" className={styles['hero-secondary']}>
                 <ArrowDown aria-hidden /> Ver como funciona
               </a>
             </div>
-            <ul className={styles['hero-assurances']} aria-label="Sobre o teste gratuito">
-              <li>
-                <Check aria-hidden /> {DIAS_DE_TESTE} dias grátis
-              </li>
-              <li>
-                <Check aria-hidden /> Sem cartão de crédito
-              </li>
-            </ul>
             <a href="#planos" className={styles['hero-plans']}>
               Conheça os planos <ArrowRight aria-hidden />
             </a>

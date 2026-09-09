@@ -173,6 +173,3 @@ export const RECURSOS_IA: readonly RecursoIA[] = [
       'Um parágrafo curto com o essencial daquele cliente: o que já foi feito, o que está em aberto e o que ficou pendente da última vez.',
   },
 ];
-
-/** Dias de teste — espelha `ONBOARDING_TRIAL_DIAS` no ambiente da API. */
-export const DIAS_DE_TESTE = 14;

@@ -66,7 +66,7 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
               Entrar
             </Link>
             <Link href="/cadastro" className={estilosBotao({ tamanho: 'sm' })}>
-              Testar grátis
+              Criar conta
             </Link>
           </div>
           <NavegacaoMobile secoes={SECOES} />

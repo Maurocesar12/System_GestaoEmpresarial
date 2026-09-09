@@ -53,7 +53,7 @@ export function NavegacaoMobile({
               Entrar
             </Link>
             <Link href="/cadastro" className={estilosBotao()}>
-              Testar grátis
+              Criar conta
             </Link>
           </div>
         </div>

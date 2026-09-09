@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { estilosBotao } from '@/components/ui/botao';
-import { DIAS_DE_TESTE, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
+import { PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { DemonstracaoPrevisao } from './demonstracao-previsao';
 import { Hero } from './hero';
 import { Revelar } from './revelar';
@@ -21,7 +21,7 @@ export default function PaginaInicial() {
       <ComoFunciona />
       <InteligenciaArtificial />
       <Seguranca />
-      <Teste />
+      <Planos />
       <ChamadaFinal />
     </>
   );
@@ -282,16 +282,13 @@ function Seguranca() {
   );
 }
 
-function Teste() {
+function Planos() {
   return (
     <section id="planos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao
-          rotulo="Preço"
-          titulo={`Escolha o tamanho certo depois de testar por ${DIAS_DE_TESTE} dias.`}
-        >
-          Comece sem cartão. O Básico organiza a operação; o Pro amplia a equipe, a carteira e
-          acrescenta a previsão financeira com IA.
+        <CabecalhoSecao rotulo="Preço" titulo="Escolha o plano certo para organizar sua operação.">
+          O Básico organiza a rotina comercial e financeira; o Pro amplia a equipe, a carteira e
+          acrescenta previsão financeira com IA.
         </CabecalhoSecao>
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           <CartaoPlano
@@ -358,7 +355,7 @@ function CartaoPlano({
         href="/cadastro"
         className={estilosBotao({ variante: destaque ? 'primario' : 'secundario', tamanho: 'lg' })}
       >
-        Testar grátis
+        Começar agora
         <ArrowRight />
       </Link>
     </article>
