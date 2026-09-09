@@ -16,7 +16,7 @@ export default function ImagemCompartilhamento() {
         flexDirection: 'column',
         justifyContent: 'space-between',
         background: SITE.corFundo,
-        color: '#211d1a',
+        color: '#111111',
         padding: '76px 84px',
         fontFamily: 'Arial, sans-serif',
       }}
@@ -35,17 +35,28 @@ export default function ImagemCompartilhamento() {
             background: SITE.corMarca,
           }}
         >
-          {[22, 34, 46].map((altura) => (
-            <div
-              key={altura}
-              style={{
-                width: 8,
-                height: altura,
-                borderRadius: 8,
-                background: SITE.corFundoEscuro,
-              }}
+          <svg width="50" height="50" viewBox="0 0 32 32" fill="none">
+            <path
+              d="M8.5 22.5h15"
+              stroke={SITE.corFundo}
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              opacity=".42"
             />
-          ))}
+            <path
+              d="M9.25 21v-4.25m6.75 4.25v-7.5M22.75 21V10.75"
+              stroke={SITE.corFundo}
+              strokeWidth="2.45"
+              strokeLinecap="round"
+            />
+            <path
+              d="M9.25 16.75 16 13.5l3.6 2.05 3.15-4.8"
+              stroke="#f5f5f5"
+              strokeWidth="1.65"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
         <div style={{ display: 'flex', fontSize: 38, fontWeight: 700 }}>{SITE.nome}</div>
       </div>
@@ -54,7 +65,7 @@ export default function ImagemCompartilhamento() {
         <div style={{ display: 'flex', fontSize: 64, fontWeight: 700, lineHeight: 1.08 }}>
           O que você vendeu e o que entrou no caixa, no mesmo sistema.
         </div>
-        <div style={{ display: 'flex', color: '#6c625c', fontSize: 29, lineHeight: 1.35 }}>
+        <div style={{ display: 'flex', color: '#606060', fontSize: 29, lineHeight: 1.35 }}>
           {SITE.descricao}
         </div>
       </div>

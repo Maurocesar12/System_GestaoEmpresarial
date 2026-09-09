@@ -4,7 +4,7 @@ interface SimboloMarcaProps {
   className?: string;
 }
 
-/** Símbolo da marca: três barras ascendentes representam evolução do negócio. */
+/** Símbolo da marca: evolução do negócio em leitura mínima de dashboard. */
 export function SimboloMarca({ className }: SimboloMarcaProps) {
   return (
     <svg
@@ -13,12 +13,25 @@ export function SimboloMarca({ className }: SimboloMarcaProps) {
       className={cn('size-7 shrink-0', className)}
       fill="none"
     >
-      <rect width="32" height="32" rx="8" className="fill-primary" />
+      <rect width="32" height="32" rx="9" className="fill-primary" />
       <path
-        d="M9 22v-5m7 5V13m7 9V9"
-        className="stroke-primary-foreground"
-        strokeWidth="2.75"
+        d="M8.5 22.5h15"
+        className="stroke-primary-foreground opacity-40"
+        strokeWidth="1.4"
         strokeLinecap="round"
+      />
+      <path
+        d="M9.25 21v-4.25m6.75 4.25v-7.5M22.75 21V10.75"
+        className="stroke-primary-foreground"
+        strokeWidth="2.45"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9.25 16.75 16 13.5l3.6 2.05 3.15-4.8"
+        className="stroke-primary-foreground opacity-80"
+        strokeWidth="1.65"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

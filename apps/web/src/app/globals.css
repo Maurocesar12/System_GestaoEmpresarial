@@ -6,13 +6,13 @@
 /* Superfície do vídeo exportado e contraste do título comercial. */
 :root {
   --altura-cabecalho-site: 4rem;
-  --hero-video-fundo: #faf9f6;
-  --hero-video-texto: #756c63;
-  --hero-enfase: oklch(0.49 0.055 62);
+  --hero-video-fundo: #f7f7f7;
+  --hero-video-texto: #606060;
+  --hero-enfase: oklch(0.18 0 0);
 }
 
 .dark {
-  --hero-enfase: oklch(0.77 0.055 62);
+  --hero-enfase: oklch(0.96 0 0);
 }
 
 /*
@@ -75,7 +75,7 @@
 }
 
 :root {
-  /* Base neutra e quente: marfim, carvão e nude/caramelo. */
+  /* Base clássica monocromática: branco, cinza claro, grafite e preto. */
   color-scheme: light;
   --radius: 0.5rem;
 
@@ -86,101 +86,100 @@
   */
   --fonte-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  --background: oklch(0.985 0.005 75);
-  --superficie: oklch(0.963 0.009 70);
-  --foreground: oklch(0.19 0.012 50);
+  --background: oklch(0.985 0 0);
+  --superficie: oklch(0.96 0 0);
+  --foreground: oklch(0.16 0 0);
 
-  --card: oklch(0.998 0.002 75);
+  --card: oklch(1 0 0);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.998 0.002 75);
+  --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
 
-  /* Nude claro com texto carvão para preservar contraste e leveza. */
-  --primary: oklch(0.72 0.055 62);
-  --primary-foreground: oklch(0.19 0.012 50);
+  /* Preto: clássico, forte e direto para CRM/financeiro. */
+  --primary: oklch(0.16 0 0);
+  --primary-foreground: oklch(0.99 0 0);
 
-  --secondary: oklch(0.95 0.011 70);
+  --secondary: oklch(0.94 0 0);
   --secondary-foreground: var(--foreground);
 
-  --muted: oklch(0.95 0.009 70);
-  --muted-foreground: oklch(0.49 0.018 52);
+  --muted: oklch(0.93 0 0);
+  --muted-foreground: oklch(0.48 0 0);
 
-  --accent: oklch(0.935 0.021 65);
+  --accent: oklch(0.91 0 0);
   --accent-foreground: var(--foreground);
 
-  --border: oklch(0.885 0.014 65);
-  --input: oklch(0.85 0.018 62);
+  --border: oklch(0.86 0 0);
+  --input: oklch(0.78 0 0);
   --ring: var(--primary);
 
   /* Estados preservam cor própria porque também comunicam significado. */
-  --destructive: oklch(0.5 0.16 28);
-  --destructive-foreground: oklch(0.99 0.004 75);
-  --destrutivo-suave: oklch(0.955 0.026 28);
+  --destructive: oklch(0.28 0 0);
+  --destructive-foreground: oklch(0.99 0 0);
+  --destrutivo-suave: oklch(0.92 0 0);
 
-  --sucesso: oklch(0.46 0.09 150);
-  --sucesso-suave: oklch(0.955 0.025 150);
-  --atencao: oklch(0.51 0.09 70);
-  --atencao-suave: oklch(0.955 0.035 75);
-  --info: oklch(0.48 0.055 245);
-  --info-suave: oklch(0.955 0.018 245);
+  --sucesso: oklch(0.24 0 0);
+  --sucesso-suave: oklch(0.94 0 0);
+  --atencao: oklch(0.38 0 0);
+  --atencao-suave: oklch(0.9 0 0);
+  --info: oklch(0.32 0 0);
+  --info-suave: oklch(0.93 0 0);
 
-  /* Gráficos seguem a marca sem perder contraste entre as séries. */
-  --grafico-1: oklch(0.72 0.055 62);
-  --grafico-2: oklch(0.28 0.012 50);
-  --grafico-3: oklch(0.6 0.032 55);
-  --grafico-4: oklch(0.72 0.055 67);
-  --grafico-5: oklch(0.48 0.009 70);
+  /* Gráficos monocromáticos com contraste por valor, espessura e área. */
+  --grafico-1: oklch(0.22 0 0);
+  --grafico-2: oklch(0.42 0 0);
+  --grafico-3: oklch(0.62 0 0);
+  --grafico-4: oklch(0.74 0 0);
+  --grafico-5: oklch(0.86 0 0);
 
-  --sombra-sutil: 0 1px 2px 0 oklch(0.19 0.012 50 / 0.06);
-  --sombra-media:
-    0 4px 12px -2px oklch(0.19 0.012 50 / 0.09), 0 2px 4px -2px oklch(0.19 0.012 50 / 0.05);
+  --sombra-sutil: 0 1px 2px 0 oklch(0.16 0 0 / 0.07);
+  --sombra-media: 0 4px 12px -2px oklch(0.16 0 0 / 0.1), 0 2px 4px -2px oklch(0.16 0 0 / 0.06);
 }
 
 .dark {
   /* Faz controles nativos, como a lista do select, acompanharem o tema. */
   color-scheme: dark;
 
-  --background: oklch(0.145 0.008 50);
-  --superficie: oklch(0.12 0.007 50);
-  --foreground: oklch(0.96 0.008 70);
+  --background: oklch(0.12 0 0);
+  --superficie: oklch(0.17 0 0);
+  --foreground: oklch(0.96 0 0);
 
-  --card: oklch(0.19 0.01 50);
+  --card: oklch(0.2 0 0);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.19 0.01 50);
+  --popover: oklch(0.2 0 0);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.8 0.047 65);
-  --primary-foreground: oklch(0.16 0.01 50);
+  --primary: oklch(0.96 0 0);
+  --primary-foreground: oklch(0.12 0 0);
 
-  --secondary: oklch(0.245 0.012 50);
+  --secondary: oklch(0.27 0 0);
   --secondary-foreground: var(--foreground);
 
-  --muted: oklch(0.245 0.012 50);
-  --muted-foreground: oklch(0.7 0.018 62);
+  --muted: oklch(0.27 0 0);
+  --muted-foreground: oklch(0.72 0 0);
 
-  --accent: oklch(0.275 0.02 55);
+  --accent: oklch(0.32 0 0);
   --accent-foreground: var(--foreground);
 
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 16%);
   --ring: var(--primary);
 
-  --destructive: oklch(0.68 0.14 25);
-  --destructive-foreground: oklch(0.16 0.01 50);
-  --destrutivo-suave: oklch(0.3 0.055 25);
+  --destructive: oklch(0.82 0 0);
+  --destructive-foreground: oklch(0.12 0 0);
+  --destrutivo-suave: oklch(0.3 0 0);
 
-  --sucesso: oklch(0.72 0.1 150);
-  --sucesso-suave: oklch(0.28 0.04 150);
-  --atencao: oklch(0.79 0.1 75);
-  --atencao-suave: oklch(0.3 0.045 65);
-  --info: oklch(0.72 0.075 245);
-  --info-suave: oklch(0.29 0.04 245);
+  --sucesso: oklch(0.86 0 0);
+  --sucesso-suave: oklch(0.28 0 0);
+  --atencao: oklch(0.74 0 0);
+  --atencao-suave: oklch(0.34 0 0);
+  --info: oklch(0.82 0 0);
+  --info-suave: oklch(0.3 0 0);
 
-  --grafico-1: oklch(0.8 0.047 65);
-  --grafico-2: oklch(0.88 0.01 70);
-  --grafico-3: oklch(0.62 0.03 55);
-  --grafico-4: oklch(0.55 0.07 48);
-  --grafico-5: oklch(0.7 0.008 70);
+  --grafico-1: oklch(0.96 0 0);
+  --grafico-2: oklch(0.78 0 0);
+  --grafico-3: oklch(0.62 0 0);
+  --grafico-4: oklch(0.48 0 0);
+  --grafico-5: oklch(0.36 0 0);
 
   --sombra-sutil: 0 1px 2px 0 oklch(0 0 0 / 0.3);
   --sombra-media: 0 4px 12px -2px oklch(0 0 0 / 0.4), 0 2px 4px -2px oklch(0 0 0 / 0.3);
@@ -195,35 +194,9 @@
     @apply bg-background text-foreground;
   }
 
-  /* Fundo da área autenticada: profundidade suave, sem competir com os dados. */
+  /* Fundo da área autenticada: neutro para dar respiro aos dados. */
   .fundo-painel {
     background-color: var(--background);
-    background-image:
-      radial-gradient(
-        circle at 12% 0%,
-        color-mix(in oklch, var(--primary) 13%, transparent) 0,
-        transparent 34rem
-      ),
-      radial-gradient(
-        circle at 88% 14%,
-        color-mix(in oklch, var(--primary) 7%, transparent) 0,
-        transparent 28rem
-      );
-    background-attachment: fixed;
-  }
-
-  .dark .fundo-painel {
-    background-image:
-      radial-gradient(
-        circle at 12% 0%,
-        color-mix(in oklch, var(--primary) 8%, transparent) 0,
-        transparent 34rem
-      ),
-      radial-gradient(
-        circle at 88% 14%,
-        color-mix(in oklch, var(--primary) 4%, transparent) 0,
-        transparent 28rem
-      );
   }
 
   /*
