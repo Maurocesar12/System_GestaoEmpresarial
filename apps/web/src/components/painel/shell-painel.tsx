@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { SimboloMarca } from '@/components/marca';
-import { AlternadorTema } from '@/components/ui/tema';
 import { cn } from '@/lib/utils';
 import { ChatIa } from './chat-ia';
 import { hrefAtivo, menuDoUsuario } from './menu';
@@ -164,11 +163,9 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
     <div
       className={cn(
         'flex items-center gap-2 border-t px-3 py-3',
-        encolhido ? 'flex-col justify-center' : 'justify-between',
+        encolhido ? 'flex-col justify-center' : 'justify-end',
       )}
     >
-      {!encolhido && <AlternadorTema />}
-
       <form action={aoSair}>
         <button
           type="submit"

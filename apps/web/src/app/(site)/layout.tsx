@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { Marca } from '@/components/marca';
 import { estilosBotao } from '@/components/ui/botao';
-import { AlternadorTema } from '@/components/ui/tema';
 import { SITE } from '@/configuracao/site';
 import { NavegacaoMobile } from './navegacao-mobile';
 
@@ -77,15 +76,11 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
 
       <footer className="bg-superficie border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <Marca className="text-sm" />
-              <span className="text-muted-foreground text-xs">
-                Sistema de Gestão para empresas.
-              </span>
-            </div>
-
-            <AlternadorTema />
+          <div className="flex flex-col gap-1">
+            <Marca className="text-sm" />
+            <span className="text-muted-foreground text-xs">
+              Sistema de Gestão para empresas.
+            </span>
           </div>
 
           <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-4 border-t pt-6 text-xs">
