@@ -1,18 +1,25 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  chatIaSchema,
   gerarPrevisaoFinanceiraSchema,
+  type ChatIaInput,
+  type ChatIaResponse,
   type ConsumoIaResponse,
   type GerarPrevisaoFinanceiraInput,
   type PrevisaoFinanceiraResponse,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../common/decorators/permissoes.decorator';
 import { CorpoValidado } from '../../common/decorators/validado.decorator';
+import { ChatIaService } from './chat-ia.service';
 import { PrevisaoFinanceiraService } from './previsao-financeira.service';
 
 @Controller('ia')
 export class IaController {
-  constructor(private readonly previsao: PrevisaoFinanceiraService) {}
+  constructor(
+    private readonly previsao: PrevisaoFinanceiraService,
+    private readonly chat: ChatIaService,
+  ) {}
 
   @Get('consumo')
   @Permissoes('ia.visualizar_consumo')
@@ -33,5 +40,11 @@ export class IaController {
     @CorpoValidado(gerarPrevisaoFinanceiraSchema) dados: GerarPrevisaoFinanceiraInput,
   ): Promise<PrevisaoFinanceiraResponse> {
     return this.previsao.gerar(dados);
+  }
+
+  @Post('chat')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  responderChat(@CorpoValidado(chatIaSchema) dados: ChatIaInput): Promise<ChatIaResponse> {
+    return this.chat.responder(dados);
   }
 }

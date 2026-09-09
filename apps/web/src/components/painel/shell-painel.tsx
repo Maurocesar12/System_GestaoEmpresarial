@@ -8,6 +8,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { SimboloMarca } from '@/components/marca';
 import { AlternadorTema } from '@/components/ui/tema';
 import { cn } from '@/lib/utils';
+import { ChatIa } from './chat-ia';
 import { hrefAtivo, menuDoUsuario } from './menu';
 
 /**
@@ -292,6 +293,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
           {children}
         </main>
       </div>
+      <ChatIa />
     </div>
   );
 }
