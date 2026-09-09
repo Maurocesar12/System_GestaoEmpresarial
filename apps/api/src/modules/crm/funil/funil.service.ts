@@ -48,7 +48,16 @@ export class FunilService {
         const posicoes = await tx.clienteFunil.findMany({
           include: {
             cliente: {
-              select: { id: true, nome: true, telefone: true, email: true, origem: true },
+              select: {
+                id: true,
+                nome: true,
+                telefone: true,
+                email: true,
+                origem: true,
+                etiquetas: {
+                  select: { etiqueta: { select: { id: true, nome: true, cor: true } } },
+                },
+              },
             },
           },
           orderBy: { atualizadoEm: 'desc' },
@@ -110,6 +119,7 @@ export class FunilService {
           email: posicao.cliente.email,
           origem: posicao.cliente.origem,
           atualizadoEm: posicao.atualizadoEm.toISOString(),
+          etiquetas: posicao.cliente.etiquetas.map((item) => item.etiqueta),
           orcamentoAberto: orcamento
             ? {
                 id: orcamento.id,
@@ -166,7 +176,8 @@ export class FunilService {
       }
 
       const posicaoAnterior = await tx.clienteFunil.findUnique({
-        where: { clienteId }, select: { etapaId: true },
+        where: { clienteId },
+        select: { etapaId: true },
       });
 
       const posicao = await tx.clienteFunil.upsert({
@@ -177,7 +188,9 @@ export class FunilService {
 
       if (posicaoAnterior?.etapaId !== etapaId) {
         await this.auditoria.registrar(tx, {
-          entidade: 'funil', entidadeId: posicao.id, acao: 'movimentou',
+          entidade: 'funil',
+          entidadeId: posicao.id,
+          acao: 'movimentou',
           antes: posicaoAnterior ? { clienteId, etapaId: posicaoAnterior.etapaId } : undefined,
           depois: { clienteId, etapaId },
         });
@@ -192,7 +205,9 @@ export class FunilService {
       await tx.clienteFunil.deleteMany({ where: { clienteId } });
       if (posicao) {
         await this.auditoria.registrar(tx, {
-          entidade: 'funil', entidadeId: posicao.id, acao: 'excluiu',
+          entidade: 'funil',
+          entidadeId: posicao.id,
+          acao: 'excluiu',
           antes: { clienteId, etapaId: posicao.etapaId },
         });
       }

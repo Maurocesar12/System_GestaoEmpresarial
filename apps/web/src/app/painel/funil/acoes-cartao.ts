@@ -73,6 +73,8 @@ export async function salvarCartao(
     utmSource: atual.utmSource ?? '',
     utmMedium: atual.utmMedium ?? '',
     utmCampaign: atual.utmCampaign ?? '',
+    camposPersonalizados: atual.camposPersonalizados,
+    etiquetas: atual.etiquetas,
   });
 
   if (!validacao.success) {

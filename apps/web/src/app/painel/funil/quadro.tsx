@@ -20,6 +20,7 @@ import {
   formatarTelefone,
   somarDinheiro,
   type ClienteNoFunil,
+  type Etiqueta,
   type QuadroFunil,
 } from '@gestao/shared-types';
 import {
@@ -40,6 +41,7 @@ import { useMemo, useOptimistic, useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { estilosControle } from '@/components/ui/campo';
 import { linkEmail, linkTelefone, linkWhatsApp } from '@/lib/contato';
+import { estilosEtiqueta } from '@/lib/etiquetas';
 import { cn } from '@/lib/utils';
 import { moverCliente } from './acoes';
 import { CartaoAberto } from './cartao-aberto';
@@ -63,7 +65,7 @@ import { NovoCartao } from './novo-cartao';
  * A outra metade é o `<select>` em cada cartão, que muda a etapa sem gesto
  * nenhum e funciona igual no celular, onde arrastar entre colunas é penoso.
  */
-export function Quadro({ quadro }: { quadro: QuadroFunil }) {
+export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: Etiqueta[] }) {
   const [erro, setErro] = useState<string>();
   const [, iniciarMovimento] = useTransition();
   const [arrastando, setArrastando] = useState<ClienteNoFunil | null>(null);
@@ -245,6 +247,7 @@ export function Quadro({ quadro }: { quadro: QuadroFunil }) {
                 indice={indice}
                 clientes={coluna.clientes}
                 etapas={colunas.map((c) => c.etapa)}
+                etiquetas={etiquetas}
                 aoTrocarEtapa={mover}
                 aoAbrir={setAbertoId}
               />
@@ -343,6 +346,7 @@ function filtrarColunas(
           cliente.telefone,
           cliente.email,
           cliente.origem,
+          cliente.etiquetas.map((etiqueta) => etiqueta.nome).join(' '),
           cliente.orcamentoAberto?.servicoNome,
         ]
           .filter(Boolean)
@@ -414,6 +418,7 @@ function Coluna({
   indice,
   clientes,
   etapas,
+  etiquetas,
   aoTrocarEtapa,
   aoAbrir,
 }: {
@@ -423,6 +428,7 @@ function Coluna({
   indice: number;
   clientes: ClienteNoFunil[];
   etapas: { id: string; nome: string }[];
+  etiquetas: Etiqueta[];
   aoTrocarEtapa: (clienteId: string, etapaId: string) => void;
   aoAbrir: (clienteId: string) => void;
 }) {
@@ -496,7 +502,7 @@ function Coluna({
       </div>
 
       <div className="px-2 pb-2">
-        <NovoCartao etapaId={id} etapaNome={nome} />
+        <NovoCartao etapaId={id} etapaNome={nome} etiquetas={etiquetas} />
       </div>
     </section>
   );
@@ -626,6 +632,14 @@ function CartaoDoFunil({
           )}
         </div>
 
+        {cliente.etiquetas.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {cliente.etiquetas.map((etiqueta) => (
+              <EtiquetaDoCliente key={etiqueta.id} nome={etiqueta.nome} cor={etiqueta.cor} />
+            ))}
+          </div>
+        )}
+
         <p
           className={cn(
             'flex items-center gap-1.5 text-xs',
@@ -697,6 +711,18 @@ function CartaoDoFunil({
         </Link>
       </div>
     </article>
+  );
+}
+
+function EtiquetaDoCliente({ nome, cor }: { nome: string; cor: string }) {
+  return (
+    <span
+      className="inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium"
+      style={estilosEtiqueta(cor)}
+      title={nome}
+    >
+      <span className="truncate">{nome}</span>
+    </span>
   );
 }
 

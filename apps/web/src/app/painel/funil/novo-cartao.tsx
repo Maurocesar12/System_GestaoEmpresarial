@@ -1,9 +1,11 @@
 'use client';
 
+import type { Etiqueta } from '@gestao/shared-types';
 import { Mail, Phone, Plus, Tag, X } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 import { Botao } from '@/components/ui/botao';
 import { estilosControle } from '@/components/ui/campo';
+import { estilosEtiqueta } from '@/lib/etiquetas';
 import { mascararTelefone } from '@/lib/mascaras';
 import { cn } from '@/lib/utils';
 import { adicionarCartao } from './acoes';
@@ -21,12 +23,21 @@ import { adicionarCartao } from './acoes';
  * cliente. Um campo a mais aqui é atrito no momento em que a pessoa está com
  * pressa.
  */
-export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome: string }) {
+export function NovoCartao({
+  etapaId,
+  etapaNome,
+  etiquetas,
+}: {
+  etapaId: string;
+  etapaNome: string;
+  etiquetas: Etiqueta[];
+}) {
   const [aberto, setAberto] = useState(false);
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
   const [email, setEmail] = useState('');
   const [origem, setOrigem] = useState('');
+  const [etiquetasSelecionadas, setEtiquetasSelecionadas] = useState<string[]>([]);
   const [erro, setErro] = useState<string>();
   const [salvando, iniciar] = useTransition();
 
@@ -38,6 +49,7 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
     setTelefone('');
     setEmail('');
     setOrigem('');
+    setEtiquetasSelecionadas([]);
     setErro(undefined);
   }
 
@@ -61,7 +73,7 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
         utmMedium: null,
         utmCampaign: null,
         camposPersonalizados: {},
-        etiquetas: [],
+        etiquetas: etiquetasSelecionadas,
       });
 
       if (resultado.erro) {
@@ -75,8 +87,17 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
       setTelefone('');
       setEmail('');
       setOrigem('');
+      setEtiquetasSelecionadas([]);
       campo.current?.focus();
     });
+  }
+
+  function alternarEtiqueta(etiquetaId: string): void {
+    setEtiquetasSelecionadas((atuais) =>
+      atuais.includes(etiquetaId)
+        ? atuais.filter((id) => id !== etiquetaId)
+        : [...atuais, etiquetaId],
+    );
   }
 
   if (!aberto) {
@@ -151,6 +172,30 @@ export function NovoCartao({ etapaId, etapaNome }: { etapaId: string; etapaNome:
           className="h-full min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
         />
       </CampoCompacto>
+
+      {etiquetas.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {etiquetas.map((etiqueta) => {
+            const selecionada = etiquetasSelecionadas.includes(etiqueta.id);
+            return (
+              <button
+                key={etiqueta.id}
+                type="button"
+                onClick={() => alternarEtiqueta(etiqueta.id)}
+                aria-pressed={selecionada}
+                className={cn(
+                  'max-w-full rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium transition-[box-shadow,opacity]',
+                  selecionada ? 'opacity-100 shadow-[var(--sombra-sutil)]' : 'opacity-55',
+                )}
+                style={estilosEtiqueta(etiqueta.cor, selecionada)}
+                title={etiqueta.nome}
+              >
+                <span className="block truncate">{etiqueta.nome}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {erro && (
         <p role="alert" className="text-destructive text-xs">

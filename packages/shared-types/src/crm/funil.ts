@@ -79,6 +79,12 @@ export interface OrcamentoDoCartao {
   servicoNome: string | null;
 }
 
+export interface EtiquetaDoCartao {
+  id: string;
+  nome: string;
+  cor: string;
+}
+
 /** Cliente como aparece num cartão do quadro. */
 export interface ClienteNoFunil {
   id: string;
@@ -88,6 +94,7 @@ export interface ClienteNoFunil {
   origem: string | null;
   /** Quando entrou nesta etapa — o que revela oportunidade parada. */
   atualizadoEm: string;
+  etiquetas: EtiquetaDoCartao[];
   /**
    * Proposta em aberto, quando existe.
    *

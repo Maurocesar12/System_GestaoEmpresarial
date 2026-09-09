@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { QuadroFunil } from '@gestao/shared-types';
+import type { ConfiguracoesEmpresa, QuadroFunil } from '@gestao/shared-types';
 import { Settings2, UserPlus } from 'lucide-react';
 import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao } from '@/lib/api-servidor';
@@ -11,7 +11,10 @@ export const metadata: Metadata = {
 };
 
 export default async function PaginaFunil() {
-  const quadro = await apiComSessao<QuadroFunil>('/funil');
+  const [quadro, configuracoes] = await Promise.all([
+    apiComSessao<QuadroFunil>('/funil'),
+    apiComSessao<ConfiguracoesEmpresa>('/configuracoes'),
+  ]);
 
   const totalNoFunil = quadro.colunas.reduce((soma, coluna) => soma + coluna.clientes.length, 0);
 
@@ -69,7 +72,7 @@ export default async function PaginaFunil() {
           </Link>
         </div>
       ) : (
-        <Quadro quadro={quadro} />
+        <Quadro quadro={quadro} etiquetas={configuracoes.etiquetas} />
       )}
     </div>
   );

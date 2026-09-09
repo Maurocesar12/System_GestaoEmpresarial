@@ -198,7 +198,7 @@ export function FormularioConfiguracoes({ iniciais }: { iniciais: ConfiguracoesE
             type="button"
             variante="secundario"
             tamanho="sm"
-            onClick={() => setEtiquetas([...etiquetas, { nome: '', cor: '#B58A6A' }])}
+            onClick={() => setEtiquetas([...etiquetas, { nome: '', cor: '#111111' }])}
           >
             <Plus />
             Etiqueta

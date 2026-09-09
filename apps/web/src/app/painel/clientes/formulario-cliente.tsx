@@ -16,6 +16,7 @@ import { AreaTexto } from '@/components/ui/area-texto';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
+import { estilosEtiqueta } from '@/lib/etiquetas';
 import { mascararDocumento, mascararTelefone } from '@/lib/mascaras';
 import type { ResultadoAcao } from '@/lib/acoes';
 import { salvarCliente } from './acoes';
@@ -30,7 +31,15 @@ const CAMPOS = ['nome', 'email', 'telefone', 'documento', 'observacoes', 'origem
  * quando não recebe, cria. Duplicar a tela para "novo" e "editar" significaria
  * manter duas cópias das mesmas regras de validação e dos mesmos campos.
  */
-export function FormularioCliente({ cliente, campos = [], etiquetas = [] }: { cliente?: Cliente; campos?: CampoPersonalizado[]; etiquetas?: Etiqueta[] }) {
+export function FormularioCliente({
+  cliente,
+  campos = [],
+  etiquetas = [],
+}: {
+  cliente?: Cliente;
+  campos?: CampoPersonalizado[];
+  etiquetas?: Etiqueta[];
+}) {
   const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
 
@@ -169,9 +178,54 @@ export function FormularioCliente({ cliente, campos = [], etiquetas = [] }: { cl
         {...register('observacoes')}
       />
 
-      {campos.length > 0 && <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"><legend className="px-1 text-sm font-semibold">Informações personalizadas</legend>{campos.map((campo) => campo.tipo === 'selecao' ? <label key={campo.id} className="flex flex-col gap-1.5 text-sm font-medium">{campo.nome}<select required={campo.obrigatorio} className="h-10 rounded-md border bg-card px-3 text-sm" {...register(`camposPersonalizados.${campo.id}`)}><option value="">Selecione</option>{campo.opcoes.map((opcao) => <option key={opcao}>{opcao}</option>)}</select></label> : <Campo key={campo.id} rotulo={campo.nome} required={campo.obrigatorio} type={campo.tipo === 'numero' ? 'number' : campo.tipo === 'data' ? 'date' : 'text'} {...register(`camposPersonalizados.${campo.id}`)} />)}</fieldset>}
+      {campos.length > 0 && (
+        <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
+          <legend className="px-1 text-sm font-semibold">Informações personalizadas</legend>
+          {campos.map((campo) =>
+            campo.tipo === 'selecao' ? (
+              <label key={campo.id} className="flex flex-col gap-1.5 text-sm font-medium">
+                {campo.nome}
+                <select
+                  required={campo.obrigatorio}
+                  className="h-10 rounded-md border bg-card px-3 text-sm"
+                  {...register(`camposPersonalizados.${campo.id}`)}
+                >
+                  <option value="">Selecione</option>
+                  {campo.opcoes.map((opcao) => (
+                    <option key={opcao}>{opcao}</option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <Campo
+                key={campo.id}
+                rotulo={campo.nome}
+                required={campo.obrigatorio}
+                type={campo.tipo === 'numero' ? 'number' : campo.tipo === 'data' ? 'date' : 'text'}
+                {...register(`camposPersonalizados.${campo.id}`)}
+              />
+            ),
+          )}
+        </fieldset>
+      )}
 
-      {etiquetas.length > 0 && <fieldset className="rounded-lg border p-4"><legend className="px-1 text-sm font-semibold">Etiquetas</legend><div className="flex flex-wrap gap-3">{etiquetas.map((etiqueta) => <label key={etiqueta.id} className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"><input type="checkbox" value={etiqueta.id} {...register('etiquetas')} /><span className="size-2.5 rounded-full" style={{ backgroundColor: etiqueta.cor }} />{etiqueta.nome}</label>)}</div></fieldset>}
+      {etiquetas.length > 0 && (
+        <fieldset className="rounded-lg border p-4">
+          <legend className="px-1 text-sm font-semibold">Etiquetas</legend>
+          <div className="flex flex-wrap gap-2">
+            {etiquetas.map((etiqueta) => (
+              <label
+                key={etiqueta.id}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium"
+                style={estilosEtiqueta(etiqueta.cor)}
+              >
+                <input type="checkbox" value={etiqueta.id} {...register('etiquetas')} />
+                {etiqueta.nome}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <div className="flex gap-3">
         <Botao type="submit" carregando={enviando}>

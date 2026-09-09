@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { Botao, estilosBotao } from '@/components/ui/botao';
 import { estilosControle } from '@/components/ui/campo';
 import { Selecao } from '@/components/ui/selecao';
+import { estilosEtiqueta } from '@/lib/etiquetas';
 import { formatarDataCompleta } from '@/lib/formatacao';
 import { cn } from '@/lib/utils';
 import { anotarNoCartao, carregarCartao, salvarCartao, type DetalheCartao } from './acoes-cartao';
@@ -132,6 +133,20 @@ export function CartaoAberto({
               {cliente.email ?? '—'}
             </Informacao>
           </section>
+
+          {cliente.etiquetas.length > 0 && (
+            <section className="flex flex-wrap gap-2">
+              {cliente.etiquetas.map((etiqueta) => (
+                <span
+                  key={etiqueta.id}
+                  className="inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-xs font-medium"
+                  style={estilosEtiqueta(etiqueta.cor)}
+                >
+                  <span className="truncate">{etiqueta.nome}</span>
+                </span>
+              ))}
+            </section>
+          )}
 
           {cliente.orcamentoAberto && (
             <section className="bg-superficie flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
