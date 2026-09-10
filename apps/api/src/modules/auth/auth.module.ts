@@ -6,6 +6,8 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { SenhaService } from './senha.service';
+import { RecuperacaoSenhaService } from './recuperacao-senha.service';
+import { NotificacoesModule } from '../../infra/notificacoes/notificacoes.module';
 
 /**
  * Autenticação.
@@ -16,6 +18,7 @@ import { SenhaService } from './senha.service';
 @Global()
 @Module({
   imports: [
+    NotificacoesModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
@@ -27,7 +30,7 @@ import { SenhaService } from './senha.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SenhaService, RefreshTokenService],
+  providers: [AuthService, SenhaService, RefreshTokenService, RecuperacaoSenhaService],
   exports: [AuthService, SenhaService, RefreshTokenService, JwtModule],
 })
 export class AuthModule {}

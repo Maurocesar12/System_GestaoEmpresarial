@@ -8,6 +8,7 @@ const raizMonorepo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
 
   /**
    * Origens autorizadas a carregar os recursos do servidor de desenvolvimento.
@@ -28,6 +29,28 @@ const nextConfig: NextConfig = {
   // Necessário no monorepo: sem isso o Next infere a raiz errada ao rastrear
   // os arquivos do build.
   outputFileTracingRoot: raizMonorepo,
+
+  async headers() {
+    const headers = [
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'X-Frame-Options', value: 'DENY' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      {
+        key: 'Permissions-Policy',
+        value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+      },
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+    ];
+
+    if (process.env.NODE_ENV === 'production') {
+      headers.push({
+        key: 'Strict-Transport-Security',
+        value: 'max-age=31536000; includeSubDomains',
+      });
+    }
+
+    return [{ source: '/:path*', headers }];
+  },
 };
 
 export default nextConfig;

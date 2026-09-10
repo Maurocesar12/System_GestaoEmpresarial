@@ -18,7 +18,7 @@ import type { Permissao } from './plataforma/permissoes';
  * E-mail normalizado antes de validar: o usuário digita " Joao@Empresa.com "
  * e isso precisa bater com o registro gravado como "joao@empresa.com".
  */
-const emailSchema = z.string().trim().toLowerCase().pipe(z.email('E-mail inválido'));
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email('E-mail inválido'));
 
 /**
  * Política de senha.

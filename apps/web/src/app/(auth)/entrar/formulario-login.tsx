@@ -9,6 +9,7 @@ import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import type { ResultadoAcao } from '@/lib/acoes';
 import { entrar } from '../acoes';
+import Link from 'next/link';
 
 /**
  * Formulário de login.
@@ -91,6 +92,7 @@ export function FormularioLogin() {
       <Botao type="submit" carregando={enviando}>
         Entrar
       </Botao>
+      <Link href="/recuperar-senha" className="text-center text-sm underline underline-offset-4">Esqueci minha senha</Link>
     </form>
   );
 }

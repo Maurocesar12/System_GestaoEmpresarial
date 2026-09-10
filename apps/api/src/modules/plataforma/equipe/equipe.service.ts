@@ -131,11 +131,12 @@ export class EquipeService {
       return plano.nome;
     });
 
-    const url = `${this.config.get('APP_URL', { infer: true })}/aceitar-convite?token=${encodeURIComponent(token)}`;
+    const url = new URL('/aceitar-convite', this.config.get('APP_URL', { infer: true }));
+    url.hash = new URLSearchParams({ token }).toString();
     await this.notificador.enviar({
       destinatario: dados.email,
       assunto: `Convite para participar de ${empresa}`,
-      corpo: `Olá, ${dados.nome}. Você foi convidado para acessar ${empresa}.\n\nAceite o convite em até 7 dias:\n${url}\n\nSe não esperava este convite, ignore esta mensagem.`,
+      corpo: `Olá, ${dados.nome}. Você foi convidado para acessar ${empresa}.\n\nAceite o convite em até 7 dias:\n${url.toString()}\n\nSe não esperava este convite, ignore esta mensagem.`,
     });
   }
 

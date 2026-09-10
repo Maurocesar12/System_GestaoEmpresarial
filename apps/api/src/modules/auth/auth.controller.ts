@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  emailSchema,
   loginSchema,
   refreshTokenSchema,
   type LoginInput,
@@ -8,14 +9,20 @@ import {
   type SessaoResponse,
   type UsuarioAutenticado,
   permissoesDoUsuario,
+  senhaSchema,
 } from '@gestao/shared-types';
+import { z } from 'zod';
 import { Publico } from '../../common/decorators/publico.decorator';
 import { UsuarioAtual } from '../../common/decorators/usuario-atual.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type { TenantContext } from '../../infra/tenant/tenant-context';
 import { LIMITE_LOGIN, LIMITE_REFRESH } from './auth.rate-limit';
+import { RecuperacaoSenhaService } from './recuperacao-senha.service';
 import { AuthService } from './auth.service';
+
+const solicitarSchema = z.object({ email: emailSchema });
+const redefinirSchema = z.object({ token: z.string().min(1).max(2048), senha: senhaSchema });
 
 /**
  * Rotas de sessão.
@@ -29,7 +36,26 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly prisma: PrismaService,
+    private readonly recuperacao: RecuperacaoSenhaService,
   ) {}
+
+  @Publico()
+  @Post('recuperar-senha')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle(LIMITE_LOGIN)
+  async solicitarSenha(@Body(new ZodValidationPipe(solicitarSchema)) dados: { email: string }): Promise<void> {
+    await this.recuperacao.solicitar(dados.email);
+  }
+
+  @Publico()
+  @Post('redefinir-senha')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle(LIMITE_LOGIN)
+  async redefinirSenha(
+    @Body(new ZodValidationPipe(redefinirSchema)) dados: { token: string; senha: string },
+  ): Promise<void> {
+    await this.recuperacao.redefinir(dados.token, dados.senha);
+  }
 
   @Publico()
   @Post('login')

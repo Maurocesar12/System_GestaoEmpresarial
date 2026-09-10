@@ -2,14 +2,12 @@ import type { Metadata } from 'next';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { FormularioAceitarConvite } from './formulario';
 
-export const metadata: Metadata = { title: 'Aceitar convite' };
+export const metadata: Metadata = {
+  title: 'Aceitar convite',
+  robots: { index: false, follow: false },
+};
 
-export default async function PaginaAceitarConvite({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string }>;
-}) {
-  const { token = '' } = await searchParams;
+export default function PaginaAceitarConvite() {
   return (
     <Cartao className="w-full max-w-md">
       <CartaoCabecalho>
@@ -21,16 +19,8 @@ export default async function PaginaAceitarConvite({
         </div>
       </CartaoCabecalho>
       <CartaoConteudo>
-        {token ? <FormularioAceitarConvite token={token} /> : <AvisoConviteInvalido />}
+        <FormularioAceitarConvite />
       </CartaoConteudo>
     </Cartao>
-  );
-}
-
-function AvisoConviteInvalido() {
-  return (
-    <p className="text-destructive text-sm">
-      O link do convite está incompleto. Peça ao administrador para enviar um novo convite.
-    </p>
   );
 }
