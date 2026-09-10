@@ -41,9 +41,14 @@ import { useMemo, useOptimistic, useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { estilosControle } from '@/components/ui/campo';
 import { linkEmail, linkTelefone, linkWhatsApp } from '@/lib/contato';
-import { estilosEtiqueta } from '@/lib/etiquetas';
+import {
+  estilosAvatarEtiqueta,
+  estilosCartaoComEtiqueta,
+  estilosEtiqueta,
+  estilosMarcadorEtiqueta,
+} from '@/lib/etiquetas';
 import { cn } from '@/lib/utils';
-import { moverCliente } from './acoes';
+import { moverCliente, removerDoFunil } from './acoes';
 import { CartaoAberto } from './cartao-aberto';
 import { NovoCartao } from './novo-cartao';
 
@@ -79,18 +84,27 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
 
   // O estado otimista espelha o quadro e é recalculado quando o servidor
   // devolve dados novos — nenhuma cópia local sobrevive ao recarregamento.
-  const [colunas, moverOtimista] = useOptimistic(
+  const [colunas, atualizarFunilOtimista] = useOptimistic(
     quadro.colunas,
-    (atual, { clienteId, etapaId }: { clienteId: string; etapaId: string }) => {
-      const cliente = atual.flatMap((c) => c.clientes).find((c) => c.id === clienteId);
-      if (!cliente) return atual;
+    (atual, acao: AcaoOtimistaFunil) => {
+      if (acao.tipo === 'remover') {
+        return atual.map((coluna) => ({
+          ...coluna,
+          clientes: coluna.clientes.filter((cliente) => cliente.id !== acao.clienteId),
+        }));
+      }
+
+      const cliente = atual.flatMap((c) => c.clientes).find((c) => c.id === acao.clienteId);
+      if (!cliente) {
+        return atual;
+      }
 
       return atual.map((coluna) => ({
         ...coluna,
         clientes:
-          coluna.etapa.id === etapaId
-            ? [cliente, ...coluna.clientes.filter((c) => c.id !== clienteId)]
-            : coluna.clientes.filter((c) => c.id !== clienteId),
+          coluna.etapa.id === acao.etapaId
+            ? [cliente, ...coluna.clientes.filter((c) => c.id !== acao.clienteId)]
+            : coluna.clientes.filter((c) => c.id !== acao.clienteId),
       }));
     },
   );
@@ -106,8 +120,20 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
     setErro(undefined);
 
     iniciarMovimento(async () => {
-      moverOtimista({ clienteId, etapaId });
+      atualizarFunilOtimista({ tipo: 'mover', clienteId, etapaId });
       const resultado = await moverCliente({ clienteId, etapaId });
+      setErro(resultado.erro);
+    });
+  };
+
+  const remover = (clienteId: string) => {
+    setErro(undefined);
+
+    iniciarMovimento(async () => {
+      atualizarFunilOtimista({ tipo: 'remover', clienteId });
+      setAbertoId(null);
+
+      const resultado = await removerDoFunil(clienteId);
       setErro(resultado.erro);
     });
   };
@@ -289,6 +315,7 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
           etapaAtual={aberto.etapaId}
           etapas={colunas.map((c) => c.etapa)}
           aoTrocarEtapa={(etapaId) => mover(aberto.cliente.id, etapaId)}
+          aoRemoverDoFunil={() => remover(aberto.cliente.id)}
           aoFechar={() => setAbertoId(null)}
         />
       )}
@@ -297,6 +324,10 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
 }
 
 type FiltroRapido = 'todos' | 'atrasados' | 'propostas';
+
+type AcaoOtimistaFunil =
+  | { tipo: 'mover'; clienteId: string; etapaId: string }
+  | { tipo: 'remover'; clienteId: string };
 
 const FILTROS_RAPIDOS: { valor: FiltroRapido; rotulo: string }[] = [
   { valor: 'todos', rotulo: 'Todos' },
@@ -536,19 +567,31 @@ function CartaoDoFunil({
   const whatsapp = linkWhatsApp(cliente.telefone);
   const telefone = linkTelefone(cliente.telefone);
   const email = linkEmail(cliente.email);
+  const corPrincipal = cliente.etiquetas[0]?.cor;
 
   return (
     <article
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform) }}
+      style={{
+        ...estilosCartaoComEtiqueta(corPrincipal),
+        transform: CSS.Translate.toString(transform),
+      }}
       className={cn(
-        'group bg-card flex flex-col gap-2 rounded-lg border p-3 shadow-[var(--sombra-sutil)]',
+        'group bg-card relative flex flex-col gap-2 overflow-hidden rounded-lg border p-3 shadow-[var(--sombra-sutil)]',
         'transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-input hover:shadow-[var(--sombra-media)]',
         // A faixa lateral marca o cartão parado sem gastar espaço com texto.
         parado && 'border-l-atencao border-l-2',
         isDragging && 'opacity-40',
       )}
     >
+      {corPrincipal && (
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-1"
+          style={estilosMarcadorEtiqueta(corPrincipal)}
+        />
+      )}
+
       {/*
         Esta área faz duas coisas: inicia o arrasto e abre o cartão no clique.
         Elas não se atropelam porque o sensor só considera arrasto depois de
@@ -566,7 +609,11 @@ function CartaoDoFunil({
         aria-label={`Abrir cartão de ${cliente.nome}`}
         className="group/arrastar flex w-full cursor-grab flex-col gap-2 text-left active:cursor-grabbing"
       >
-        <span aria-hidden className={cn('h-1.5 w-10 rounded-full', corEtapa)} />
+        <span
+          aria-hidden
+          className={cn('h-1.5 w-12 rounded-full', !corPrincipal && corEtapa)}
+          style={estilosMarcadorEtiqueta(corPrincipal)}
+        />
 
         <div className="flex items-start gap-2.5">
           {/* Iniciais no lugar de foto: o CRM não guarda imagem de cliente, e
@@ -574,7 +621,11 @@ function CartaoDoFunil({
               coluna sem ler nome por nome. */}
           <span
             aria-hidden
-            className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold"
+            className={cn(
+              'flex size-7 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold',
+              !corPrincipal && 'bg-primary text-primary-foreground',
+            )}
+            style={estilosAvatarEtiqueta(corPrincipal)}
           >
             {iniciais(cliente.nome)}
           </span>
@@ -717,7 +768,7 @@ function CartaoDoFunil({
 function EtiquetaDoCliente({ nome, cor }: { nome: string; cor: string }) {
   return (
     <span
-      className="inline-flex min-h-5 max-w-full items-center rounded-[4px] border px-2 py-0.5 text-[0.6875rem] font-semibold shadow-[inset_0_-1px_rgb(0_0_0_/_0.08)]"
+      className="inline-flex min-h-5 max-w-full items-center rounded-[5px] border px-2.5 py-0.5 text-[0.6875rem] font-semibold"
       style={estilosEtiqueta(cor)}
       title={nome}
     >

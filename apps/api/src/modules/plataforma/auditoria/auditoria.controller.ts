@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe } from '@nestjs/common';
 import {
   auditoriaQuerySchema,
   type AuditoriaQuery,
@@ -19,5 +19,11 @@ export class AuditoriaController {
     @QueryValidada(auditoriaQuerySchema) query: AuditoriaQuery,
   ): Promise<Paginado<RegistroAuditoria>> {
     return this.auditoria.listar(query);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.auditoria.remover(id);
   }
 }

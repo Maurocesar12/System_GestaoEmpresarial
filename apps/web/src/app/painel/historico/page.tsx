@@ -14,20 +14,12 @@ import { AvisoErro } from '@/components/ui/aviso-erro';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Campo } from '@/components/ui/campo';
-import { Cartao } from '@/components/ui/cartao';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
 import { Paginacao } from '@/components/ui/paginacao';
 import { Selecao } from '@/components/ui/selecao';
-import {
-  TabelaCabecalho,
-  TabelaCelula,
-  TabelaColuna,
-  TabelaCorpo,
-  TabelaLinha,
-  TabelaRolavel,
-} from '@/components/ui/tabela';
 import { ApiRequestError } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
+import { TabelaHistorico } from './tabela-historico';
 
 export const metadata: Metadata = { title: 'Histórico' };
 
@@ -49,6 +41,7 @@ const ROTULO_ENTIDADE: Record<EntidadeAuditoria, string> = {
   servicos: 'Serviço',
   empresa: 'Empresa',
   configuracoes: 'Configurações',
+  auditoria: 'Histórico',
   previsao_financeira: 'Previsão financeira',
   importacao_financeira: 'Importação financeira',
 };
@@ -142,35 +135,7 @@ function ConteudoHistorico({
 
   return (
     <>
-      <Cartao>
-        <TabelaRolavel>
-          <TabelaCabecalho>
-            <TabelaColuna>Data</TabelaColuna>
-            <TabelaColuna>Responsável</TabelaColuna>
-            <TabelaColuna>Ação</TabelaColuna>
-            <TabelaColuna>Registro</TabelaColuna>
-            <TabelaColuna>Resumo</TabelaColuna>
-          </TabelaCabecalho>
-          <TabelaCorpo>
-            {historico.registros.map((registro) => (
-              <TabelaLinha key={registro.id}>
-                <TabelaCelula suave className="whitespace-nowrap">
-                  {new Intl.DateTimeFormat('pt-BR', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  }).format(new Date(registro.criadoEm))}
-                </TabelaCelula>
-                <TabelaCelula>{registro.usuarioNome}</TabelaCelula>
-                <TabelaCelula>{rotularAcao(registro.acao)}</TabelaCelula>
-                <TabelaCelula>{rotularEntidade(registro.entidade)}</TabelaCelula>
-                <TabelaCelula className="min-w-[20rem]">
-                  <span className="line-clamp-2">{registro.resumo}</span>
-                </TabelaCelula>
-              </TabelaLinha>
-            ))}
-          </TabelaCorpo>
-        </TabelaRolavel>
-      </Cartao>
+      <TabelaHistorico registros={historico.registros.map(mapearLinhaHistorico)} />
 
       <Paginacao
         meta={historico.meta}
@@ -185,6 +150,20 @@ function ConteudoHistorico({
       />
     </>
   );
+}
+
+function mapearLinhaHistorico(registro: RegistroAuditoria) {
+  return {
+    id: registro.id,
+    data: new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(registro.criadoEm)),
+    responsavel: registro.usuarioNome,
+    acao: rotularAcao(registro.acao),
+    registro: rotularEntidade(registro.entidade),
+    resumo: registro.resumo,
+  };
 }
 
 function Filtros({ filtros }: { filtros: Awaited<Props['searchParams']> }) {

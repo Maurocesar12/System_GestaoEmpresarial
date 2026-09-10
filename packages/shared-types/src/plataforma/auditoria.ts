@@ -26,6 +26,7 @@ export const ENTIDADES_AUDITORIA = [
   'funcionario',
   'convite',
   'configuracoes',
+  'auditoria',
   'previsao_financeira',
   'importacao_financeira',
 ] as const;

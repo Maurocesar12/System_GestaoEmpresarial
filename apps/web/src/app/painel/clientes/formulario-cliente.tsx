@@ -216,7 +216,7 @@ export function FormularioCliente({
             {etiquetas.map((etiqueta) => (
               <label
                 key={etiqueta.id}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-[6px] border px-3 py-1.5 text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5"
                 style={estilosEtiqueta(etiqueta.cor)}
               >
                 <input type="checkbox" value={etiqueta.id} {...register('etiquetas')} />

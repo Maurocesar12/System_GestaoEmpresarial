@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   paginar,
   type AcaoAuditoria,
   type AuditoriaQuery,
-  type EntidadeAuditoria,
   type Paginado,
   type RegistroAuditoria,
 } from '@gestao/shared-types';
@@ -13,7 +12,7 @@ import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/pr
 import { exigirContextoTenant, tenantAtual } from '../../../infra/tenant/tenant-context';
 
 interface RegistrarAuditoria {
-  entidade: EntidadeAuditoria | string;
+  entidade: string;
   entidadeId: string;
   acao: AcaoAuditoria;
   resumo?: string;
@@ -86,6 +85,49 @@ export class AuditoriaService {
       registros.total,
       query,
     );
+  }
+
+  async remover(id: string): Promise<void> {
+    const removido = await this.prisma.comTenant(async (tx) => {
+      const registro = await tx.logAuditoria.findFirst({
+        where: { id, tenantId: tenantAtual() },
+        select: {
+          id: true,
+          usuarioId: true,
+          entidade: true,
+          entidadeId: true,
+          acao: true,
+          resumo: true,
+          criadoEm: true,
+        },
+      });
+
+      if (!registro) return false;
+
+      await tx.logAuditoria.deleteMany({ where: { id: registro.id, tenantId: tenantAtual() } });
+
+      await this.registrar(tx, {
+        entidade: 'auditoria',
+        entidadeId: registro.id,
+        acao: 'excluiu',
+        resumo: `Histórico excluído: ${registro.resumo ?? this.montarResumo(registro)}`,
+        antes: {
+          id: registro.id,
+          usuarioId: registro.usuarioId,
+          entidade: registro.entidade,
+          entidadeId: registro.entidadeId,
+          acao: registro.acao,
+          resumo: registro.resumo,
+          criadoEm: registro.criadoEm.toISOString(),
+        },
+      });
+
+      return true;
+    });
+
+    if (!removido) {
+      throw new NotFoundException('Histórico não encontrado.');
+    }
   }
 
   private montarFiltro(query: AuditoriaQuery): Prisma.LogAuditoriaWhereInput {

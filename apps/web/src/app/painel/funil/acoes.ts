@@ -35,7 +35,7 @@ export async function removerDoFunil(clienteId: string): Promise<ResultadoAcao> 
   try {
     await apiComSessao<void>(`/funil/clientes/${clienteId}`, { method: 'DELETE' });
   } catch (erro) {
-    return traduzirErroAcao(erro, 'Não foi possível mover o cliente. Tente novamente.');
+    return traduzirErroAcao(erro, 'Não foi possível tirar o cliente do CRM. Tente novamente.');
   }
 
   revalidatePath('/painel/funil');

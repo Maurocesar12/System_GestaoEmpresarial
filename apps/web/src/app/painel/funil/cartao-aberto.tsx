@@ -1,7 +1,7 @@
 'use client';
 
 import { formatarBRL, formatarTelefone, hojeISO, type ClienteNoFunil } from '@gestao/shared-types';
-import { AlignLeft, Check, ExternalLink, Mail, Phone, Tag, X } from 'lucide-react';
+import { AlignLeft, ArchiveX, Check, ExternalLink, Mail, Phone, Tag, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { Botao, estilosBotao } from '@/components/ui/botao';
@@ -29,12 +29,14 @@ export function CartaoAberto({
   etapaAtual,
   etapas,
   aoTrocarEtapa,
+  aoRemoverDoFunil,
   aoFechar,
 }: {
   cliente: ClienteNoFunil;
   etapaAtual: string;
   etapas: { id: string; nome: string }[];
   aoTrocarEtapa: (etapaId: string) => void;
+  aoRemoverDoFunil: () => void;
   aoFechar: () => void;
 }) {
   const janela = useRef<HTMLDialogElement>(null);
@@ -42,6 +44,7 @@ export function CartaoAberto({
   const [detalhe, setDetalhe] = useState<DetalheCartao | null>(null);
   const [erro, setErro] = useState<string>();
   const [carregando, setCarregando] = useState(true);
+  const [confirmandoRemocao, setConfirmandoRemocao] = useState(false);
 
   // `showModal()` só existe no cliente e precisa rodar depois da montagem — é
   // ele que ativa o backdrop, o Esc e a prisão de foco.
@@ -139,7 +142,7 @@ export function CartaoAberto({
               {cliente.etiquetas.map((etiqueta) => (
                 <span
                   key={etiqueta.id}
-                  className="inline-flex max-w-full items-center rounded-[4px] border px-2.5 py-1 text-xs font-semibold shadow-[inset_0_-1px_rgb(0_0_0_/_0.08)]"
+                  className="inline-flex max-w-full items-center rounded-[6px] border px-3 py-1 text-xs font-semibold"
                   style={estilosEtiqueta(etiqueta.cor)}
                 >
                   <span className="truncate">{etiqueta.nome}</span>
@@ -190,14 +193,44 @@ export function CartaoAberto({
           )}
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t px-5 py-3">
-          <Link
-            href={`/painel/clientes/${cliente.id}`}
-            className={estilosBotao({ variante: 'sutil', tamanho: 'sm' })}
-          >
-            <ExternalLink aria-hidden />
-            Abrir ficha completa
-          </Link>
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/painel/clientes/${cliente.id}`}
+              className={estilosBotao({ variante: 'sutil', tamanho: 'sm' })}
+            >
+              <ExternalLink aria-hidden />
+              Abrir ficha completa
+            </Link>
+
+            {confirmandoRemocao ? (
+              <span className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-muted-foreground">Tirar do CRM?</span>
+                <Botao type="button" variante="perigo" tamanho="sm" onClick={aoRemoverDoFunil}>
+                  Confirmar
+                </Botao>
+                <Botao
+                  type="button"
+                  variante="sutil"
+                  tamanho="sm"
+                  onClick={() => setConfirmandoRemocao(false)}
+                >
+                  Cancelar
+                </Botao>
+              </span>
+            ) : (
+              <Botao
+                type="button"
+                variante="sutil"
+                tamanho="sm"
+                onClick={() => setConfirmandoRemocao(true)}
+                title="Remove o cliente do quadro, sem apagar a ficha"
+              >
+                <ArchiveX aria-hidden />
+                Tirar do CRM
+              </Botao>
+            )}
+          </div>
 
           <Botao variante="secundario" tamanho="sm" onClick={() => janela.current?.close()}>
             Fechar

@@ -5,7 +5,7 @@ import {
   type Etiqueta,
   type TipoCampoPersonalizado,
 } from '@gestao/shared-types';
-import { Check, MailCheck, Plus, Trash2 } from 'lucide-react';
+import { Check, MailCheck, Paintbrush, Plus, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { useAvisos } from '@/components/ui/avisos';
@@ -192,7 +192,7 @@ export function FormularioConfiguracoes({ iniciais }: { iniciais: ConfiguracoesE
           <div>
             <CartaoTitulo>Etiquetas de clientes</CartaoTitulo>
             <p className="text-muted-foreground mt-1 text-xs">
-              Use cores para identificar grupos importantes.
+              Defina as cores que aparecem nos cards do CRM.
             </p>
           </div>
           <Botao
@@ -242,21 +242,32 @@ export function FormularioConfiguracoes({ iniciais }: { iniciais: ConfiguracoesE
                         aria-pressed={selecionada}
                         title={opcao.nome}
                         onClick={() => alterarEtiqueta(indice, { cor: opcao.cor })}
-                        className="flex size-8 items-center justify-center rounded-[5px] border border-black/10 shadow-sm transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        className="flex size-9 items-center justify-center rounded-md border border-black/10 shadow-sm transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         style={{ backgroundColor: opcao.cor }}
                       >
                         {selecionada && (
-                          <Check aria-hidden className="size-4" style={{ color: estilosEtiqueta(opcao.cor).color }} />
+                          <Check
+                            aria-hidden
+                            className="size-4"
+                            style={{ color: estilosEtiqueta(opcao.cor).color }}
+                          />
                         )}
                       </button>
                     );
                   })}
 
-                  <label className="relative flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-[5px] border shadow-sm" title="Cor personalizada">
+                  <label className="hover:bg-accent relative flex h-9 cursor-pointer items-center gap-2 overflow-hidden rounded-md border px-2.5 text-xs font-medium shadow-sm transition-colors">
                     <span className="sr-only">Escolher cor personalizada</span>
+                    <Paintbrush aria-hidden className="text-muted-foreground size-3.5" />
+                    <span
+                      aria-hidden
+                      className="size-4 rounded-[4px] border border-black/10"
+                      style={{ backgroundColor: etiqueta.cor }}
+                    />
+                    Personalizada
                     <input
                       type="color"
-                      className="absolute inset-[-8px] size-12 cursor-pointer border-0 p-0"
+                      className="absolute inset-0 cursor-pointer opacity-0"
                       value={etiqueta.cor}
                       onChange={(evento) => alterarEtiqueta(indice, { cor: evento.target.value })}
                     />

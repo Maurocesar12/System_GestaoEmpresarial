@@ -77,7 +77,10 @@ export default async function PaginaReservas() {
         />
       </FaixaDeIndicadores>
 
-      <GerenciadorReservas reservas={resumo.reservas} />
+      <GerenciadorReservas
+        reservas={resumo.reservas}
+        custoFixoMensal={resumo.custoFixoMensal}
+      />
 
       <section className="text-muted-foreground flex flex-col gap-2 rounded-lg border border-dashed p-4 text-sm">
         <p className="text-foreground font-medium">Por que {COBERTURA_CONFORTAVEL} meses?</p>

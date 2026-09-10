@@ -20,6 +20,7 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
   let tokenAdminB: string;
   let tenantA: string;
   let funcionarioId: string;
+  let auditoriaConviteId: string;
   let planoOriginal:
     | {
         slug: string;
@@ -34,6 +35,8 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
       request(app.getHttpServer()).post(rota).set('Authorization', `Bearer ${token}`),
     patch: (rota: string) =>
       request(app.getHttpServer()).patch(rota).set('Authorization', `Bearer ${token}`),
+    delete: (rota: string) =>
+      request(app.getHttpServer()).delete(rota).set('Authorization', `Bearer ${token}`),
   });
 
   async function criarEmpresa(sufixo: string): Promise<string> {
@@ -116,9 +119,33 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
     expect(mensagem.corpo).toContain('/aceitar-convite#token=');
 
     const { body: auditoria } = await autenticado(tokenAdminA).get('/api/auditoria').expect(200);
+    const registroConvite = auditoria.dados.find(
+      (item: { entidade: string; acao: string }) =>
+        item.entidade === 'funcionario' && item.acao === 'convidou',
+    );
+
+    expect(registroConvite).toEqual(
+      expect.objectContaining({ entidade: 'funcionario', acao: 'convidou' }),
+    );
+    auditoriaConviteId = registroConvite.id;
+  });
+
+  it('remove um histórico sem atravessar tenant e registra a exclusão', async () => {
+    await autenticado(tokenAdminB).delete(`/api/auditoria/${auditoriaConviteId}`).expect(404);
+    await autenticado(tokenAdminA).delete(`/api/auditoria/${auditoriaConviteId}`).expect(204);
+
+    const { body: auditoria } = await autenticado(tokenAdminA).get('/api/auditoria').expect(200);
+
+    expect(auditoria.dados).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: auditoriaConviteId })]),
+    );
     expect(auditoria.dados).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ entidade: 'funcionario', acao: 'convidou' }),
+        expect.objectContaining({
+          entidade: 'auditoria',
+          entidadeId: auditoriaConviteId,
+          acao: 'excluiu',
+        }),
       ]),
     );
   });
