@@ -20,6 +20,12 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
   let tokenAdminB: string;
   let tenantA: string;
   let funcionarioId: string;
+  let planoOriginal:
+    | {
+        slug: string;
+        limiteUsuarios: number | null;
+      }
+    | undefined;
 
   const autenticado = (token: string) => ({
     get: (rota: string) =>
@@ -57,6 +63,11 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
     prisma = modulo.get(PrismaService);
 
     const slug = process.env.ONBOARDING_PLANO_PADRAO ?? 'essencial';
+    planoOriginal =
+      (await prisma.plano.findUnique({
+        where: { slug },
+        select: { slug: true, limiteUsuarios: true },
+      })) ?? undefined;
     await prisma.plano.upsert({
       where: { slug },
       create: {
@@ -78,6 +89,12 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
       await prisma.comTenantExplicito(tenantId, (tx) =>
         tx.tenant.deleteMany({ where: { id: tenantId } }),
       );
+    }
+    if (planoOriginal) {
+      await prisma.plano.update({
+        where: { slug: planoOriginal.slug },
+        data: { limiteUsuarios: planoOriginal.limiteUsuarios },
+      });
     }
     await app?.close();
   });

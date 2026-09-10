@@ -215,8 +215,10 @@ Pontos importantes:
 
 - A aplicação deve usar `DATABASE_URL` com o role `gestao_app`.
 - O role `gestao_app` não pode ter `BYPASSRLS`.
-- A conexão administrativa (`ADMIN_DATABASE_URL`) é separada e só deve ser usada
-  pelo futuro painel interno.
+- A conexão administrativa (`ADMIN_DATABASE_URL`) é separada e deve ser usada
+  para migrations e seed do catálogo de planos.
+- Em Neon, prefira `DATABASE_URL` com o role da aplicação e `ADMIN_DATABASE_URL`
+  com a conexão direta/admin. Evite rodar a aplicação com `neondb_owner`.
 - Todo acesso de negócio deve passar por `prisma.comTenant()`.
 - Dinheiro trafega como string decimal no JSON e fica como `Decimal(14, 2)` no
   banco. Não use `number`/`float` para valores monetários.
@@ -265,9 +267,9 @@ Principais variáveis:
 
 | Variável                  | Descrição                                       |
 | ------------------------- | ----------------------------------------------- |
-| `DATABASE_URL`            | Conexão da aplicação com PostgreSQL             |
+| `DATABASE_URL`            | Conexão da aplicação com PostgreSQL, sem BYPASSRLS |
 | `TEST_DATABASE_URL`       | Conexão usada pelos testes de integração        |
-| `ADMIN_DATABASE_URL`      | Conexão administrativa futura                   |
+| `ADMIN_DATABASE_URL`      | Conexão administrativa para migrations e seed   |
 | `JWT_SECRET`              | Segredo para assinar JWT, mínimo 32 caracteres  |
 | `CORS_ORIGINS`            | Origens liberadas, separadas por vírgula        |
 | `APP_URL`                 | URL do frontend usada nos convites da equipe    |

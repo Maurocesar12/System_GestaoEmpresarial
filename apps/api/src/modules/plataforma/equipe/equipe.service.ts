@@ -48,14 +48,15 @@ export class EquipeService {
   ) {}
 
   async listar(): Promise<EquipeResponse> {
+    const tenantId = tenantAtual();
     const { funcionarios, convites, tenant, proximoPlano } = await this.prisma.comTenant((tx) =>
       Promise.all([
-        tx.usuario.findMany({ orderBy: { criadoEm: 'asc' } }),
+        tx.usuario.findMany({ where: { tenantId }, orderBy: { criadoEm: 'asc' } }),
         tx.conviteEquipe.findMany({
-          where: { expiraEm: { gt: new Date() } },
+          where: { tenantId, expiraEm: { gt: new Date() } },
           orderBy: { criadoEm: 'desc' },
         }),
-        tx.tenant.findUniqueOrThrow({ where: { id: tenantAtual() }, include: { plano: true } }),
+        tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, include: { plano: true } }),
       ]).then(async ([funcionarios, convites, tenant]) => ({
         funcionarios,
         convites,
@@ -167,22 +168,24 @@ export class EquipeService {
   }
 
   async atualizar(id: string, dados: AtualizarFuncionarioInput): Promise<Funcionario> {
-    const atualId = exigirContextoTenant().usuarioId;
+    const contexto = exigirContextoTenant();
     const usuario = await this.prisma.comTenant(async (tx) => {
-      const atual = await tx.usuario.findUnique({ where: { id } });
+      const atual = await tx.usuario.findFirst({ where: { id, tenantId: contexto.tenantId } });
       if (!atual) this.naoEncontrado();
-      if (id === atualId && !dados.ativo) {
+      if (id === contexto.usuarioId && !dados.ativo) {
         throw new ConflictException({
           codigo: CODIGOS_ERRO.CONFLITO,
           mensagem: 'Você não pode desativar seu próprio acesso.',
         });
       }
       if (atual.papel === 'admin' && (dados.papel !== 'admin' || !dados.ativo)) {
-        const admins = await tx.usuario.count({ where: { papel: 'admin', ativo: true } });
+        const admins = await tx.usuario.count({
+          where: { tenantId: contexto.tenantId, papel: 'admin', ativo: true },
+        });
         if (admins <= 1)
           this.conflito('A empresa precisa manter pelo menos um administrador ativo.');
       }
-      if (!atual.ativo && dados.ativo) await this.garantirVaga(tx, tenantAtual());
+      if (!atual.ativo && dados.ativo) await this.garantirVaga(tx, contexto.tenantId);
 
       const alterado = await tx.usuario.update({
         where: { id },
@@ -199,7 +202,7 @@ export class EquipeService {
         atual.papel !== dados.papel ||
         JSON.stringify(atual.permissoes) !== JSON.stringify(dados.permissoes)
       ) {
-        await this.refreshTokens.revogarTodasAsSessoes(tenantAtual(), id);
+        await this.refreshTokens.revogarTodasAsSessoes(contexto.tenantId, id);
       }
       await this.auditoria.registrar(tx, {
         entidade: 'funcionario',
@@ -224,8 +227,9 @@ export class EquipeService {
   }
 
   async cancelarConvite(id: string): Promise<void> {
+    const tenantId = tenantAtual();
     const removido = await this.prisma.comTenant(async (tx) => {
-      const convite = await tx.conviteEquipe.findUnique({ where: { id } });
+      const convite = await tx.conviteEquipe.findFirst({ where: { id, tenantId } });
       if (!convite) return false;
       await tx.conviteEquipe.delete({ where: { id } });
       await this.auditoria.registrar(tx, {
@@ -252,7 +256,9 @@ export class EquipeService {
     }
 
     const convite = await this.prisma.comTenantExplicito(payload.tenantId, async (tx) => {
-      const convite = await tx.conviteEquipe.findUnique({ where: { id: payload.conviteId } });
+      const convite = await tx.conviteEquipe.findFirst({
+        where: { id: payload.conviteId, tenantId: payload.tenantId },
+      });
       if (
         !convite ||
         convite.tokenHash !== this.hash(dados.token) ||
@@ -272,8 +278,8 @@ export class EquipeService {
     let criado;
     try {
       criado = await this.prisma.comTenantExplicito(payload.tenantId, async (tx) => {
-        const conviteAtual = await tx.conviteEquipe.findUnique({
-          where: { id: payload.conviteId },
+        const conviteAtual = await tx.conviteEquipe.findFirst({
+          where: { id: payload.conviteId, tenantId: payload.tenantId },
         });
         if (
           !conviteAtual ||
@@ -371,10 +377,10 @@ export class EquipeService {
 
     const [tenant, ativos, convitesPendentes] = await Promise.all([
       tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, include: { plano: true } }),
-      tx.usuario.count({ where: { ativo: true } }),
+      tx.usuario.count({ where: { tenantId, ativo: true } }),
       emailDoConvite
         ? tx.conviteEquipe.count({
-            where: { email: { not: emailDoConvite }, expiraEm: { gt: new Date() } },
+            where: { tenantId, email: { not: emailDoConvite }, expiraEm: { gt: new Date() } },
           })
         : Promise.resolve(0),
     ]);
