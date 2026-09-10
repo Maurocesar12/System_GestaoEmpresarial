@@ -10,7 +10,7 @@ import {
   type PapelUsuario,
   type Permissao,
 } from '@gestao/shared-types';
-import { Mail, UserCheck, UserX } from 'lucide-react';
+import { ArrowUpRight, Mail, ShieldCheck, UserCheck, UserPlus, UserX } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { useAvisos } from '@/components/ui/avisos';
@@ -28,27 +28,11 @@ const ROTULOS: Record<PapelUsuario, string> = {
 };
 
 export function GerenciadorEquipe({ funcionarios, convites, capacidade }: EquipeResponse) {
+  const limiteAtingido = capacidade.vagasDisponiveis === 0;
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="bg-card grid gap-4 rounded-lg border p-4 shadow-[var(--sombra-sutil)] sm:grid-cols-2 xl:grid-cols-5">
-        <Resumo rotulo="Plano" valor={capacidade.planoNome} />
-        <Resumo rotulo="Ativos" valor={String(capacidade.usuariosAtivos)} />
-        <Resumo rotulo="Convites pendentes" valor={String(capacidade.convitesPendentes)} />
-        <Resumo
-          rotulo="Vagas disponíveis"
-          valor={
-            capacidade.vagasDisponiveis === null
-              ? 'Sem limite'
-              : String(capacidade.vagasDisponiveis)
-          }
-        />
-        <Resumo rotulo="Mensalidade estimada" valor={formatarBRL(capacidade.mensalidadeEstimada)} />
-        <p className="text-muted-foreground border-border border-t pt-3 text-xs leading-relaxed sm:col-span-2 xl:col-span-5">
-          O plano inclui {capacidade.usuariosInclusos ?? 'todos os'} usuários. Acima disso, cada
-          usuário ativo adiciona {formatarBRL(capacidade.precoPorUsuarioAdicional)} por mês.
-          Convites pendentes reservam vaga, mas não são cobrados até serem aceitos.
-        </p>
-      </div>
+      <ResumoPlano capacidade={capacidade} />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex flex-col gap-3">
           {funcionarios.map((funcionario) => (
@@ -56,7 +40,7 @@ export function GerenciadorEquipe({ funcionarios, convites, capacidade }: Equipe
           ))}
         </div>
         <div className="flex flex-col gap-6">
-          <FormularioConvite />
+          <FormularioConvite bloqueado={limiteAtingido} capacidade={capacidade} />
           {convites.length > 0 && <ConvitesPendentes convites={convites} />}
         </div>
       </div>
@@ -64,11 +48,138 @@ export function GerenciadorEquipe({ funcionarios, convites, capacidade }: Equipe
   );
 }
 
-function Resumo({ rotulo, valor }: { rotulo: string; valor: string }) {
+function ResumoPlano({ capacidade }: { capacidade: EquipeResponse['capacidade'] }) {
+  const percentual =
+    capacidade.limiteUsuarios === null
+      ? 0
+      : Math.min(100, Math.round((capacidade.vagasOcupadas / capacidade.limiteUsuarios) * 100));
+
+  return (
+    <Cartao>
+      <CartaoConteudo className="grid gap-6 p-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.9fr)]">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+                Plano da equipe
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-semibold tracking-tight">{capacidade.planoNome}</h2>
+                <span className="rounded-full border px-2 py-0.5 text-xs">
+                  Nível {capacidade.planoNivel}
+                </span>
+                {capacidade.planoDestaque && (
+                  <span className="rounded-full bg-foreground px-2 py-0.5 text-xs text-background">
+                    recomendado
+                  </span>
+                )}
+              </div>
+              <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
+                {capacidade.planoDescricao}
+              </p>
+            </div>
+
+            <div className="text-right">
+              <p className="text-muted-foreground text-xs">Mensalidade estimada</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatarBRL(capacidade.mensalidadeEstimada)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricaPlano
+              rotulo="Usuários ativos"
+              valor={String(capacidade.usuariosAtivos)}
+              detalhe={`${capacidade.usuariosInclusos ?? 'Todos'} incluídos`}
+            />
+            <MetricaPlano
+              rotulo="Convites pendentes"
+              valor={String(capacidade.convitesPendentes)}
+              detalhe="Reservam vaga"
+            />
+            <MetricaPlano
+              rotulo="Vagas disponíveis"
+              valor={capacidade.vagasDisponiveis === null ? 'Sem limite' : String(capacidade.vagasDisponiveis)}
+              detalhe={
+                capacidade.limiteUsuarios === null
+                  ? 'Sem teto definido'
+                  : `${capacidade.vagasOcupadas}/${capacidade.limiteUsuarios} ocupadas`
+              }
+            />
+          </div>
+
+          {capacidade.limiteUsuarios !== null && (
+            <div className="flex flex-col gap-2">
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-foreground transition-[width]"
+                  style={{ width: `${percentual}%` }}
+                />
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Convites contam no limite para evitar vender mais acesso do que o plano permite.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border bg-muted/30 p-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="size-4" />
+            <p className="text-sm font-semibold">Cobrança de usuários</p>
+          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <ItemCobranca rotulo="Base" valor={formatarBRL(capacidade.precoBase)} />
+            <ItemCobranca
+              rotulo="Adicionais"
+              valor={formatarBRL(capacidade.adicionalUsuarios)}
+            />
+            <ItemCobranca
+              rotulo="Por adicional"
+              valor={formatarBRL(capacidade.precoPorUsuarioAdicional)}
+            />
+            <ItemCobranca
+              rotulo="Usuários extras"
+              valor={String(capacidade.usuariosAdicionais)}
+            />
+          </dl>
+
+          {capacidade.proximoPlano && (
+            <div className="mt-4 rounded-md border bg-card p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Próximo: {capacidade.proximoPlano.nome}</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {formatarBRL(capacidade.proximoPlano.preco)}/mês · até{' '}
+                    {capacidade.proximoPlano.limiteUsuarios ?? 'sem limite'} usuários
+                  </p>
+                </div>
+                <ArrowUpRight className="text-muted-foreground size-4" />
+              </div>
+            </div>
+          )}
+        </div>
+      </CartaoConteudo>
+    </Cartao>
+  );
+}
+
+function MetricaPlano({ rotulo, valor, detalhe }: { rotulo: string; valor: string; detalhe: string }) {
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <p className="text-muted-foreground text-xs">{rotulo}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums">{valor}</p>
+      <p className="text-muted-foreground mt-1 text-xs">{detalhe}</p>
+    </div>
+  );
+}
+
+function ItemCobranca({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div>
-      <p className="text-muted-foreground text-xs">{rotulo}</p>
-      <p className="mt-1 font-semibold tabular-nums">{valor}</p>
+      <dt className="text-muted-foreground text-xs">{rotulo}</dt>
+      <dd className="mt-0.5 font-medium tabular-nums">{valor}</dd>
     </div>
   );
 }
@@ -153,7 +264,13 @@ function FormularioFuncionario({ funcionario }: { funcionario: Funcionario }) {
   );
 }
 
-function FormularioConvite() {
+function FormularioConvite({
+  bloqueado,
+  capacidade,
+}: {
+  bloqueado: boolean;
+  capacidade: EquipeResponse['capacidade'];
+}) {
   const [papel, setPapel] = useState<PapelUsuario>('atendente');
   const [permissoes, setPermissoes] = useState<Permissao[]>([
     ...PERMISSOES_PADRAO_POR_PAPEL.atendente,
@@ -165,11 +282,20 @@ function FormularioConvite() {
     <Cartao>
       <CartaoCabecalho>
         <CartaoTitulo className="flex items-center gap-2">
-          <Mail className="size-4" />
+          <UserPlus className="size-4" />
           Convidar funcionário
         </CartaoTitulo>
       </CartaoCabecalho>
       <CartaoConteudo>
+        {bloqueado && (
+          <div className="mb-4 rounded-md border bg-muted/40 p-3 text-sm">
+            <p className="font-medium">Limite de usuários atingido neste plano.</p>
+            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+              Cancele um convite pendente, desative alguém sem acesso ou migre para{' '}
+              {capacidade.proximoPlano?.nome ?? 'um plano superior'} para liberar novas vagas.
+            </p>
+          </div>
+        )}
         <form
           className="flex flex-col gap-4"
           onSubmit={(evento) => {
@@ -178,6 +304,11 @@ function FormularioConvite() {
             const formulario = evento.currentTarget;
             const form = new FormData(formulario);
             iniciar(async () => {
+              if (bloqueado) {
+                setFalha('O limite de usuários do plano foi atingido.');
+                return;
+              }
+
               const resultado = await convidarFuncionario({
                 nome: String(form.get('nome')),
                 email: String(form.get('email')),
@@ -220,7 +351,8 @@ function FormularioConvite() {
               <GradePermissoes selecionadas={permissoes} aoMudar={setPermissoes} />
             </div>
           </details>
-          <Botao type="submit" carregando={enviando}>
+          <Botao type="submit" carregando={enviando} disabled={bloqueado}>
+            <Mail />
             Enviar convite
           </Botao>
         </form>

@@ -79,7 +79,7 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
         tx.tenant.deleteMany({ where: { id: tenantId } }),
       );
     }
-    await app.close();
+    await app?.close();
   });
 
   it('convida, envia um link e registra a ação na auditoria', async () => {
@@ -96,7 +96,7 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
     expect(enviar).toHaveBeenCalledTimes(1);
     const mensagem = enviar.mock.calls[0]![0];
     expect(mensagem.destinatario).toBe(emailFuncionario);
-    expect(mensagem.corpo).toContain('/aceitar-convite?token=');
+    expect(mensagem.corpo).toContain('/aceitar-convite#token=');
 
     const { body: auditoria } = await autenticado(tokenAdminA).get('/api/auditoria').expect(200);
     expect(auditoria.dados).toEqual(
@@ -199,7 +199,7 @@ function extrairTokenDoConvite(mensagem: MensagemNotificacao): string {
   const url = mensagem.corpo.match(/https?:\/\/\S+/)?.[0];
   if (!url) throw new Error('O e-mail de convite não contém uma URL.');
 
-  const token = new URL(url).searchParams.get('token');
+  const token = new URLSearchParams(new URL(url).hash.slice(1)).get('token');
   if (!token) throw new Error('A URL de convite não contém o token.');
 
   return token;

@@ -48,7 +48,7 @@ export class EquipeService {
   ) {}
 
   async listar(): Promise<EquipeResponse> {
-    const { funcionarios, convites, tenant } = await this.prisma.comTenant((tx) =>
+    const { funcionarios, convites, tenant, proximoPlano } = await this.prisma.comTenant((tx) =>
       Promise.all([
         tx.usuario.findMany({ orderBy: { criadoEm: 'asc' } }),
         tx.conviteEquipe.findMany({
@@ -56,7 +56,15 @@ export class EquipeService {
           orderBy: { criadoEm: 'desc' },
         }),
         tx.tenant.findUniqueOrThrow({ where: { id: tenantAtual() }, include: { plano: true } }),
-      ]).then(([funcionarios, convites, tenant]) => ({ funcionarios, convites, tenant })),
+      ]).then(async ([funcionarios, convites, tenant]) => ({
+        funcionarios,
+        convites,
+        tenant,
+        proximoPlano: await tx.plano.findFirst({
+          where: { ativo: true, nivel: { gt: tenant.plano.nivel } },
+          orderBy: { nivel: 'asc' },
+        }),
+      })),
     );
 
     const usuariosAtivos = funcionarios.filter((item) => item.ativo).length;
@@ -81,15 +89,33 @@ export class EquipeService {
         criadoEm: item.criadoEm.toISOString(),
       })),
       capacidade: {
+        planoSlug: tenant.plano.slug,
         planoNome: tenant.plano.nome,
+        planoDescricao: tenant.plano.descricao,
+        planoNivel: tenant.plano.nivel,
+        planoDestaque: tenant.plano.destaque,
+        precoBase: tenant.plano.preco.toFixed(2),
         limiteUsuarios: limite,
         usuariosAtivos,
         convitesPendentes: convites.length,
+        vagasOcupadas: ocupadas,
         vagasDisponiveis: limite === null ? null : Math.max(0, limite - ocupadas),
         usuariosInclusos: tenant.plano.usuariosInclusos,
         usuariosAdicionais: cobranca.usuariosAdicionais,
         precoPorUsuarioAdicional: tenant.plano.precoUsuarioAdicional.toFixed(2),
+        adicionalUsuarios: cobranca.adicionalUsuarios.toFixed(2),
         mensalidadeEstimada: cobranca.mensalidade.toFixed(2),
+        proximoPlano: proximoPlano
+          ? {
+              slug: proximoPlano.slug,
+              nome: proximoPlano.nome,
+              nivel: proximoPlano.nivel,
+              preco: proximoPlano.preco.toFixed(2),
+              usuariosInclusos: proximoPlano.usuariosInclusos,
+              limiteUsuarios: proximoPlano.limiteUsuarios,
+              precoPorUsuarioAdicional: proximoPlano.precoUsuarioAdicional.toFixed(2),
+            }
+          : null,
       },
     };
   }

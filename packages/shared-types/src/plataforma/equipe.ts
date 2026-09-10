@@ -54,14 +54,30 @@ export interface EquipeResponse {
   funcionarios: Funcionario[];
   convites: ConviteEquipe[];
   capacidade: {
+    planoSlug: string;
     planoNome: string;
+    planoDescricao: string;
+    planoNivel: number;
+    planoDestaque: boolean;
+    precoBase: string;
     limiteUsuarios: number | null;
     usuariosAtivos: number;
     convitesPendentes: number;
+    vagasOcupadas: number;
     vagasDisponiveis: number | null;
     usuariosInclusos: number | null;
     usuariosAdicionais: number;
     precoPorUsuarioAdicional: string;
+    adicionalUsuarios: string;
     mensalidadeEstimada: string;
+    proximoPlano: {
+      slug: string;
+      nome: string;
+      nivel: number;
+      preco: string;
+      usuariosInclusos: number | null;
+      limiteUsuarios: number | null;
+      precoPorUsuarioAdicional: string;
+    } | null;
   };
 }
