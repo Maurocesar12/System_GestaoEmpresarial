@@ -199,6 +199,16 @@ Fluxo de caixa, faturamento e margem por serviço são **calculados** por querie
 ### 8.2 Limites por plano
 Aplicados como guard no backend: número de usuários, de clientes cadastrados e de envios de lembrete por mês.
 
+Catálogo comercial vigente:
+
+| Nível | Slug | Nome | Base/mês | Usuários | Clientes | IA |
+| ----- | ---- | ---- | -------: | -------- | -------: | -- |
+| 1 | `essencial` | Básico | R$ 100 | 2 incluídos, máximo 5 | 500 | 3 previsões gratuitas/mês |
+| 2 | `profissional` | Premium | R$ 200 | 5 incluídos, máximo 20 | 3.000 | 200 previsões/mês |
+
+O banco é a fonte de verdade: `plano.nivel` define hierarquia, `plano.destaque`
+define o recomendado e `plano.ativo` controla o que aparece no catálogo.
+
 ### 8.3 Módulo de marketing — escopo beta
 
 Entra apenas o mínimo:

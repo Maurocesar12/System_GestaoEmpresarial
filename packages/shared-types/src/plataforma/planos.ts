@@ -1,7 +1,36 @@
+export type PlanoComercialSlug = 'essencial' | 'profissional';
+
+export const HIERARQUIA_PLANOS: readonly PlanoComercialSlug[] = ['essencial', 'profissional'];
+
+export interface PlanoCatalogo {
+  slug: PlanoComercialSlug;
+  nome: string;
+  descricao: string;
+  nivel: number;
+  destaque: boolean;
+  preco: string;
+  usuariosInclusos: number | null;
+  precoUsuarioAdicional: string;
+  limiteUsuarios: number | null;
+  limiteClientes: number | null;
+  limiteEnviosMensais: number | null;
+  iaHabilitada: boolean;
+  limitePrevisoesIaMensais: number | null;
+}
+
+export interface PlanosCatalogoResponse {
+  planos: PlanoCatalogo[];
+  hierarquia: readonly PlanoComercialSlug[];
+  totalAtivos: number;
+}
+
 export interface PlanoAtualResponse {
   plano: {
     slug: string;
     nome: string;
+    descricao: string;
+    nivel: number;
+    destaque: boolean;
     preco: string;
     iaHabilitada: boolean;
   };

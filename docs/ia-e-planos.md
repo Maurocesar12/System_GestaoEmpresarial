@@ -3,15 +3,28 @@
 ## Modelo comercial
 
 Os identificadores (`slug`) antigos foram mantidos para não quebrar empresas já
-cadastradas. Os nomes e limites vigentes ficam no seed:
+cadastradas. Existem apenas dois planos vendáveis, ordenados por `nivel` no
+banco:
 
 | Slug           | Plano  | Base/mês | Incluídos | Máximo | Usuário adicional | Clientes | Previsões com IA |
 | -------------- | ------ | -------: | --------: | -----: | ----------------: | -------: | ---------------: |
 | `essencial`    | Básico |   R$ 100 |         2 |      5 |             R$ 20 |      500 |   não disponível |
-| `profissional` | Pro    |   R$ 200 |         5 |     20 |             R$ 15 |    3.000 |          200/mês |
+| `profissional` | Premium |  R$ 200 |         5 |     20 |             R$ 15 |    3.000 |          200/mês |
 
 Os limites são validados pela API, e não somente escondidos na interface. Para
-alterá-los, edite `apps/api/prisma/seed.ts` e rode o seed.
+alterá-los, edite `apps/api/prisma/seed.ts`, gere uma migration quando houver
+campo novo e rode o seed.
+
+Para verificar no Postman, faça login, copie o `accessToken` e envie:
+
+```http
+POST /api/planos/verificar
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+```
+
+A resposta traz `hierarquia: ["essencial", "profissional"]` e somente planos
+ativos do catálogo comercial.
 
 ### Regra de cobrança por usuário
 
@@ -22,7 +35,7 @@ alterá-los, edite `apps/api/prisma/seed.ts` e rode o seed.
 - O painel mostra uma estimativa mensal. A cobrança e eventual pró-rata só
   devem ser efetivados depois que o gateway e seus webhooks estiverem ligados.
 
-Exemplo: uma empresa Pro com 8 usuários ativos paga a base de R$ 200 mais 3
+Exemplo: uma empresa Premium com 8 usuários ativos paga a base de R$ 200 mais 3
 adicionais de R$ 15, totalizando R$ 245 por mês.
 
 ## Como a previsão funciona

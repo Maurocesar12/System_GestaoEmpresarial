@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  HIERARQUIA_PLANOS,
   LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
+  type PlanoCatalogo,
   type PlanoAtualResponse,
+  type PlanosCatalogoResponse,
 } from '@gestao/shared-types';
 import type { Env } from '../../../config/env.schema';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
@@ -15,6 +18,21 @@ export class PlanosService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
   ) {}
+
+  async catalogo(): Promise<PlanosCatalogoResponse> {
+    const planos = await this.prisma.semTenant('listar catálogo ativo de planos comerciais', (db) =>
+      db.plano.findMany({
+        where: { ativo: true, slug: { in: [...HIERARQUIA_PLANOS] } },
+        orderBy: [{ nivel: 'asc' }, { preco: 'asc' }],
+      }),
+    );
+
+    return {
+      planos: planos.map((plano) => this.paraCatalogo(plano)),
+      hierarquia: HIERARQUIA_PLANOS,
+      totalAtivos: planos.length,
+    };
+  }
 
   async atual(): Promise<PlanoAtualResponse> {
     const inicioDoMes = new Date();
@@ -43,6 +61,9 @@ export class PlanosService {
       plano: {
         slug: tenant.plano.slug,
         nome: tenant.plano.nome,
+        descricao: tenant.plano.descricao,
+        nivel: tenant.plano.nivel,
+        destaque: tenant.plano.destaque,
         preco: tenant.plano.preco.toFixed(2),
         iaHabilitada: tenant.plano.iaHabilitada,
       },
@@ -70,6 +91,44 @@ export class PlanosService {
         conectada: Boolean(this.config.get('OPENAI_API_KEY', { infer: true })),
         modo: this.config.get('OPENAI_API_KEY', { infer: true }) ? 'openai' : 'demonstracao',
       },
+    };
+  }
+
+  private paraCatalogo(plano: {
+    slug: string;
+    nome: string;
+    descricao: string;
+    nivel: number;
+    destaque: boolean;
+    preco: { toFixed(casas: number): string };
+    usuariosInclusos: number | null;
+    precoUsuarioAdicional: { toFixed(casas: number): string };
+    limiteUsuarios: number | null;
+    limiteClientes: number | null;
+    limiteEnviosMensais: number | null;
+    iaHabilitada: boolean;
+    limitePrevisoesIaMensais: number | null;
+  }): PlanoCatalogo {
+    const slug = HIERARQUIA_PLANOS.find((item) => item === plano.slug);
+
+    if (!slug) {
+      throw new Error(`Plano ativo fora da hierarquia comercial: ${plano.slug}`);
+    }
+
+    return {
+      slug,
+      nome: plano.nome,
+      descricao: plano.descricao,
+      nivel: plano.nivel,
+      destaque: plano.destaque,
+      preco: plano.preco.toFixed(2),
+      usuariosInclusos: plano.usuariosInclusos,
+      precoUsuarioAdicional: plano.precoUsuarioAdicional.toFixed(2),
+      limiteUsuarios: plano.limiteUsuarios,
+      limiteClientes: plano.limiteClientes,
+      limiteEnviosMensais: plano.limiteEnviosMensais,
+      iaHabilitada: plano.iaHabilitada,
+      limitePrevisoesIaMensais: plano.limitePrevisoesIaMensais,
     };
   }
 }

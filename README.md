@@ -54,9 +54,9 @@ Já implementado:
 - Envio automático dos lembretes por e-mail: varredura agendada, fila BullMQ e
   worker. Depende de `REDIS_URL`; sem ela os lembretes ficam pendentes.
 - Financeiro com categorias, lançamentos, fluxo de caixa e margem por serviço.
-- Previsão financeira com IA no plano Pro, com modo local sem custo para desenvolvimento.
+- Previsão financeira com IA no plano Premium, com modo local sem custo para desenvolvimento.
 - Consumo de IA, tokens e custo estimado atribuídos por empresa e usuário.
-- Planos Básico (R$ 100) e Pro (R$ 200), com vagas incluídas, cobrança estimada
+- Planos Básico (R$ 100) e Premium (R$ 200), com vagas incluídas, cobrança estimada
   por usuário ativo adicional e limites aplicados pela API.
 - Permissões por ação para `admin`, `financeiro`, `atendente`, `tecnico`.
 
@@ -163,7 +163,7 @@ pnpm --filter @gestao/api db:migrate
 pnpm --filter @gestao/api db:seed
 ```
 
-O seed cria planos iniciais usados pelo onboarding.
+O seed cria os dois planos oficiais usados pelo onboarding e pela tela de planos.
 
 ### 5. Suba API e web
 

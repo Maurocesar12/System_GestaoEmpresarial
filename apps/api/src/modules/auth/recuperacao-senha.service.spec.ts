@@ -8,7 +8,10 @@ import { RecuperacaoSenhaService } from './recuperacao-senha.service';
 describe('RecuperacaoSenhaService', () => {
   const secret = 'segredo-de-testes-com-mais-de-32-caracteres';
   const jwt = new JwtService({ secret });
-  const config = new ConfigService({ JWT_SECRET: secret, APP_URL: 'https://app.example.com' }) as ConfigService<Env, true>;
+  const config: ConfigService<Env, true> = new ConfigService({
+    JWT_SECRET: secret,
+    APP_URL: 'https://app.example.com',
+  });
   let hash: string;
   const usuario = { id: 'usuario', tenantId: 'empresa', ativo: true };
   const enviar = jest.fn();
@@ -20,14 +23,17 @@ describe('RecuperacaoSenhaService', () => {
     semTenant: (_motivo: string, callback: (db: typeof tx) => unknown) => callback(tx),
     comTenantExplicito: (_id: string, callback: (db: typeof tx) => unknown) => callback(tx),
   } as unknown as PrismaService;
-  const senhas = { gerarHash: jest.fn(async () => 'hash-novo') } as unknown as SenhaService;
+  const senhas = { gerarHash: jest.fn(() => Promise.resolve('hash-novo')) } as unknown as SenhaService;
   const service = new RecuperacaoSenhaService(prisma, jwt, senhas, config, { modo: 'smtp', enviar });
 
   beforeEach(() => {
     jest.clearAllMocks();
     hash = 'hash-anterior';
-    buscar.mockImplementation(async () => ({ ...usuario, senhaHash: hash }));
-    atualizar.mockImplementation(async () => { hash = 'hash-novo'; return { count: 1 }; });
+    buscar.mockImplementation(() => Promise.resolve({ ...usuario, senhaHash: hash }));
+    atualizar.mockImplementation(() => {
+      hash = 'hash-novo';
+      return Promise.resolve({ count: 1 });
+    });
     enviar.mockResolvedValue(undefined);
   });
 

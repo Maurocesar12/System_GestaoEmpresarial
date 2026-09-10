@@ -16,10 +16,12 @@ export function FormularioRecuperacao() {
   useEffect(() => {
     const recebido = new URLSearchParams(window.location.hash.slice(1)).get('token');
     if (recebido) {
-      setToken(recebido);
       window.history.replaceState(null, '', window.location.pathname);
     }
-    setPronto(true);
+    queueMicrotask(() => {
+      setToken(recebido ?? undefined);
+      setPronto(true);
+    });
   }, []);
 
   return <div className="flex flex-col gap-5">

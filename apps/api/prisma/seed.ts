@@ -34,16 +34,19 @@ export const ETAPAS_FUNIL_PADRAO = [
 ] as const;
 
 /**
- * Planos iniciais.
+ * Planos oficiais.
  *
- * Os slugs anteriores foram preservados para que empresas já cadastradas não
- * percam a referência ao plano quando o nome comercial muda.
+ * Existem apenas dois planos vendáveis. Os slugs foram preservados para que
+ * empresas já cadastradas não percam a referência quando o nome comercial muda.
  */
 const PLANOS = [
   {
     slug: 'essencial',
     nome: 'Básico',
     preco: '100.00',
+    descricao: 'Para organizar CRM, agenda, clientes e financeiro com previsões gratuitas limitadas.',
+    nivel: 1,
+    destaque: false,
     usuariosInclusos: 2,
     precoUsuarioAdicional: '20.00',
     limiteUsuarios: 5,
@@ -55,8 +58,11 @@ const PLANOS = [
   },
   {
     slug: 'profissional',
-    nome: 'Pro',
+    nome: 'Premium',
     preco: '200.00',
+    descricao: 'Para empresas que querem mais usuários, mais clientes e previsões financeiras com IA em volume.',
+    nivel: 2,
+    destaque: true,
     usuariosInclusos: 5,
     precoUsuarioAdicional: '15.00',
     limiteUsuarios: 20,
@@ -65,20 +71,6 @@ const PLANOS = [
     iaHabilitada: true,
     limitePrevisoesIaMensais: 200,
     ativo: true,
-  },
-  {
-    slug: 'ilimitado',
-    nome: 'Ilimitado',
-    preco: '397.00',
-    // null significa sem limite — diferente de zero, que bloquearia tudo.
-    usuariosInclusos: null,
-    precoUsuarioAdicional: '0.00',
-    limiteUsuarios: null,
-    limiteClientes: null,
-    limiteEnviosMensais: null,
-    iaHabilitada: true,
-    limitePrevisoesIaMensais: null,
-    ativo: false,
   },
 ] as const;
 
@@ -94,6 +86,9 @@ async function main(): Promise<void> {
       update: {
         nome: plano.nome,
         preco: plano.preco,
+        descricao: plano.descricao,
+        nivel: plano.nivel,
+        destaque: plano.destaque,
         usuariosInclusos: plano.usuariosInclusos,
         precoUsuarioAdicional: plano.precoUsuarioAdicional,
         limiteUsuarios: plano.limiteUsuarios,
@@ -107,6 +102,11 @@ async function main(): Promise<void> {
 
     console.log(`  ${plano.nome} — R$ ${plano.preco}`);
   }
+
+  await prisma.plano.updateMany({
+    where: { slug: { notIn: PLANOS.map((plano) => plano.slug) } },
+    data: { ativo: false, destaque: false },
+  });
 
   console.log('\nPronto.');
 }

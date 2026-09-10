@@ -29,11 +29,13 @@ export function FormularioAceitarConvite() {
     const parametros = new URLSearchParams(window.location.hash.slice(1));
     const legado = new URLSearchParams(window.location.search);
     const recebido = parametros.get('token') ?? legado.get('token') ?? undefined;
-    setToken(recebido);
     if (recebido && (window.location.hash || legado.has('token'))) {
       window.history.replaceState(null, '', window.location.pathname);
     }
-    setPronto(true);
+    queueMicrotask(() => {
+      setToken(recebido);
+      setPronto(true);
+    });
   }, []);
 
   if (pronto && !token) {

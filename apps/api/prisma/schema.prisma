@@ -143,6 +143,13 @@ model Plano {
   nome  String  @db.VarChar(60)
   slug  String  @unique @db.VarChar(60)
   preco Decimal @db.Decimal(14, 2)
+  descricao String @default("") @db.VarChar(180)
+
+  /// Ordem comercial. Quanto menor, mais simples o plano.
+  nivel Int @default(1)
+
+  /// Plano recomendado na tela comercial.
+  destaque Boolean @default(false)
 
   /// Limites aplicados como guard no backend.
   /// `null` significa ilimitado — diferente de zero, que bloqueia tudo.
@@ -162,6 +169,7 @@ model Plano {
 
   tenants Tenant[]
 
+  @@index([ativo, nivel])
   @@map("plano")
 }
 

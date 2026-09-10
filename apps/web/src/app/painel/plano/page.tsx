@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import {
   formatarBRL,
   LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
-  PACOTE_IA_PREVISOES_MENSAIS,
   type ConsumoIaResponse,
+  type PlanoCatalogo,
   type PlanoAtualResponse,
+  type PlanosCatalogoResponse,
 } from '@gestao/shared-types';
 import { Check } from 'lucide-react';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
@@ -15,8 +16,9 @@ import { apiComSessao } from '@/lib/api-servidor';
 export const metadata: Metadata = { title: 'Plano e consumo' };
 
 export default async function PaginaPlano() {
-  const [atual, consumo] = await Promise.all([
+  const [atual, catalogo, consumo] = await Promise.all([
     apiComSessao<PlanoAtualResponse>('/planos/atual'),
+    apiComSessao<PlanosCatalogoResponse>('/planos/catalogo'),
     apiComSessao<ConsumoIaResponse>('/ia/consumo'),
   ]);
   return (
@@ -59,34 +61,9 @@ export default async function PaginaPlano() {
         </CartaoConteudo>
       </Cartao>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Plano
-          nome="Básico"
-          preco="100"
-          atual={atual.plano.slug === 'essencial'}
-          itens={[
-            '2 usuários incluídos',
-            'Até 5 usuários',
-            'R$ 20 por usuário ativo adicional',
-            '500 clientes',
-            'CRM e financeiro completos',
-            `${LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS} previsões gratuitas com IA por mês`,
-          ]}
-        />
-        <Plano
-          nome="IA Premium"
-          preco="200"
-          atual={atual.plano.slug === 'profissional'}
-          destaque
-          itens={[
-            '5 usuários incluídos',
-            'Até 20 usuários',
-            'R$ 15 por usuário ativo adicional',
-            '3.000 clientes',
-            'CRM e financeiro completos',
-            'Previsão financeira com modelo avançado',
-            `${PACOTE_IA_PREVISOES_MENSAIS} previsões por mês`,
-          ]}
-        />
+        {catalogo.planos.map((plano) => (
+          <Plano key={plano.slug} plano={plano} atual={atual.plano.slug === plano.slug} />
+        ))}
       </div>
       <Cartao>
         <CartaoCabecalho>
@@ -144,33 +121,28 @@ function Uso({ rotulo, usado, limite }: { rotulo: string; usado: number; limite:
 }
 
 function Plano({
-  nome,
-  preco,
-  itens,
+  plano,
   atual,
-  destaque = false,
 }: {
-  nome: string;
-  preco: string;
-  itens: string[];
+  plano: PlanoCatalogo;
   atual: boolean;
-  destaque?: boolean;
 }) {
   return (
-    <Cartao className={destaque ? 'ring-primary/25 ring-1' : undefined}>
+    <Cartao className={plano.destaque ? 'ring-primary/25 ring-1' : undefined}>
       <CartaoConteudo className="flex flex-col gap-5 p-6">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold">{nome}</h2>
+            <h2 className="text-lg font-semibold">{plano.nome}</h2>
+            <p className="text-muted-foreground mt-1 max-w-sm text-sm">{plano.descricao}</p>
             <p className="mt-1">
-              <span className="text-3xl font-semibold">R$ {preco}</span>
+              <span className="text-3xl font-semibold">{formatarBRL(plano.preco)}</span>
               <span className="text-muted-foreground text-sm">/mês</span>
             </p>
           </div>
           {atual && <Selo tom="sucesso">Plano atual</Selo>}
         </div>
         <ul className="flex flex-col gap-2">
-          {itens.map((item) => (
+          {itensDoPlano(plano).map((item) => (
             <li key={item} className="flex gap-2 text-sm">
               <Check className="text-primary size-4 shrink-0" />
               {item}
@@ -180,4 +152,23 @@ function Plano({
       </CartaoConteudo>
     </Cartao>
   );
+}
+
+function itensDoPlano(plano: PlanoCatalogo): string[] {
+  const previsoes =
+    plano.limitePrevisoesIaMensais ??
+    (plano.iaHabilitada ? 'previsões sem limite definido' : LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS);
+
+  return [
+    plano.usuariosInclusos === null
+      ? 'Usuários incluídos sem franquia definida'
+      : `${plano.usuariosInclusos} usuários incluídos`,
+    plano.limiteUsuarios === null ? 'Usuários sem limite definido' : `Até ${plano.limiteUsuarios} usuários`,
+    `${formatarBRL(plano.precoUsuarioAdicional)} por usuário ativo adicional`,
+    plano.limiteClientes === null ? 'Clientes sem limite definido' : `${plano.limiteClientes.toLocaleString('pt-BR')} clientes`,
+    'CRM, funil, agenda, financeiro e histórico',
+    plano.iaHabilitada
+      ? `${previsoes} previsões financeiras com IA por mês`
+      : `${previsoes} previsões gratuitas com IA por mês`,
+  ];
 }
