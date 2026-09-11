@@ -7,8 +7,8 @@
   overflow: hidden;
   border-bottom: 1px solid var(--border);
   background: var(--background);
-  /* Cria contexto de empilhamento próprio: o vídeo fica atrás do conteúdo do
-     hero sem escapar para trás do cabeçalho ou das seções seguintes. */
+  /* Contexto de empilhamento próprio: o vídeo fica atrás do conteúdo do hero
+     sem escapar para trás do cabeçalho ou das seções seguintes. */
   isolation: isolate;
 }
 
@@ -25,7 +25,7 @@
 .hero-fundo-video {
   width: 100%;
   height: 100%;
-  /* `cover` preenche o hero em qualquer proporção de tela. O recorte cai nas
+  /* `cover` preenche o hero em qualquer proporção de tela. O corte cai nas
      bordas da gravação, que é onde há menos informação. */
   object-fit: cover;
   object-position: center top;
@@ -35,19 +35,15 @@
    *
    * `invert` resolve no navegador o que exigiria reeditar o vídeo: o preto
    * vira branco e as linhas claras viram escuras, legíveis sobre o site.
-   * `hue-rotate(180deg)` devolve as cores ao lugar — sem ele a inversão
-   * transformaria o azul do gráfico em laranja. O resto é ajuste fino: sem
-   * baixar o contraste, as linhas invertidas ficam mais pesadas que qualquer
-   * outro elemento da página e roubam a atenção do título.
+   * `hue-rotate(180deg)` devolve as cores ao lugar — sem ele o azul do
+   * gráfico viraria laranja. O resto é ajuste fino: sem baixar o contraste,
+   * as linhas invertidas ficam mais pesadas que o título e roubam a atenção.
    */
   filter: invert(1) hue-rotate(180deg) contrast(0.72) brightness(1.06);
 }
 
 /*
  * Véu de legibilidade, em duas camadas.
- *
- * A horizontal protege a coluna do texto; a de cima inteira baixa o contraste
- * do vídeo o suficiente para o olho ler a página, e não a gravação.
  */
 .hero-veu {
   position: absolute;
@@ -62,7 +58,7 @@
       var(--background) 90%
     ),
     /* Protege a coluna do título. Depois da inversão o vídeo já é claro, então
-       o véu horizontal pode ser bem mais discreto do que era. */
+       o véu horizontal pode ser discreto. */
     linear-gradient(
         to right,
         var(--background) 0%,
@@ -72,12 +68,12 @@
       );
 }
 
-/* Quem pediu menos movimento não deveria receber um vídeo em laço no rosto. */
-@media (prefers-reduced-motion: reduce) {
-  .hero-fundo-video {
-    display: none;
-  }
-}
+/*
+ * `prefers-reduced-motion` é tratado no componente, pausando o vídeo — e não
+ * aqui, escondendo. Esconder deixava o hero em branco para quem tem "reduzir
+ * animações" ligado no sistema; pausado, o gráfico continua na tela e só o
+ * movimento some. Ver `video-financeiro.tsx`.
+ */
 
 .hero-container {
   position: relative;
@@ -91,8 +87,8 @@
 }
 
 /*
- * Uma coluna só desde que o vídeo passou a ocupar o hero inteiro: a segunda
- * existia para o quadrinho de preview, que virou o próprio fundo.
+ * Uma coluna só: a segunda existia para o quadro de preview, que virou o
+ * próprio fundo do hero.
  */
 .hero-main {
   flex: 1;

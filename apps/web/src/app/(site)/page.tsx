@@ -5,9 +5,10 @@ import { estilosBotao } from '@/components/ui/botao';
 import { cn } from '@/lib/utils';
 import { MODULOS, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { ComoAIAFunciona, DemonstracaoPrevisao } from './demonstracao-previsao';
-import { Grafico3D } from './grafico-3d';
 import { Hero } from './hero';
+import estilosResultado from './resultado.module.css';
 import { Revelar } from './revelar';
+import { VideoFinanceiro } from './video-financeiro';
 
 export const metadata: Metadata = {
   title: 'CRM e financeiro para empresas de serviço',
@@ -103,10 +104,11 @@ function Recursos() {
 /**
  * A seção do resultado.
  *
- * É a promessa do produto em três colunas: o que entrou, o que custou, o que
- * sobrou. O gráfico é tridimensional porque esta é a tela que o dono quer ver
- * — e porque volume separa as três grandezas mais rápido do que três números
- * em sequência. O custo disso é zero JavaScript: a explicação está no CSS.
+ * É a promessa do produto em uma frase — *sobrou quanto?* — ao lado da mesma
+ * gravação que roda no hero. Repetir a peça é intencional: quem rolou até aqui
+ * reencontra a imagem que viu na entrada, agora emoldurada e com a explicação
+ * do lado. O arquivo já está no cache do navegador, então não custa download
+ * nenhum a mais.
  */
 function Resultado() {
   return (
@@ -136,12 +138,16 @@ function Resultado() {
           </ul>
         </div>
 
-        <div className="bg-superficie rounded-xl border">
-          <Grafico3D />
-          <p className="text-muted-foreground border-t px-6 py-3 text-center text-xs">
-            Exemplo de um mês · dados ilustrativos
-          </p>
-        </div>
+        <figure className="bg-card m-0 overflow-hidden rounded-xl border shadow-[var(--sombra-sutil)]">
+          <div className={estilosResultado.quadro}>
+            <VideoFinanceiro className={estilosResultado.video!} />
+            <span className={estilosResultado.veu} />
+          </div>
+
+          <figcaption className="text-muted-foreground border-t px-6 py-3 text-center text-xs">
+            O caixa do mês, do lançamento ao que sobra
+          </figcaption>
+        </figure>
       </div>
     </section>
   );
@@ -248,8 +254,8 @@ function InteligenciaArtificial() {
 
             <p className="text-muted-foreground leading-relaxed">
               A conta é do sistema: histórico do que entrou e saiu, mais as contas a pagar e a
-              receber que já estão registradas. A IA entra depois — para ler esse cenário, apontar
-              o risco e dizer por onde começar.
+              receber que já estão registradas. A IA entra depois — para ler esse cenário, apontar o
+              risco e dizer por onde começar.
             </p>
           </div>
 
@@ -263,9 +269,7 @@ function InteligenciaArtificial() {
             foi parar ali — que é quando a explicação do mecanismo é lida.
           */}
           <div className="mt-12">
-            <h3 className="text-xl font-semibold tracking-tight">
-              Como a IA trabalha aqui dentro
-            </h3>
+            <h3 className="text-xl font-semibold tracking-tight">Como a IA trabalha aqui dentro</h3>
             <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed">
               Em quatro passos, e com a fronteira dos seus dados explícita em cada um.
             </p>
