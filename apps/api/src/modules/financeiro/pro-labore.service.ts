@@ -12,6 +12,7 @@ import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { ZERO } from './decimal';
 import {
   hojeEmDia,
+  mesesEntre,
   paraData,
   paraDia,
   primeiroDiaDeMesesAtras,
@@ -182,15 +183,32 @@ export class ProLaboreService {
     const de = primeiroDiaDeMesesAtras(meses);
     const ate = ultimoDiaDoMesPassado();
 
-    const [fluxo, vigente, reservas] = await Promise.all([
+    const [fluxo, vigente, reservas, primeiroMovimento] = await Promise.all([
       this.financeiro.fluxoDeCaixa({ de, ate, natureza: 'empresa' }),
       this.vigente(),
       this.prisma.comTenant((tx) =>
         tx.reservaFinanceira.findMany({ select: { valorAtual: true, meta: true } }),
       ),
+      this.prisma.comTenant((tx) =>
+        tx.lancamentoFinanceiro.findFirst({
+          where: { natureza: 'empresa', pagoEm: { not: null, gte: paraData(de)! } },
+          orderBy: { pagoEm: 'asc' },
+          select: { pagoEm: true },
+        }),
+      ),
     ]);
 
-    const porMes = (total: string) => new Prisma.Decimal(total).dividedBy(meses);
+    // Empresa nova não tem a janela inteira de histórico. Dividir o que ela
+    // movimentou em um mês por três meses pedidos daria uma receita média três
+    // vezes menor que a real — e um teto de retirada igualmente errado.
+    const mesesAnalisados = primeiroMovimento?.pagoEm
+      ? Math.min(meses, mesesEntre(paraDia(primeiroMovimento.pagoEm)!, ate))
+      : 0;
+
+    // Piso em 1 só para não dividir por zero: sem movimento, o numerador
+    // também é zero e o teto sai zero de qualquer forma.
+    const porMes = (total: string) =>
+      new Prisma.Decimal(total).dividedBy(Math.max(1, mesesAnalisados));
 
     const mediaReceita = porMes(fluxo.entradas);
     const custoFixoMensal = porMes(fluxo.custoFixo);
@@ -224,7 +242,7 @@ export class ProLaboreService {
       aporteReservaSugerido: aporteReservaSugerido.toFixed(2),
       tetoSugerido: tetoSugerido.toFixed(2),
       folga: tetoSugerido.minus(vigente?.valor ?? ZERO).toFixed(2),
-      mesesAnalisados: meses,
+      mesesAnalisados,
     };
   }
 
