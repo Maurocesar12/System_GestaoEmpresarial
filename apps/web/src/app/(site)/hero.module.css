@@ -1,4 +1,5 @@
 .hero-site {
+  position: relative;
   display: flex;
   width: 100%;
   min-height: calc(100vh - var(--altura-cabecalho-site));
@@ -6,9 +7,81 @@
   overflow: hidden;
   border-bottom: 1px solid var(--border);
   background: var(--background);
+  /* Cria contexto de empilhamento próprio: o vídeo fica atrás do conteúdo do
+     hero sem escapar para trás do cabeçalho ou das seções seguintes. */
+  isolation: isolate;
+}
+
+/* --- Vídeo de fundo ------------------------------------------------------ */
+
+.hero-fundo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-fundo-video {
+  width: 100%;
+  height: 100%;
+  /* `cover` preenche o hero em qualquer proporção de tela. O recorte cai nas
+     bordas da gravação, que é onde há menos informação. */
+  object-fit: cover;
+  object-position: center top;
+  /*
+   * A gravação tem fundo preto, e o site é claro — colada crua, ela vira um
+   * bloco escuro no meio de uma página branca.
+   *
+   * `invert` resolve no navegador o que exigiria reeditar o vídeo: o preto
+   * vira branco e as linhas claras viram escuras, legíveis sobre o site.
+   * `hue-rotate(180deg)` devolve as cores ao lugar — sem ele a inversão
+   * transformaria o azul do gráfico em laranja. O resto é ajuste fino: sem
+   * baixar o contraste, as linhas invertidas ficam mais pesadas que qualquer
+   * outro elemento da página e roubam a atenção do título.
+   */
+  filter: invert(1) hue-rotate(180deg) contrast(0.72) brightness(1.06);
+}
+
+/*
+ * Véu de legibilidade, em duas camadas.
+ *
+ * A horizontal protege a coluna do texto; a de cima inteira baixa o contraste
+ * do vídeo o suficiente para o olho ler a página, e não a gravação.
+ */
+.hero-veu {
+  position: absolute;
+  inset: 0;
+  background:
+    /* Devolve o fundo sólido embaixo, onde ficam os atalhos: texto pequeno
+       sobre linhas de gráfico não se lê, mesmo com o vídeo clareado. */
+    linear-gradient(
+      to bottom,
+      transparent 40%,
+      color-mix(in oklch, var(--background) 78%, transparent) 72%,
+      var(--background) 90%
+    ),
+    /* Protege a coluna do título. Depois da inversão o vídeo já é claro, então
+       o véu horizontal pode ser bem mais discreto do que era. */
+    linear-gradient(
+        to right,
+        var(--background) 0%,
+        color-mix(in oklch, var(--background) 88%, transparent) 30%,
+        color-mix(in oklch, var(--background) 40%, transparent) 52%,
+        transparent 74%
+      );
+}
+
+/* Quem pediu menos movimento não deveria receber um vídeo em laço no rosto. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-fundo-video {
+    display: none;
+  }
 }
 
 .hero-container {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -17,12 +90,15 @@
   padding-inline: clamp(24px, 3.4vw, 48px);
 }
 
+/*
+ * Uma coluna só desde que o vídeo passou a ocupar o hero inteiro: a segunda
+ * existia para o quadrinho de preview, que virou o próprio fundo.
+ */
 .hero-main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  grid-template-columns: minmax(0, min(560px, 100%));
   align-items: center;
-  gap: 20px;
   padding-block: clamp(24px, 4svh, 72px);
 }
 
@@ -151,133 +227,6 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-.hero-preview {
-  position: relative;
-  min-width: 0;
-  margin: 26px 34px 26px 20px;
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) * 2);
-  background: transparent;
-  color: var(--hero-video-texto);
-  box-shadow:
-    0 34px 80px rgb(0 0 0 / 0.18),
-    0 8px 24px rgb(0 0 0 / 0.08);
-}
-.hero-video-crop {
-  position: relative;
-  aspect-ratio: 1.38;
-  overflow: hidden;
-  border-radius: inherit;
-}
-.hero-video {
-  position: absolute;
-  width: 160%;
-  max-width: none;
-  height: auto;
-  left: -49%;
-  top: -9%;
-}
-.hero-float-clientes,
-.hero-float-agenda {
-  position: absolute;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 156px;
-  padding: 11px 13px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: color-mix(in oklch, var(--card) 94%, transparent);
-  color: var(--foreground);
-  box-shadow: 0 18px 38px rgb(0 0 0 / 0.16);
-  backdrop-filter: blur(14px);
-}
-.hero-float-clientes {
-  left: -22px;
-  bottom: 60px;
-  animation: hero-float 5s ease-in-out infinite;
-}
-.hero-float-agenda {
-  top: 38px;
-  right: -44px;
-  animation: hero-float 5s 1.5s ease-in-out infinite;
-}
-.hero-float-clientes svg,
-.hero-float-agenda svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-}
-.hero-float-clientes span,
-.hero-float-agenda span {
-  display: grid;
-  gap: 1px;
-  color: var(--muted-foreground);
-  font-size: 9px;
-}
-.hero-float-clientes strong,
-.hero-float-agenda strong {
-  color: var(--foreground);
-  font-size: 12px;
-}
-.hero-objects-3d {
-  position: absolute;
-  right: -34px;
-  bottom: 54px;
-  z-index: 4;
-  width: 82px;
-  height: 78px;
-  pointer-events: none;
-  transform: rotate(-7deg);
-  transform-style: preserve-3d;
-}
-.hero-objects-3d span {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 0.24);
-  border-radius: 5px;
-  background: var(--foreground);
-  box-shadow:
-    10px 13px 22px rgb(0 0 0 / 0.24),
-    inset -8px -8px 12px rgb(255 255 255 / 0.08);
-  transform: rotateX(58deg) rotateZ(38deg);
-}
-.hero-objects-3d span:nth-child(1) {
-  left: 4px;
-  bottom: 5px;
-  width: 42px;
-  height: 42px;
-}
-.hero-objects-3d span:nth-child(2) {
-  right: 2px;
-  top: 4px;
-  width: 33px;
-  height: 33px;
-  background: var(--atencao);
-}
-.hero-objects-3d span:nth-child(3) {
-  right: 17px;
-  bottom: 5px;
-  width: 38px;
-  height: 38px;
-  background: var(--info-suave);
-  color: var(--info);
-}
-.hero-objects-3d svg {
-  width: 16px;
-  height: 16px;
-}
-.hero-video-caption {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 18px 8px;
-  font-size: 10px;
-}
 .hero-bottom {
   display: grid;
   grid-template-columns: 0.65fr 3fr;
@@ -346,14 +295,22 @@
   .hero-bottom {
     padding-block: 16px;
   }
-  .hero-preview {
-    width: 100%;
-    max-width: min(100%, calc((100svh - 16.25rem) * 1.38));
-    justify-self: center;
-  }
 }
 
 @media (max-width: 1023px) {
+  /*
+   * Sem coluna livre à direita, o texto passa por cima do vídeo em toda a
+   * largura — e ali ele precisa virar textura, não imagem. O véu fica quase
+   * sólido e só deixa o movimento aparecer de leve no topo.
+   */
+  .hero-veu {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--background) 74%, transparent) 0%,
+      color-mix(in oklch, var(--background) 90%, transparent) 42%,
+      var(--background) 78%
+    );
+  }
   .hero-main {
     grid-template-columns: 1fr;
     gap: 32px;
@@ -367,11 +324,6 @@
   }
   .hero-description {
     max-width: 540px;
-  }
-  .hero-preview {
-    width: 100%;
-    max-width: 720px;
-    margin-inline: auto;
   }
   .hero-bottom {
     grid-template-columns: 1fr;
@@ -418,28 +370,6 @@
   .hero-plans {
     margin-top: 12px;
   }
-  .hero-video-caption {
-    font-size: 9px;
-    padding-inline: 10px;
-  }
-  .hero-preview {
-    width: calc(100% - 16px);
-    margin: 12px 8px 18px;
-  }
-  .hero-float-clientes {
-    left: -8px;
-    bottom: 42px;
-  }
-  .hero-float-agenda {
-    top: 18px;
-    right: -8px;
-  }
-  .hero-objects-3d {
-    right: -8px;
-    bottom: 38px;
-    transform: scale(0.72) rotate(-7deg);
-    transform-origin: bottom right;
-  }
   .hero-shortcuts {
     grid-template-columns: 1fr;
     gap: 2px;
@@ -456,26 +386,5 @@
   }
   .hero-shortcut > span > span {
     font-size: 12px;
-  }
-}
-
-@media (max-width: 420px) {
-  .hero-float-agenda,
-  .hero-objects-3d {
-    display: none;
-  }
-  .hero-float-clientes {
-    min-width: 132px;
-    padding: 8px 10px;
-  }
-}
-
-@keyframes hero-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-7px);
   }
 }

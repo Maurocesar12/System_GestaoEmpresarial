@@ -27,6 +27,8 @@ const ATALHOS = [
 export function Hero() {
   return (
     <section className={styles['hero-site']} aria-labelledby="titulo-hero">
+      <VideoHeader />
+
       <div className={styles['hero-container']}>
         <div className={styles['hero-main']}>
           <div className={styles['hero-copy']}>
@@ -54,7 +56,6 @@ export function Hero() {
               Conheça os planos <ArrowRight aria-hidden />
             </a>
           </div>
-          <VideoHeader />
         </div>
         <div className={styles['hero-bottom']}>
           <p className={styles['hero-bottom-label']}>
