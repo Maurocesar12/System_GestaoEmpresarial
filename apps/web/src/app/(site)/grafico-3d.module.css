@@ -62,12 +62,21 @@
 
 /* --------------------------------------------------------------- telas --- */
 
+/*
+ * A pilha balança devagar, de um lado para o outro.
+ *
+ * É o que transforma "três retângulos inclinados" em cena: parada, a
+ * perspectiva é só um desenho; girando, o olho vê as camadas se deslocarem
+ * umas em relação às outras e lê profundidade de verdade. Doze segundos por
+ * ciclo e oito graus de amplitude — perceptível, nunca inquieto.
+ */
 .pilha {
   position: relative;
   width: min(300px, 78%);
   height: 210px;
   transform-style: preserve-3d;
   transform: rotateX(13deg) rotateY(-24deg);
+  animation: balancar 12s ease-in-out infinite;
 }
 
 /*
@@ -86,6 +95,17 @@
   background: var(--card);
   box-shadow: 0 34px 60px -30px rgb(0 0 0 / 0.55);
   animation: flutuar 7s ease-in-out infinite;
+  /*
+   * Nitidez do texto dentro de uma camada 3D.
+   *
+   * Ao rasterizar um elemento transformado, o navegador escolhe a resolução
+   * uma vez e reaproveita durante a animação. `backface-visibility` e
+   * `will-change` avisam que a camada é própria e se move, e é isso que faz
+   * o texto pequeno das telas sair desenhado na resolução do monitor — em
+   * vez de ampliado a partir de uma textura de baixa resolução.
+   */
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 /* O empilhamento: cada camada recua no eixo Z e sobe um pouco na tela. */
@@ -160,6 +180,7 @@
 .cartaoDestaque {
   border-color: color-mix(in oklch, var(--sucesso) 45%, transparent);
   background: color-mix(in oklch, var(--sucesso) 12%, transparent);
+  animation: acender 12s ease-in-out infinite;
 }
 
 /* --- agenda: linhas com horário ------------------------------------------ */
@@ -195,6 +216,11 @@
   white-space: nowrap;
 }
 
+/* Segundo passo da história: o compromisso que nasceu do orçamento. */
+.pilulaAtiva {
+  animation: acender 12s ease-in-out 1.6s infinite;
+}
+
 /* --- financeiro: linhas de valor e a barra de margem --------------------- */
 
 .linhaValor {
@@ -205,6 +231,11 @@
   padding: 3.5px 0;
   font-size: 8px;
   color: var(--muted-foreground);
+}
+
+/* Terceiro passo: o serviço executado virando dinheiro em caixa. */
+.linhaAtiva {
+  animation: acender 12s ease-in-out 3.2s infinite;
 }
 
 .valorEntrada {
@@ -239,13 +270,14 @@
   background: color-mix(in oklch, var(--foreground) 9%, transparent);
 }
 
+/* Quarto e último passo: a margem se refazendo a cada volta do ciclo. */
 .barraMargem::after {
   position: absolute;
   inset: 0 68% 0 0;
   content: '';
   border-radius: inherit;
   background: linear-gradient(90deg, var(--grafico-2), var(--sucesso));
-  animation: preencher 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: preencher 12s cubic-bezier(0.22, 1, 0.36, 1) 4.6s infinite;
 }
 
 .percentual {
@@ -367,6 +399,37 @@
   }
   50% {
     translate: 0 -8px;
+  }
+}
+
+/* O balanço da pilha inteira: é ele que faz as camadas se descolarem. */
+@keyframes balancar {
+  0%,
+  100% {
+    transform: rotateX(13deg) rotateY(-26deg);
+  }
+  50% {
+    transform: rotateX(11deg) rotateY(-14deg);
+  }
+}
+
+/*
+ * O realce que percorre a história.
+ *
+ * Um ciclo de 12 s para todos, com atrasos diferentes: o cartão fecha no
+ * funil, o compromisso aparece na agenda, o valor entra no financeiro e a
+ * margem se refaz. Como cada elemento acende por dois segundos e apaga, a
+ * sequência lê como um caminho — e não como quatro coisas piscando.
+ */
+@keyframes acender {
+  0%,
+  16%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  4%,
+  12% {
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--sucesso) 40%, transparent);
   }
 }
 
