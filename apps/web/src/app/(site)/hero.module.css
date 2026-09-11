@@ -68,12 +68,12 @@
       );
 }
 
-/* Quem pediu menos movimento não deveria receber um vídeo em laço no rosto. */
-@media (prefers-reduced-motion: reduce) {
-  .hero-fundo-video {
-    display: none;
-  }
-}
+/*
+ * `prefers-reduced-motion` é tratado no componente, pausando o vídeo — e não
+ * aqui, escondendo. Esconder deixava o hero em branco para quem tem "reduzir
+ * animações" ligado no sistema; pausado, o gráfico continua na tela e só o
+ * movimento some. Ver `video-financeiro.tsx`.
+ */
 
 .hero-container {
   position: relative;

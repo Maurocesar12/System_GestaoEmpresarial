@@ -6,7 +6,9 @@ import { cn } from '@/lib/utils';
 import { PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { DemonstracaoPrevisao } from './demonstracao-previsao';
 import { Hero } from './hero';
+import estilosResultado from './resultado.module.css';
 import { Revelar } from './revelar';
+import { VideoFinanceiro } from './video-financeiro';
 
 export const metadata: Metadata = {
   title: 'CRM e financeiro para empresas de serviço',
@@ -19,6 +21,7 @@ export default function PaginaInicial() {
     <>
       <Hero />
       <Recursos />
+      <Resultado />
       <ComoFunciona />
       <InteligenciaArtificial />
       <Seguranca />
@@ -92,6 +95,58 @@ function Recursos() {
             </article>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * A seção do resultado.
+ *
+ * É a promessa do produto em uma frase — *sobrou quanto?* — ao lado da mesma
+ * gravação que roda no hero. Repetir a peça é intencional: quem rolou até aqui
+ * reencontra a imagem que viu na entrada, agora emoldurada e com a explicação
+ * do lado. O arquivo já está no cache do navegador, então não custa download
+ * nenhum a mais.
+ */
+function Resultado() {
+  return (
+    <section id="resultado" className="scroll-mt-16 border-b">
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-[1fr_1fr] lg:py-24">
+        <div className="flex flex-col gap-5">
+          <CabecalhoSecao
+            rotulo="O resultado"
+            titulo="No fim do mês, a pergunta é uma só: sobrou quanto?"
+          >
+            O sistema já sabe responder, porque cada recebimento nasceu ligado ao serviço que o
+            gerou e cada custo, ao trabalho que o consumiu. Não é relatório que alguém monta no fim
+            do mês — é a conta que se fecha sozinha desde o primeiro lançamento.
+          </CabecalhoSecao>
+
+          <ul className="flex flex-col gap-3 text-sm">
+            {[
+              'Margem por tipo de serviço, não só o total da empresa',
+              'Retirada do dono comparada ao que o caixa sustenta',
+              'Conta a receber separada do que já entrou de verdade',
+            ].map((item) => (
+              <li key={item} className="flex gap-3">
+                <Check aria-hidden className="text-sucesso mt-0.5 size-4 shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <figure className="bg-card m-0 overflow-hidden rounded-xl border shadow-[var(--sombra-sutil)]">
+          <div className={estilosResultado.quadro}>
+            <VideoFinanceiro className={estilosResultado.video!} />
+            <span className={estilosResultado.veu} />
+          </div>
+
+          <figcaption className="text-muted-foreground border-t px-6 py-3 text-center text-xs">
+            O caixa do mês, do lançamento ao que sobra
+          </figcaption>
+        </figure>
       </div>
     </section>
   );
