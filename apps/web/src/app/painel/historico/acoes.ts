@@ -4,9 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
+function caminhoHistorico(id: string): string {
+  return `/auditoria/${encodeURIComponent(id.trim())}`;
+}
+
 export async function removerHistorico(id: string): Promise<ResultadoAcao> {
   try {
-    await apiComSessao<void>(`/auditoria/${id}`, { method: 'DELETE' });
+    await apiComSessao<void>(caminhoHistorico(id), { method: 'DELETE' });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível excluir este histórico. Tente novamente.');
   }
@@ -24,7 +28,7 @@ export async function removerHistoricos(ids: string[]): Promise<ResultadoAcao> {
 
   try {
     await Promise.all(
-      unicos.map((id) => apiComSessao<void>(`/auditoria/${id}`, { method: 'DELETE' })),
+      unicos.map((id) => apiComSessao<void>(caminhoHistorico(id), { method: 'DELETE' })),
     );
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível excluir os históricos selecionados.');
