@@ -2,15 +2,26 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import type { Env } from './config/env.schema';
+import { aplicarLeitorDeCorpo } from './config/leitor-de-corpo';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // `bodyParser: false` desliga o parser padrão do Nest, que vem com limite de
+  // 100 kB. Ele é registrado aqui embaixo com o teto do lançamento: nota fiscal
+  // e boleto viajam em base64 dentro do JSON, e 100 kB não cabe nem um PDF
+  // simples — o envio morria com 413 depois de o formulário estar preenchido.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+    bodyParser: false,
+  });
   const config = app.get(ConfigService<Env, true>);
   const logger = new Logger('Bootstrap');
+
+  aplicarLeitorDeCorpo(app);
 
   // Cabeçalhos de segurança (arquitetura §9.2).
   app.use(helmet());

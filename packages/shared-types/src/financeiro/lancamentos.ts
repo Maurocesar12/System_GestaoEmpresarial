@@ -56,6 +56,22 @@ export interface CategoriaFinanceira {
 
 export const MAX_ANEXOS_LANCAMENTO = 5;
 export const MAX_BYTES_ANEXO_LANCAMENTO = 2 * 1024 * 1024;
+
+/**
+ * Teto do corpo da requisição de um lançamento, em bytes.
+ *
+ * O anexo viaja embutido no JSON, em base64 — que cresce cerca de 4/3 sobre o
+ * arquivo original. Cinco anexos de 2 MB chegam perto de 14 MB de texto, e
+ * tanto o Next quanto o Nest recusam corpos grandes por padrão (1 MB e 100 kB,
+ * respectivamente). Sem alinhar os dois com este número, anexar qualquer coisa
+ * além de um arquivo minúsculo falha — e falha tarde, no envio do formulário,
+ * depois de a pessoa ter preenchido tudo.
+ *
+ * O valor é calculado a partir dos limites acima, e não digitado: mudar o
+ * tamanho do anexo ou a quantidade permitida acerta o teto sozinho.
+ */
+export const MAX_BYTES_CORPO_LANCAMENTO =
+  Math.ceil((MAX_ANEXOS_LANCAMENTO * MAX_BYTES_ANEXO_LANCAMENTO * 4) / 3) + 512 * 1024;
 export const MIME_TYPES_ANEXO_LANCAMENTO = [
   'application/pdf',
   'image/png',

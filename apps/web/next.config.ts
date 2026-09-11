@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MAX_BYTES_CORPO_LANCAMENTO } from '@gestao/shared-types';
 import type { NextConfig } from 'next';
 
 // `fileURLToPath` em vez de `new URL(...).pathname`: no Windows o pathname vem
@@ -29,6 +30,21 @@ const nextConfig: NextConfig = {
   // Necessário no monorepo: sem isso o Next infere a raiz errada ao rastrear
   // os arquivos do build.
   outputFileTracingRoot: raizMonorepo,
+
+  experimental: {
+    serverActions: {
+      /**
+       * O padrão são 1 MB, e o lançamento leva nota fiscal e boleto embutidos
+       * no corpo, em base64. Com o padrão, anexar um PDF de 2 MB falhava no
+       * envio — depois do formulário preenchido, que é o pior momento.
+       *
+       * O número é o mesmo que a API aceita (`MAX_BYTES_CORPO_LANCAMENTO`):
+       * se os dois lados divergirem, um deles recusa o que o outro deixou
+       * passar, e o erro aparece só na metade do caminho.
+       */
+      bodySizeLimit: MAX_BYTES_CORPO_LANCAMENTO,
+    },
+  },
 
   async headers() {
     const headers = [
