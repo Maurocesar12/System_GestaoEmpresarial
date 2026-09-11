@@ -10,6 +10,16 @@ const CONTROLADORES_COM_AUDITORIA_TRANSACIONAL = new Set([
   'EquipeController', 'ConfiguracoesController',
 ]);
 
+/**
+ * O histórico não registra o que se faz com o próprio histórico.
+ *
+ * Excluir registros é ação de `admin` (veja `PapeisGuard`), e anotar cada
+ * exclusão recolocaria na lista o volume que o administrador acabou de tirar.
+ * O `AuditoriaService.removerVarios` segue a mesma regra — se um dos dois
+ * mudar sozinho, a linha volta por um caminho que ninguém procura.
+ */
+const CONTROLADORES_SEM_TRILHA = new Set(['AuditoriaController']);
+
 /** Completa a trilha dos módulos antigos que ainda não gravam dentro da transação. */
 @Injectable()
 export class AuditoriaInterceptor implements NestInterceptor {
@@ -23,7 +33,12 @@ export class AuditoriaInterceptor implements NestInterceptor {
     const contexto = obterContextoTenant();
     const mutacao = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(metodo);
 
-    if (!contexto || !mutacao || CONTROLADORES_COM_AUDITORIA_TRANSACIONAL.has(controlador)) {
+    if (
+      !contexto ||
+      !mutacao ||
+      CONTROLADORES_COM_AUDITORIA_TRANSACIONAL.has(controlador) ||
+      CONTROLADORES_SEM_TRILHA.has(controlador)
+    ) {
       return proximo.handle();
     }
 

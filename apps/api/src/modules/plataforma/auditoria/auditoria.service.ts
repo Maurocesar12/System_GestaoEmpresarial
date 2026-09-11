@@ -108,9 +108,16 @@ export class AuditoriaService {
   /**
    * Exclui um lote de registros e devolve quantos saíram de fato.
    *
-   * Tudo numa transação só: apagar o histórico e registrar quem o apagou não
-   * podem se separar — se a segunda parte falhasse, o rastro sumiria sem deixar
-   * vestígio, que é exatamente o que a auditoria existe para impedir.
+   * **A exclusão não deixa registro no próprio histórico.** É decisão de
+   * produto: limpar a lista tem que limpar de verdade, e uma linha
+   * "Histórico excluído" por item apagado devolveria ao lugar o volume que o
+   * usuário acabou de tirar. O `AuditoriaInterceptor` também ignora este
+   * controller pelo mesmo motivo — os dois precisam concordar, ou a linha
+   * volta por outro caminho.
+   *
+   * O que sustenta a decisão é a restrição de quem pode chegar aqui: só o
+   * papel `admin`, pelo `PapeisGuard`, e isso não é permissão concedível a
+   * funcionário.
    *
    * Ids que não existem mais (ou são de outra empresa, que a RLS já esconde)
    * são simplesmente ignorados: o número devolvido conta só o que foi apagado
@@ -121,40 +128,11 @@ export class AuditoriaService {
 
     if (unicos.length === 0) return 0;
 
-    return this.prisma.comTenant(async (tx) => {
-      // Lê antes de apagar: o registro da exclusão guarda o conteúdo removido,
-      // e depois do `delete` não haveria mais de onde tirá-lo.
-      const registros = await tx.logAuditoria.findMany({
-        where: { id: { in: unicos } },
-        select: {
-          id: true,
-          usuarioId: true,
-          entidade: true,
-          entidadeId: true,
-          acao: true,
-          resumo: true,
-          criadoEm: true,
-        },
-      });
+    const { count } = await this.prisma.comTenant((tx) =>
+      tx.logAuditoria.deleteMany({ where: { id: { in: unicos } } }),
+    );
 
-      if (registros.length === 0) return 0;
-
-      const { count } = await tx.logAuditoria.deleteMany({
-        where: { id: { in: registros.map((registro) => registro.id) } },
-      });
-
-      for (const registro of registros) {
-        await this.registrar(tx, {
-          entidade: 'auditoria',
-          entidadeId: registro.id,
-          acao: 'excluiu',
-          resumo: `Histórico excluído: ${registro.resumo ?? this.montarResumo(registro)}`,
-          antes: { ...registro, criadoEm: registro.criadoEm.toISOString() },
-        });
-      }
-
-      return count;
-    });
+    return count;
   }
 
   private montarFiltro(query: AuditoriaQuery): Prisma.LogAuditoriaWhereInput {

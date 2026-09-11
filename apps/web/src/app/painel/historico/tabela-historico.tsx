@@ -31,8 +31,8 @@ export interface LinhaHistorico {
  * As linhas vêm do servidor e ficam assim: excluir revalida a rota, e é a
  * resposta do servidor que tira a linha da tela. Guardar uma cópia em estado
  * local pareceria mais rápido, mas passaria a mostrar uma lista que só este
- * navegador enxerga — sem o registro da própria exclusão, que a auditoria
- * grava, e sem o que outra pessoa apagou com a página aberta.
+ * navegador enxerga — sem o que outra pessoa apagou com a página aberta, e sem
+ * o que entrou no histórico nesse meio-tempo.
  */
 export function TabelaHistorico({
   registros,
