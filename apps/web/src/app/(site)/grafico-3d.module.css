@@ -1,295 +1,364 @@
 /**
- * Cena tridimensional do resultado do mês — CSS puro, sem biblioteca.
+ * As telas do sistema empilhadas em profundidade — CSS puro, sem biblioteca.
+ *
+ * ## O que a cena diz
+ *
+ * A promessa do produto é que funil, agenda e financeiro são o mesmo sistema.
+ * Três telas soltas lado a lado diriam o contrário; empilhadas no mesmo eixo,
+ * com o financeiro na frente e o funil ao fundo, elas viram **uma coisa só
+ * vista de perto**. É a diferença entre mostrar três funcionalidades e mostrar
+ * um caminho: o orçamento aprovado vira compromisso, o compromisso vira
+ * lançamento, o lançamento vira margem.
  *
  * ## Por que não WebGL
  *
  * Uma cena em three.js custaria ~150 kB de JavaScript, um canvas que só pinta
- * depois da hidratação e GPU ocupada durante toda a rolagem. Aqui a mesma
- * profundidade sai de `perspective` + `transform`, que o navegador compõe
- * direto: **zero kB de JavaScript**, aparece junto com o HTML e continua de pé
- * com o JS desligado.
- *
- * ## A ideia da composição
- *
- * Três barras sobre um piso que foge para o fundo, e — o que dá a sensação de
- * imersão — peças que **saem do quadro**: os cartões de dado e os cubos flutuam
- * para fora das bordas do cartão, como se a cena não coubesse nele. Por isso
- * nada aqui usa `overflow: hidden`; quem contém a cena precisa deixar vazar.
+ * depois da hidratação e GPU ocupada na rolagem inteira. `perspective` +
+ * `transform` dão a mesma profundidade com **zero kB de JavaScript**, chegam
+ * junto com o HTML e sobrevivem ao JS desligado.
  *
  * ## Desempenho
  *
  * Só `transform` e `opacity` animam — as duas propriedades que o navegador
- * resolve no compositor, sem recalcular layout nem repintar. É o que mantém a
- * rolagem lisa num celular modesto, que é onde esta página costuma abrir.
+ * resolve no compositor, sem recalcular layout nem repintar.
  */
 
 .cena {
-  --altura-base: 200px;
-  --largura-barra: 52px;
-  --profundidade: 38px;
-
   position: relative;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  min-height: 360px;
-  margin: 0;
-  padding: 64px 20px 32px;
-  perspective: 1200px;
-  perspective-origin: 50% 38%;
+  min-height: 380px;
+  padding: 56px 24px 44px;
+  perspective: 1400px;
+  perspective-origin: 50% 42%;
 }
 
 /* ---------------------------------------------------------------- piso --- */
 
-/*
- * A grade que foge para o fundo. É o elemento que estabelece o horizonte —
- * sem ele as barras flutuariam no vazio e o 3D não se lê.
- */
+/* A grade que foge para o fundo: é ela que estabelece o horizonte. */
 .piso {
   position: absolute;
-  bottom: 26px;
+  bottom: 14px;
   left: 50%;
-  width: 150%;
-  height: 460px;
-  transform: translateX(-50%) rotateX(76deg);
+  width: 160%;
+  height: 420px;
+  transform: translateX(-50%) rotateX(78deg);
   transform-origin: bottom center;
   background:
     repeating-linear-gradient(
       90deg,
-      color-mix(in oklch, var(--foreground) 14%, transparent) 0 1px,
-      transparent 1px 56px
+      color-mix(in oklch, var(--foreground) 13%, transparent) 0 1px,
+      transparent 1px 54px
     ),
     repeating-linear-gradient(
       0deg,
-      color-mix(in oklch, var(--foreground) 10%, transparent) 0 1px,
-      transparent 1px 56px
+      color-mix(in oklch, var(--foreground) 9%, transparent) 0 1px,
+      transparent 1px 54px
     );
-  /* Dissolve a grade ao longe: linha que chega até a borda vira moldura. */
-  mask-image: radial-gradient(70% 80% at 50% 100%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(68% 78% at 50% 100%, #000 22%, transparent 76%);
   pointer-events: none;
 }
 
-/* O brilho no chão, logo abaixo das barras — sugere luz vinda da cena. */
-.brilho {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  width: 420px;
-  height: 90px;
-  transform: translateX(-50%);
-  background: radial-gradient(
-    50% 50% at 50% 50%,
-    color-mix(in oklch, var(--grafico-2) 22%, transparent) 0%,
-    transparent 70%
-  );
-  filter: blur(6px);
-  pointer-events: none;
-}
+/* --------------------------------------------------------------- telas --- */
 
-/* -------------------------------------------------------------- barras --- */
-
-.palco {
+.pilha {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: clamp(26px, 4.5vw, 48px);
-  width: 100%;
-  max-width: 460px;
+  width: min(300px, 78%);
+  height: 210px;
   transform-style: preserve-3d;
-  transform: rotateX(14deg) rotateY(-20deg);
+  transform: rotateX(13deg) rotateY(-24deg);
 }
 
-.coluna {
+/*
+ * Cada tela é uma miniatura de verdade, não um retângulo cinza: tem cabeçalho,
+ * conteúdo e as palavras que aparecem no sistema. É o que faz a peça ser
+ * reconhecida por quem já viu o produto — e entendida por quem não viu.
+ */
+.tela {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 34px 60px -30px rgb(0 0 0 / 0.55);
+  animation: flutuar 7s ease-in-out infinite;
+}
+
+/* O empilhamento: cada camada recua no eixo Z e sobe um pouco na tela. */
+.telaFunil {
+  transform: translate3d(-30px, -54px, -150px);
+  animation-delay: 0.9s;
+}
+
+.telaAgenda {
+  transform: translate3d(-15px, -27px, -75px);
+  animation-delay: 0.45s;
+}
+
+.telaFinanceiro {
+  transform: translateZ(0);
+}
+
+.telaCabecalho {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  transform-style: preserve-3d;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 9%, transparent);
+  background: var(--superficie);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
 }
 
-/*
- * A barra é um bloco de três faces. A de trás nunca aparece nesta rotação, e
- * desenhar o que não se vê é trabalho jogado fora em toda repintura.
- */
-.barra {
-  position: relative;
-  width: var(--largura-barra);
-  height: calc(var(--altura-base) * var(--proporcao));
-  transform-style: preserve-3d;
-  transform-origin: bottom center;
-  animation: crescer 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--atraso);
+.telaCabecalho svg {
+  width: 11px;
+  height: 11px;
+  color: var(--foreground);
 }
 
-.face,
-.lado,
-.topo {
-  position: absolute;
-  background: var(--tom);
+.telaCorpo {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  padding: 9px 10px;
 }
 
-/*
- * As faces partem do centro do bloco e são levadas até a posição — assim a
- * matemática de cada uma cabe numa linha: a frente avança meia profundidade;
- * o lado anda meia largura e gira sobre o próprio centro; o topo sobe meia
- * profundidade e tomba para trás.
- */
-.face {
-  inset: 0;
-  transform: translateZ(calc(var(--profundidade) / 2));
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.3),
-    0 0 22px -6px var(--tom);
+/* --- funil: três colunas com cartões ------------------------------------- */
+
+.colunaFunil {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.lado {
-  top: 0;
-  left: calc(50% - var(--profundidade) / 2);
-  width: var(--profundidade);
-  height: 100%;
-  transform: translateX(calc(var(--largura-barra) / 2)) rotateY(90deg);
-  filter: brightness(0.68);
+.tituloColuna {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.topo {
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: var(--profundidade);
-  transform: translateY(calc(var(--profundidade) / -2)) rotateX(90deg);
-  filter: brightness(1.25);
+.cartaoFunil {
+  height: 17px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+  background: var(--superficie);
 }
 
-.valor {
-  font-size: 13px;
+/* O cartão que "andou" de etapa: é o que a automação faz sozinha. */
+.cartaoDestaque {
+  border-color: color-mix(in oklch, var(--sucesso) 45%, transparent);
+  background: color-mix(in oklch, var(--sucesso) 12%, transparent);
+}
+
+/* --- agenda: linhas com horário ------------------------------------------ */
+
+.linhaAgenda {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 0;
+  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 7%, transparent);
+  font-size: 8px;
+  color: var(--muted-foreground);
+}
+
+.linhaAgenda:last-child {
+  border-bottom: 0;
+}
+
+.hora {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
+}
+
+.pilula {
+  margin-left: auto;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--info) 14%, transparent);
+  color: var(--info);
+  font-size: 7px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.rotulo {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+/* --- financeiro: linhas de valor e a barra de margem --------------------- */
+
+.linhaValor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3.5px 0;
+  font-size: 8px;
   color: var(--muted-foreground);
-  white-space: nowrap;
+}
+
+.valorEntrada {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sucesso);
+}
+
+.valorSaida {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--destructive);
+}
+
+.rodapeMargem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in oklch, var(--foreground) 9%, transparent);
+  font-size: 8px;
+  color: var(--muted-foreground);
+}
+
+.barraMargem {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 9%, transparent);
+}
+
+.barraMargem::after {
+  position: absolute;
+  inset: 0 68% 0 0;
+  content: '';
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--grafico-2), var(--sucesso));
+  animation: preencher 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.percentual {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
 }
 
 /* ------------------------------------------------- peças fora do quadro --- */
 
 /*
- * O que dá a sensação de imersão: cartões e cubos posicionados **além** das
- * bordas do cartão que contém a cena. O contêiner não recorta, então eles
- * invadem o espaço em volta e a cena deixa de parecer uma figura colada.
+ * O que dá imersão: peças posicionadas **além** das bordas do cartão que
+ * contém a cena. Nada aqui usa `overflow: hidden` — quem contém a cena
+ * precisa deixar vazar, e a seção usa `overflow-x: clip` para isso não virar
+ * barra de rolagem.
  */
 .chip {
   position: absolute;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
   border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
-  border-radius: 12px;
-  background: color-mix(in oklch, var(--card) 82%, transparent);
-  box-shadow: 0 22px 45px -18px rgb(0 0 0 / 0.45);
+  border-radius: 11px;
+  background: color-mix(in oklch, var(--card) 84%, transparent);
+  box-shadow: 0 22px 44px -18px rgb(0 0 0 / 0.45);
   backdrop-filter: blur(10px);
+  white-space: nowrap;
   animation: flutuar 6s ease-in-out infinite;
 }
 
+.chip svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.chipTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .chipTitulo {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
 
 .chipValor {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
 }
 
-.chipMargem {
-  top: 10px;
-  right: -46px;
+.chipAprovado {
+  top: 16px;
+  right: -44px;
   transform: rotateX(10deg) rotateY(-16deg);
 }
 
-.chipCaixa {
-  bottom: 46px;
-  left: -52px;
-  animation-delay: 1.8s;
+.chipAprovado svg {
+  color: var(--sucesso);
+}
+
+.chipLembrete {
+  bottom: 62px;
+  left: -50px;
+  animation-delay: 2.1s;
   transform: rotateX(10deg) rotateY(14deg);
 }
 
-/* Cubo solto: a peça que mais diz "isto é uma cena, não um desenho". */
-.cubo {
+.chipLembrete svg {
+  color: var(--atencao);
+}
+
+/* A seta que liga as camadas: mostra o caminho, não só as telas. */
+.fluxo {
   position: absolute;
-  width: 34px;
-  height: 34px;
-  transform-style: preserve-3d;
-  animation: girar 14s linear infinite;
+  top: 46%;
+  left: 50%;
+  width: 232px;
+  height: 232px;
+  transform: translate(-50%, -50%) rotateX(62deg) rotateZ(-18deg);
+  border: 1px dashed color-mix(in oklch, var(--grafico-2) 34%, transparent);
+  border-radius: 50%;
+  animation: orbitar 26s linear infinite;
   pointer-events: none;
 }
 
-.cubo span {
+.fluxo::after {
   position: absolute;
-  inset: 0;
-  border: 1px solid color-mix(in oklch, var(--grafico-2) 45%, transparent);
-  background: color-mix(in oklch, var(--grafico-2) 10%, transparent);
-}
-
-.cubo span:nth-child(1) {
-  transform: translateZ(17px);
-}
-.cubo span:nth-child(2) {
-  transform: rotateY(90deg) translateZ(17px);
-}
-.cubo span:nth-child(3) {
-  transform: rotateX(90deg) translateZ(17px);
-}
-
-.cuboAlto {
-  top: -22px;
-  left: 8%;
-}
-
-.cuboBaixo {
-  right: 4%;
-  bottom: -18px;
-  width: 22px;
-  height: 22px;
-  animation-duration: 18s;
-  animation-direction: reverse;
-}
-
-.cuboBaixo span:nth-child(1) {
-  transform: translateZ(11px);
-}
-.cuboBaixo span:nth-child(2) {
-  transform: rotateY(90deg) translateZ(11px);
-}
-.cuboBaixo span:nth-child(3) {
-  transform: rotateX(90deg) translateZ(11px);
+  top: -4px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  content: '';
+  border-radius: 50%;
+  background: var(--grafico-2);
+  box-shadow: 0 0 12px 2px color-mix(in oklch, var(--grafico-2) 55%, transparent);
 }
 
 /* ---------------------------------------------------------- animações --- */
 
-@keyframes crescer {
-  from {
-    transform: scaleY(0.02);
-    opacity: 0;
-  }
-  to {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
+/*
+ * O movimento fica ligado mesmo com `prefers-reduced-motion`, por decisão de
+ * produto — a mesma tomada para o vídeo do hero. São animações lentas,
+ * contínuas e sem piscar. Para voltar atrás, basta desligar `.tela`, `.chip`
+ * e `.fluxo` num bloco de mídia: a cena continua legível parada.
+ */
 
 @keyframes flutuar {
   0%,
@@ -297,48 +366,46 @@
     translate: 0 0;
   }
   50% {
-    translate: 0 -9px;
+    translate: 0 -8px;
   }
 }
 
-@keyframes girar {
+@keyframes orbitar {
   from {
-    transform: rotateX(-22deg) rotateY(0deg);
+    transform: translate(-50%, -50%) rotateX(62deg) rotateZ(-18deg);
   }
   to {
-    transform: rotateX(-22deg) rotateY(360deg);
+    transform: translate(-50%, -50%) rotateX(62deg) rotateZ(342deg);
   }
 }
 
-/*
- * O movimento fica ligado mesmo com `prefers-reduced-motion`, pela mesma
- * decisão tomada para o vídeo do hero: é o movimento que faz a cena parecer
- * tridimensional, e parada ela vira um desenho inclinado. São animações
- * lentas, contínuas e sem piscar — o tipo que menos incomoda.
- *
- * Se um dia a decisão mudar, é só voltar a desligar `.barra`, `.chip` e
- * `.cubo` aqui: a cena continua legível parada.
- */
+@keyframes preencher {
+  from {
+    inset: 0 100% 0 0;
+  }
+  to {
+    inset: 0 68% 0 0;
+  }
+}
 
 /* ------------------------------------------------------------- telas --- */
 
 @media (max-width: 900px) {
   .cena {
-    --altura-base: 150px;
-    --largura-barra: 40px;
-    --profundidade: 28px;
-    min-height: 290px;
-    padding: 48px 16px 24px;
+    min-height: 300px;
+    padding: 40px 16px 28px;
   }
 
-  /* Fora do quadro só funciona quando há margem em volta. Em tela estreita
-     não há, e as peças passariam por cima do texto. */
+  .pilha {
+    width: min(260px, 84%);
+    height: 180px;
+    transform: rotateX(11deg) rotateY(-18deg);
+  }
+
+  /* Fora do quadro só funciona quando há margem em volta; em tela estreita
+     as peças passariam por cima do texto. */
   .chip,
-  .cubo {
+  .fluxo {
     display: none;
-  }
-
-  .palco {
-    transform: rotateX(12deg) rotateY(-14deg);
   }
 }

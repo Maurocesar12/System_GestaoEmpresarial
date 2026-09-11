@@ -145,7 +145,7 @@ function Resultado() {
         <div className="bg-superficie rounded-xl border">
           <Grafico3D />
           <p className="text-muted-foreground border-t px-6 py-3 text-center text-xs">
-            Exemplo de um mês · dados ilustrativos
+            Funil, agenda e financeiro no mesmo sistema · dados ilustrativos
           </p>
         </div>
       </div>
