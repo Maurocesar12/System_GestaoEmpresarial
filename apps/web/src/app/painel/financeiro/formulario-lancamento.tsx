@@ -2,10 +2,14 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  MAX_ANEXOS_LANCAMENTO,
+  MAX_BYTES_ANEXO_LANCAMENTO,
+  MIME_TYPES_ANEXO_LANCAMENTO,
   ROTULO_NATUREZA,
   ROTULO_TIPO_LANCAMENTO,
   hojeISO,
   lancamentoFormSchema,
+  type AnexoLancamentoInput,
   type CategoriaFinanceira,
   type Cliente,
   type Lancamento,
@@ -13,8 +17,9 @@ import {
   type LancamentoFormInput,
   type Servico,
 } from '@gestao/shared-types';
+import { FileText, Paperclip, Upload, X } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { type ChangeEvent, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao, estilosBotao } from '@/components/ui/botao';
@@ -34,7 +39,42 @@ const CAMPOS = [
   'categoriaId',
   'servicoId',
   'clienteId',
+  'anexos',
 ] as const;
+
+const EXTENSOES_ANEXO = '.pdf,.png,.jpg,.jpeg,.webp';
+type MimeAnexo = (typeof MIME_TYPES_ANEXO_LANCAMENTO)[number];
+
+function lerArquivoComoDataUrl(arquivo: File, mimeType: MimeAnexo): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(String(leitor.result));
+    leitor.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+    leitor.readAsDataURL(new Blob([arquivo], { type: mimeType }));
+  });
+}
+
+function mimeDoArquivo(arquivo: File): MimeAnexo | null {
+  if (MIME_TYPES_ANEXO_LANCAMENTO.includes(arquivo.type as MimeAnexo)) {
+    return arquivo.type as MimeAnexo;
+  }
+
+  const nome = arquivo.name.toLowerCase();
+  if (nome.endsWith('.pdf')) return 'application/pdf';
+  if (nome.endsWith('.png')) return 'image/png';
+  if (nome.endsWith('.jpg') || nome.endsWith('.jpeg')) return 'image/jpeg';
+  if (nome.endsWith('.webp')) return 'image/webp';
+
+  return null;
+}
+
+function formatarTamanho(bytes: number) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
+}
 
 /**
  * Formulário de lançamento.
@@ -57,6 +97,16 @@ export function FormularioLancamento({
 }) {
   const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
+  const anexosIniciais: AnexoLancamentoInput[] = (lancamento?.anexos ?? [])
+    .filter((anexo) => anexo.conteudo)
+    .map((anexo) => ({
+      id: anexo.id,
+      nome: anexo.nome,
+      mimeType: anexo.mimeType,
+      tamanhoBytes: anexo.tamanhoBytes,
+      conteudo: anexo.conteudo ?? '',
+    }));
+  const [anexos, setAnexos] = useState<AnexoLancamentoInput[]>(anexosIniciais);
 
   const {
     register,
@@ -80,6 +130,7 @@ export function FormularioLancamento({
       categoriaId: lancamento?.categoriaId ?? '',
       servicoId: lancamento?.servicoId ?? '',
       clienteId: lancamento?.clienteId ?? '',
+      anexos: anexosIniciais,
     },
   });
 
@@ -94,7 +145,7 @@ export function FormularioLancamento({
     setFalha(undefined);
 
     iniciarEnvio(async () => {
-      const resultado = await salvarLancamento(lancamento?.id ?? null, dados);
+      const resultado = await salvarLancamento(lancamento?.id ?? null, { ...dados, anexos });
 
       if (resultado?.campos) {
         for (const [campo, mensagens] of Object.entries(resultado.campos)) {
@@ -106,6 +157,50 @@ export function FormularioLancamento({
 
       setFalha(resultado);
     });
+  };
+
+  const adicionarAnexos = async (evento: ChangeEvent<HTMLInputElement>) => {
+    const arquivos = [...(evento.target.files ?? [])];
+    evento.target.value = '';
+
+    if (arquivos.length === 0) {
+      return;
+    }
+
+    const proximos = [...anexos];
+
+    for (const arquivo of arquivos) {
+      if (proximos.length >= MAX_ANEXOS_LANCAMENTO) {
+        setFalha({
+          erro: `Você pode anexar até ${MAX_ANEXOS_LANCAMENTO} arquivos por lançamento.`,
+        });
+        break;
+      }
+
+      if (arquivo.size > MAX_BYTES_ANEXO_LANCAMENTO) {
+        setFalha({ erro: `"${arquivo.name}" passa de 2 MB. Envie um arquivo menor.` });
+        continue;
+      }
+
+      const mimeType = mimeDoArquivo(arquivo);
+      if (!mimeType) {
+        setFalha({ erro: `"${arquivo.name}" precisa ser PDF, PNG, JPG ou WebP.` });
+        continue;
+      }
+
+      try {
+        proximos.push({
+          nome: arquivo.name,
+          mimeType,
+          tamanhoBytes: arquivo.size,
+          conteudo: await lerArquivoComoDataUrl(arquivo, mimeType),
+        });
+      } catch {
+        setFalha({ erro: `Não foi possível anexar "${arquivo.name}".` });
+      }
+    }
+
+    setAnexos(proximos);
   };
 
   return (
@@ -234,6 +329,62 @@ export function FormularioLancamento({
           ))}
         </Selecao>
       </div>
+
+      <fieldset className="border-t pt-4">
+        <legend className="flex items-center gap-2 text-sm font-medium">
+          <Paperclip aria-hidden className="text-muted-foreground size-4" />
+          Nota fiscal / boleto
+        </legend>
+        <p className="text-muted-foreground mt-1 text-xs">
+          Anexe até {MAX_ANEXOS_LANCAMENTO} arquivos em PDF ou imagem, com no máximo 2 MB cada.
+        </p>
+
+        <label className="hover:bg-accent/40 mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3 text-sm transition-colors">
+          <span className="flex items-center gap-2">
+            <Upload aria-hidden className="text-muted-foreground size-4" />
+            Anexar nota ou boleto
+          </span>
+          <span className="text-muted-foreground text-xs">
+            {anexos.length}/{MAX_ANEXOS_LANCAMENTO}
+          </span>
+          <input
+            type="file"
+            accept={EXTENSOES_ANEXO}
+            multiple
+            className="sr-only"
+            disabled={anexos.length >= MAX_ANEXOS_LANCAMENTO}
+            onChange={adicionarAnexos}
+          />
+        </label>
+
+        {anexos.length > 0 && (
+          <ul className="mt-3 divide-y rounded-lg border">
+            {anexos.map((anexo, indice) => (
+              <li key={`${anexo.nome}-${indice}`} className="flex items-center gap-3 px-3 py-2">
+                <FileText aria-hidden className="text-muted-foreground size-4 shrink-0" />
+                <a
+                  href={anexo.conteudo}
+                  download={anexo.nome}
+                  className="min-w-0 flex-1 text-sm font-medium underline-offset-4 hover:underline"
+                >
+                  <span className="block truncate">{anexo.nome}</span>
+                  <span className="text-muted-foreground block text-xs font-normal">
+                    {formatarTamanho(anexo.tamanhoBytes)}
+                  </span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setAnexos((atuais) => atuais.filter((_, i) => i !== indice))}
+                  className="hover:bg-accent rounded-md p-2 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={`Remover ${anexo.nome}`}
+                >
+                  <X aria-hidden className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </fieldset>
 
       <div className="flex gap-3">
         <Botao type="submit" carregando={enviando}>

@@ -41,18 +41,20 @@ const CHAVE_MENU_ENCOLHIDO = 'gestao:menu-encolhido';
 export function ShellPainel({ usuario, aoSair, children }: Props) {
   const caminho = usePathname();
   const [gavetaAberta, setGavetaAberta] = useState(false);
-  const [menuEncolhido, setMenuEncolhido] = useState(false);
+  const [menuEncolhido, setMenuEncolhido] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    try {
+      return localStorage.getItem(CHAVE_MENU_ENCOLHIDO) === '1';
+    } catch {
+      return false;
+    }
+  });
 
   const grupos = menuDoUsuario(usuario);
   const ativo = hrefAtivo(grupos, caminho);
-
-  useEffect(() => {
-    try {
-      setMenuEncolhido(localStorage.getItem(CHAVE_MENU_ENCOLHIDO) === '1');
-    } catch {
-      // Armazenamento bloqueado: a preferência simplesmente volta ao padrão.
-    }
-  }, []);
 
   // Esc fecha, como em qualquer sobreposição do sistema operacional.
   useEffect(() => {

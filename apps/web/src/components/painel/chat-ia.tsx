@@ -1,7 +1,7 @@
 'use client';
 
 import { Bot, Loader2, MessageCircle, Send, Sparkles, X } from 'lucide-react';
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { perguntarParaIa } from '@/app/painel/chat-ia-acoes';
 import { Botao } from '@/components/ui/botao';
 
@@ -30,12 +30,14 @@ export function ChatIa() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([MENSAGEM_INICIAL]);
   const [sugestoes, setSugestoes] = useState(SUGESTOES_INICIAIS);
   const [pendente, iniciar] = useTransition();
+  const proximoId = useRef(2);
 
   function enviar(pergunta = texto) {
     const mensagem = pergunta.trim();
     if (!mensagem || pendente) return;
 
-    const idUsuario = Date.now();
+    const idUsuario = proximoId.current++;
+    const idIa = proximoId.current++;
     setTexto('');
     setMensagens((atuais) => [...atuais, { id: idUsuario, autor: 'usuario', texto: mensagem }]);
 
@@ -44,7 +46,7 @@ export function ChatIa() {
       setMensagens((atuais) => [
         ...atuais,
         {
-          id: idUsuario + 1,
+          id: idIa,
           autor: 'ia',
           texto: resposta.dados?.resposta ?? resposta.erro ?? 'Não consegui responder agora.',
         },

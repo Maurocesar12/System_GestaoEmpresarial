@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  MIME_TYPES_ANEXO_LANCAMENTO,
   paginar,
   statusDoLancamento,
   type BaixaFormInput,
@@ -59,10 +60,29 @@ function filtroDeStatus(status: StatusLancamento): Prisma.LancamentoFinanceiroWh
   };
 }
 
-const INCLUDE_PADRAO = {
+const RELACIONAMENTOS_PADRAO = {
   categoria: { select: { nome: true } },
   servico: { select: { nome: true } },
   cliente: { select: { nome: true } },
+} as const;
+
+const INCLUDE_RESUMO = {
+  ...RELACIONAMENTOS_PADRAO,
+  anexos: {
+    select: {
+      id: true,
+      nome: true,
+      mimeType: true,
+      tamanhoBytes: true,
+      criadoEm: true,
+    },
+    orderBy: { criadoEm: 'asc' },
+  },
+} as const;
+
+const INCLUDE_COMPLETO = {
+  ...RELACIONAMENTOS_PADRAO,
+  anexos: { orderBy: { criadoEm: 'asc' } },
 } as const;
 
 /**
@@ -71,9 +91,13 @@ const INCLUDE_PADRAO = {
  * Escrever este tipo à mão significaria mantê-lo sincronizado com o Prisma na
  * unha, e o TypeScript não avisaria quando os dois divergissem.
  */
-type LancamentoBanco = Prisma.LancamentoFinanceiroGetPayload<{
-  include: typeof INCLUDE_PADRAO;
-}>;
+type LancamentoBanco =
+  | Prisma.LancamentoFinanceiroGetPayload<{
+      include: typeof INCLUDE_RESUMO;
+    }>
+  | Prisma.LancamentoFinanceiroGetPayload<{
+      include: typeof INCLUDE_COMPLETO;
+    }>;
 
 /**
  * Financeiro: lançamentos, categorias e os relatórios que deles derivam.
@@ -169,7 +193,7 @@ export class FinanceiroService {
       Promise.all([
         tx.lancamentoFinanceiro.findMany({
           where,
-          include: INCLUDE_PADRAO,
+          include: INCLUDE_RESUMO,
           // Mais recente primeiro: extrato se lê de trás para frente.
           orderBy: [{ data: 'desc' }, { criadoEm: 'desc' }],
           skip: (query.pagina - 1) * query.porPagina,
@@ -192,16 +216,23 @@ export class FinanceiroService {
 
       const criado = await tx.lancamentoFinanceiro.create({
         data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBanco(dados) },
-        include: INCLUDE_PADRAO,
+        include: INCLUDE_RESUMO,
       });
+      await this.substituirAnexos(tx, criado.id, dados.anexos);
+
+      const completo = await tx.lancamentoFinanceiro.findUniqueOrThrow({
+        where: { id: criado.id },
+        include: INCLUDE_COMPLETO,
+      });
+
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
-        entidadeId: criado.id,
+        entidadeId: completo.id,
         acao: 'criou',
-        resumo: this.resumirLancamento('Lançamento criado', criado),
-        depois: this.paraResposta(criado),
+        resumo: this.resumirLancamento('Lançamento criado', completo),
+        depois: this.paraAuditoria(completo),
       });
-      return criado;
+      return completo;
     });
 
     return this.paraResposta(lancamento);
@@ -217,7 +248,7 @@ export class FinanceiroService {
   async atualizar(id: string, dados: LancamentoFormInput): Promise<Lancamento> {
     const lancamento = await this.prisma.comTenant(async (tx) => {
       const [anterior] = await Promise.all([
-        tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_PADRAO }),
+        tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_COMPLETO }),
         garantirVinculos(tx, dados),
       ]);
       if (!anterior) {
@@ -227,20 +258,27 @@ export class FinanceiroService {
         });
       }
 
-      const alterado = await tx.lancamentoFinanceiro.update({
+      await tx.lancamentoFinanceiro.update({
         where: { id },
         data: this.paraBanco(dados),
-        include: INCLUDE_PADRAO,
+        include: INCLUDE_RESUMO,
       });
+      await this.substituirAnexos(tx, id, dados.anexos);
+
+      const completo = await tx.lancamentoFinanceiro.findUniqueOrThrow({
+        where: { id },
+        include: INCLUDE_COMPLETO,
+      });
+
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
         entidadeId: id,
         acao: 'alterou',
-        resumo: this.resumirLancamento('Lançamento alterado', alterado),
-        antes: this.paraResposta(anterior),
-        depois: this.paraResposta(alterado),
+        resumo: this.resumirLancamento('Lançamento alterado', completo),
+        antes: this.paraAuditoria(anterior),
+        depois: this.paraAuditoria(completo),
       });
-      return alterado;
+      return completo;
     });
 
     return this.paraResposta(lancamento);
@@ -248,7 +286,7 @@ export class FinanceiroService {
 
   async buscarPorId(id: string): Promise<Lancamento> {
     const lancamento = await this.prisma.comTenant((tx) =>
-      tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_PADRAO }),
+      tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_COMPLETO }),
     );
 
     if (!lancamento) {
@@ -267,7 +305,7 @@ export class FinanceiroService {
     const { count } = await this.prisma.comTenant(async (tx) => {
       const anterior = await tx.lancamentoFinanceiro.findUnique({
         where: { id },
-        include: INCLUDE_PADRAO,
+        include: INCLUDE_COMPLETO,
       });
       const resultado = await tx.lancamentoFinanceiro.deleteMany({ where: { id } });
       if (anterior && resultado.count) {
@@ -276,7 +314,7 @@ export class FinanceiroService {
           entidadeId: id,
           acao: 'excluiu',
           resumo: this.resumirLancamento('Lançamento excluído', anterior),
-          antes: this.paraResposta(anterior),
+          antes: this.paraAuditoria(anterior),
         });
       }
       return resultado;
@@ -298,7 +336,13 @@ export class FinanceiroService {
         registros.push({
           id: uuidv7(),
           tenantId: tenantAtual(),
-          ...this.paraBanco({ ...item, categoriaId: null, servicoId: null, clienteId: null }),
+          ...this.paraBanco({
+            ...item,
+            categoriaId: null,
+            servicoId: null,
+            clienteId: null,
+            anexos: [],
+          }),
         });
       }
       await tx.lancamentoFinanceiro.createMany({ data: registros });
@@ -322,6 +366,7 @@ export class FinanceiroService {
             lte: new Date(`${query.ate}T00:00:00.000Z`),
           },
           ...(query.natureza ? { natureza: query.natureza } : {}),
+          ...(query.categoriaId ? { categoriaId: query.categoriaId } : {}),
         },
         orderBy: [{ data: 'asc' }, { criadoEm: 'asc' }],
       }),
@@ -386,7 +431,7 @@ export class FinanceiroService {
         // Sem data informada, hoje: é o caso comum, e poupa o usuário de
         // digitar a data do dia.
         data: { pagoEm: paraData(dados.pagoEm ?? hojeEmDia()) },
-        include: INCLUDE_PADRAO,
+        include: INCLUDE_RESUMO,
       });
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
@@ -433,7 +478,7 @@ export class FinanceiroService {
       const alterado = await tx.lancamentoFinanceiro.update({
         where: { id },
         data: { pagoEm: null },
-        include: INCLUDE_PADRAO,
+        include: INCLUDE_RESUMO,
       });
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
@@ -669,6 +714,7 @@ export class FinanceiroService {
         lte: new Date(`${query.ate}T23:59:59.999Z`),
       },
       natureza: query.natureza ?? 'empresa',
+      ...(query.categoriaId ? { categoriaId: query.categoriaId } : {}),
     };
   }
 
@@ -713,6 +759,30 @@ export class FinanceiroService {
     };
   }
 
+  private async substituirAnexos(
+    tx: TransacaoComTenant,
+    lancamentoId: string,
+    anexos: LancamentoFormInput['anexos'],
+  ): Promise<void> {
+    await tx.anexoLancamento.deleteMany({ where: { lancamentoId } });
+
+    if (anexos.length === 0) {
+      return;
+    }
+
+    await tx.anexoLancamento.createMany({
+      data: anexos.map((anexo) => ({
+        id: anexo.id ?? uuidv7(),
+        tenantId: tenantAtual(),
+        lancamentoId,
+        nome: anexo.nome,
+        mimeType: anexo.mimeType,
+        tamanhoBytes: anexo.tamanhoBytes,
+        conteudo: anexo.conteudo,
+      })),
+    });
+  }
+
   private async garantirExiste(tx: TransacaoComTenant, id: string): Promise<void> {
     const existe = await tx.lancamentoFinanceiro.findUnique({
       where: { id },
@@ -749,7 +819,24 @@ export class FinanceiroService {
       servicoNome: registro.servico?.nome ?? null,
       clienteId: registro.clienteId,
       clienteNome: registro.cliente?.nome ?? null,
+      anexos: registro.anexos.map((anexo) => ({
+        id: anexo.id,
+        nome: anexo.nome,
+        mimeType: anexo.mimeType as (typeof MIME_TYPES_ANEXO_LANCAMENTO)[number],
+        tamanhoBytes: anexo.tamanhoBytes,
+        conteudo: 'conteudo' in anexo ? anexo.conteudo : undefined,
+        criadoEm: anexo.criadoEm.toISOString(),
+      })),
       criadoEm: registro.criadoEm.toISOString(),
+    };
+  }
+
+  private paraAuditoria(registro: LancamentoBanco) {
+    const resposta = this.paraResposta(registro);
+
+    return {
+      ...resposta,
+      anexos: resposta.anexos.map(({ conteudo: _conteudo, ...anexo }) => anexo),
     };
   }
 

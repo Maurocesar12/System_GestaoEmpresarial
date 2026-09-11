@@ -14,15 +14,15 @@ import { cn } from '@/lib/utils';
  * status; a cor reforça, não substitui.
  */
 const estilosSelo = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap',
+  'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap',
   {
     variants: {
       tom: {
-        neutro: 'bg-muted text-muted-foreground',
-        sucesso: 'bg-sucesso-suave text-sucesso',
-        atencao: 'bg-atencao-suave text-atencao',
-        perigo: 'bg-destrutivo-suave text-destructive',
-        info: 'bg-info-suave text-info',
+        neutro: 'border-border bg-muted text-muted-foreground',
+        sucesso: 'border-sucesso/25 bg-sucesso-suave text-sucesso',
+        atencao: 'border-atencao/30 bg-atencao-suave text-atencao',
+        perigo: 'border-destructive/25 bg-destrutivo-suave text-destructive',
+        info: 'border-info/25 bg-info-suave text-info',
       },
     },
     defaultVariants: { tom: 'neutro' },

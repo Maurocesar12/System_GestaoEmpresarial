@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Receipt, TrendingUp } from 'lucide-react';
+import { Filter, Landmark, Paperclip, Receipt, TrendingUp } from 'lucide-react';
 import {
   ROTULO_NATUREZA,
   ROTULO_STATUS_LANCAMENTO,
   ROTULO_TIPO_LANCAMENTO,
   formatarBRL,
   mesCorrente,
+  type CategoriaFinanceira,
   type FluxoDeCaixa,
   type Lancamento,
   type Paginado,
@@ -16,6 +17,7 @@ import {
 import { BarraMagnitude, BarraProporcao } from '@/components/ui/barra-proporcao';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
+import { estilosControle } from '@/components/ui/campo';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
@@ -51,7 +53,7 @@ const TOM_DO_STATUS = {
 } as const;
 
 interface Props {
-  searchParams: Promise<{ de?: string; ate?: string }>;
+  searchParams: Promise<{ de?: string; ate?: string; categoriaId?: string }>;
 }
 
 /**
@@ -68,8 +70,13 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
   const padrao = mesCorrente();
   const de = parametros.de ?? padrao.de;
   const ate = parametros.ate ?? padrao.ate;
+  const categoriaId = parametros.categoriaId ?? '';
 
-  const periodo = `de=${de}&ate=${ate}`;
+  const queryPeriodo = new URLSearchParams({ de, ate });
+  if (categoriaId) {
+    queryPeriodo.set('categoriaId', categoriaId);
+  }
+  const periodo = queryPeriodo.toString();
 
   // As contas em aberto são buscadas em duas chamadas porque o filtro da API
   // aceita uma situação por vez.
@@ -77,7 +84,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
   // `natureza=empresa` nas duas não é detalhe: o cartão de resumo é calculado
   // só sobre a empresa, e sem este filtro a lista trazia também as contas
   // pessoais — uma conta aparecia na lista e não entrava no total logo acima.
-  const [fluxo, margem, lancamentos, resumo, atrasadas, aVencer] = await Promise.all([
+  const [fluxo, margem, lancamentos, resumo, atrasadas, aVencer, categorias] = await Promise.all([
     apiComSessao<FluxoDeCaixa>(`/financeiro/fluxo-de-caixa?${periodo}`),
     apiComSessao<RelatorioMargem>(`/financeiro/margem?${periodo}`),
     apiComSessao<Paginado<Lancamento>>(`/financeiro/lancamentos?${periodo}&porPagina=20`),
@@ -88,6 +95,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
     apiComSessao<Paginado<Lancamento>>(
       '/financeiro/lancamentos?status=a_vencer&natureza=empresa&porPagina=10',
     ),
+    apiComSessao<CategoriaFinanceira[]>('/financeiro/categorias'),
   ]);
 
   const contasEmAberto = [...atrasadas.dados, ...aVencer.dados];
@@ -105,6 +113,12 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
         descricao={`${formatarPeriodo(de, ate)} · valores da empresa, sem os pessoais.`}
         acoes={
           <>
+            <Link
+              href="/painel/financeiro/conciliacao"
+              className={estilosBotao({ variante: 'secundario' })}
+            >
+              Conciliação
+            </Link>
             <Link
               href="/painel/financeiro/dados"
               className={estilosBotao({ variante: 'secundario' })}
@@ -135,6 +149,8 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
           </>
         }
       />
+
+      <FiltrosFinanceiros de={de} ate={ate} categoriaId={categoriaId} categorias={categorias} />
 
       <FaixaDeIndicadores>
         <Indicador titulo="Entradas" valor={formatarBRL(fluxo.entradas)} tom="positivo" />
@@ -257,6 +273,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
               <TabelaColuna>Descrição</TabelaColuna>
               <TabelaColuna>Categoria</TabelaColuna>
               <TabelaColuna>Situação</TabelaColuna>
+              <TabelaColuna>Anexos</TabelaColuna>
               <TabelaColuna numerica>Valor</TabelaColuna>
             </TabelaCabecalho>
 
@@ -292,6 +309,17 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
                     </Selo>
                   </TabelaCelula>
 
+                  <TabelaCelula suave>
+                    {lancamento.anexos.length > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <Paperclip aria-hidden className="size-3.5" />
+                        {lancamento.anexos.length}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </TabelaCelula>
+
                   <TabelaCelula
                     numerica
                     className={
@@ -310,6 +338,76 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
         )}
       </Cartao>
     </div>
+  );
+}
+
+function FiltrosFinanceiros({
+  de,
+  ate,
+  categoriaId,
+  categorias,
+}: {
+  de: string;
+  ate: string;
+  categoriaId: string;
+  categorias: CategoriaFinanceira[];
+}) {
+  return (
+    <Cartao>
+      <form method="get" className="flex flex-col gap-3 p-4 lg:flex-row lg:items-end">
+        <div className="flex items-center gap-2 lg:w-48">
+          <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted">
+            <Filter aria-hidden className="size-4 text-muted-foreground" />
+          </span>
+          <div>
+            <p className="text-sm font-medium">Filtros</p>
+            <p className="text-muted-foreground text-xs">Período e categoria.</p>
+          </div>
+        </div>
+
+        <label className="flex flex-1 flex-col gap-1.5">
+          <span className="text-sm font-medium">De</span>
+          <input name="de" type="date" defaultValue={de} className={`${estilosControle} h-10`} />
+        </label>
+
+        <label className="flex flex-1 flex-col gap-1.5">
+          <span className="text-sm font-medium">Até</span>
+          <input name="ate" type="date" defaultValue={ate} className={`${estilosControle} h-10`} />
+        </label>
+
+        <label className="flex flex-[1.4] flex-col gap-1.5">
+          <span className="text-sm font-medium">Categoria</span>
+          <select
+            name="categoriaId"
+            defaultValue={categoriaId}
+            className={`${estilosControle} h-10 cursor-pointer`}
+          >
+            <option value="">Todas as categorias</option>
+            {categorias.map((categoria) => (
+              <option key={categoria.id} value={categoria.id}>
+                {categoria.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="flex gap-2">
+          <button type="submit" className={estilosBotao()}>
+            Aplicar
+          </button>
+          <Link href="/painel/financeiro" className={estilosBotao({ variante: 'secundario' })}>
+            Limpar
+          </Link>
+          <Link
+            href="/painel/financeiro/conciliacao"
+            className={estilosBotao({ variante: 'secundario' })}
+          >
+            <Landmark aria-hidden className="size-4" />
+            Conciliar
+          </Link>
+        </div>
+      </form>
+    </Cartao>
   );
 }
 

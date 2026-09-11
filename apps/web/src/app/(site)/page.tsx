@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { estilosBotao } from '@/components/ui/botao';
+import { cn } from '@/lib/utils';
 import { PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { DemonstracaoPrevisao } from './demonstracao-previsao';
 import { Hero } from './hero';
@@ -56,6 +57,14 @@ function CabecalhoSecao({
 }
 
 function Recursos() {
+  const tons = [
+    'bg-info-suave text-info',
+    'bg-sucesso-suave text-sucesso',
+    'bg-atencao-suave text-atencao',
+    'bg-destrutivo-suave text-destructive',
+    'bg-muted text-foreground',
+  ];
+
   return (
     <section id="recursos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
@@ -65,12 +74,19 @@ function Recursos() {
         </CabecalhoSecao>
 
         <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-          {RECURSOS.map((recurso) => (
+          {RECURSOS.map((recurso, indice) => (
             <article
               key={recurso.titulo}
               className="cartao-elevavel flex flex-col gap-3 rounded-lg p-3"
             >
-              <recurso.icone aria-hidden className="text-primary size-5" />
+              <span
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-md border border-current/10',
+                  tons[indice % tons.length] ?? 'bg-muted text-foreground',
+                )}
+              >
+                <recurso.icone aria-hidden className="size-5" />
+              </span>
               <h3 className="font-semibold tracking-tight">{recurso.titulo}</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">{recurso.descricao}</p>
             </article>
@@ -158,14 +174,21 @@ function InteligenciaArtificial() {
                 },
               ].map((passo, indice) => (
                 <li key={passo.titulo} className="flex gap-3">
-                  <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
+                  <span
+                    className={cn(
+                      'flex size-9 shrink-0 items-center justify-center rounded-full border border-current/10',
+                      indice === 0
+                        ? 'bg-info-suave text-info'
+                        : indice === 1
+                          ? 'bg-sucesso-suave text-sucesso'
+                          : 'bg-atencao-suave text-atencao',
+                    )}
+                  >
                     <passo.icone className="size-4" aria-hidden />
                   </span>
                   <div>
                     <p className="text-sm font-semibold">
-                      <span className="text-muted-foreground mr-2 tabular-nums">
-                        0{indice + 1}
-                      </span>
+                      <span className="text-muted-foreground mr-2 tabular-nums">0{indice + 1}</span>
                       {passo.titulo}
                     </p>
                     <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
@@ -201,7 +224,7 @@ function InteligenciaArtificial() {
                 className="cartao-elevavel bg-card flex flex-col gap-3 rounded-lg border p-5 shadow-[var(--sombra-sutil)]"
               >
                 <span className="flex items-center justify-between gap-3">
-                  <recurso.icone aria-hidden className="text-primary size-5" />
+                  <recurso.icone aria-hidden className="text-info size-5" />
                   <span className="text-muted-foreground border-border rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium">
                     em breve
                   </span>
@@ -215,7 +238,7 @@ function InteligenciaArtificial() {
         </Revelar>
 
         <p className="text-muted-foreground mt-8 flex items-start gap-2.5 text-sm leading-relaxed">
-          <Sparkles aria-hidden className="text-primary mt-0.5 size-4 shrink-0" />
+          <Sparkles aria-hidden className="text-info mt-0.5 size-4 shrink-0" />
           <span className="max-w-2xl">
             A IA trabalha sobre totais agregados e não recebe nomes de clientes. As projeções são
             apoio gerencial e não substituem a análise do contador.
@@ -269,7 +292,9 @@ function Seguranca() {
         <ul className="flex flex-col gap-8">
           {GARANTIAS.map((garantia) => (
             <li key={garantia.titulo} className="flex gap-4">
-              <garantia.icone aria-hidden className="text-primary mt-0.5 size-5 shrink-0" />
+              <span className="bg-atencao-suave text-atencao mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-current/10">
+                <garantia.icone aria-hidden className="size-5" />
+              </span>
               <div className="flex flex-col gap-1.5">
                 <h3 className="font-semibold tracking-tight">{garantia.titulo}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
@@ -336,7 +361,7 @@ function CartaoPlano({
 }) {
   return (
     <article
-      className={`cartao-elevavel bg-card flex flex-col gap-6 rounded-lg border p-8 shadow-[var(--sombra-sutil)] ${destaque ? 'ring-primary/25 ring-1' : ''}`}
+      className={`cartao-elevavel bg-card flex flex-col gap-6 rounded-lg border p-8 shadow-[var(--sombra-sutil)] ${destaque ? 'border-info/25 ring-info/20 ring-1' : ''}`}
     >
       <div>
         <h3 className="text-xl font-semibold">{nome}</h3>
@@ -348,7 +373,7 @@ function CartaoPlano({
       <ul className="flex flex-col gap-3">
         {itens.map((item) => (
           <li key={item} className="flex gap-3 text-sm">
-            <Check className="text-primary size-4 shrink-0" />
+            <Check className="text-sucesso size-4 shrink-0" />
             {item}
           </li>
         ))}

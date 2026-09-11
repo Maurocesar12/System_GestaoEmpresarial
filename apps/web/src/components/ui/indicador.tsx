@@ -10,6 +10,12 @@ const COR_DO_TOM: Record<TomIndicador, string> = {
   negativo: 'text-destructive',
 };
 
+const BORDA_DO_TOM: Record<TomIndicador, string> = {
+  neutro: '',
+  positivo: 'border-sucesso/25 bg-sucesso-suave/35',
+  negativo: 'border-destructive/25 bg-destrutivo-suave/35',
+};
+
 interface IndicadorProps {
   titulo: string;
   /** Já formatado pelo chamador. O componente não sabe se é dinheiro ou contagem. */
@@ -57,6 +63,7 @@ export function Indicador({
 
   const classes = cn(
     'bg-card rounded-lg border p-4 shadow-[var(--sombra-sutil)] transition-colors',
+    BORDA_DO_TOM[tom],
     destaque && 'ring-primary/20 ring-1',
   );
 

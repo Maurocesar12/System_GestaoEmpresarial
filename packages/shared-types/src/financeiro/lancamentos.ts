@@ -54,6 +54,42 @@ export interface CategoriaFinanceira {
 
 // --- Lançamentos -----------------------------------------------------------
 
+export const MAX_ANEXOS_LANCAMENTO = 5;
+export const MAX_BYTES_ANEXO_LANCAMENTO = 2 * 1024 * 1024;
+export const MIME_TYPES_ANEXO_LANCAMENTO = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+] as const;
+
+const REGEX_DATA_URL_ANEXO = /^data:(application\/pdf|image\/png|image\/jpeg|image\/webp);base64,/;
+
+export const anexoLancamentoSchema = z.object({
+  id: z.uuid().optional(),
+  nome: z.string().trim().min(1, 'Informe o nome do anexo').max(180),
+  mimeType: z.enum(MIME_TYPES_ANEXO_LANCAMENTO, {
+    error: 'Envie PDF, PNG, JPG ou WebP.',
+  }),
+  tamanhoBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(MAX_BYTES_ANEXO_LANCAMENTO, 'Anexo muito grande. Envie arquivos de até 2 MB.'),
+  conteudo: z
+    .string()
+    .regex(REGEX_DATA_URL_ANEXO, 'Anexo inválido. Envie PDF, PNG, JPG ou WebP.')
+    .max(MAX_BYTES_ANEXO_LANCAMENTO * 2, 'Anexo muito grande.'),
+});
+
+export type AnexoLancamentoInput = z.infer<typeof anexoLancamentoSchema>;
+
+export interface AnexoLancamento extends Omit<AnexoLancamentoInput, 'conteudo'> {
+  id: string;
+  conteudo?: string;
+  criadoEm: string;
+}
+
 export const lancamentoFormSchema = z.object({
   tipo: tipoLancamentoSchema,
   natureza: naturezaLancamentoSchema.default('empresa'),
@@ -93,6 +129,8 @@ export const lancamentoFormSchema = z.object({
   servicoId: opcional(z.uuid()),
 
   clienteId: opcional(z.uuid()),
+
+  anexos: z.array(anexoLancamentoSchema).max(MAX_ANEXOS_LANCAMENTO).default([]),
 });
 
 export type LancamentoFormInput = z.infer<typeof lancamentoFormSchema>;
@@ -101,7 +139,14 @@ export type LancamentoFormEntrada = z.input<typeof lancamentoFormSchema>;
 /** Importação financeira deliberadamente limitada aos dados do lançamento. */
 export const importacaoLancamentosSchema = z.object({
   lancamentos: z
-    .array(lancamentoFormSchema.omit({ categoriaId: true, servicoId: true, clienteId: true }))
+    .array(
+      lancamentoFormSchema.omit({
+        categoriaId: true,
+        servicoId: true,
+        clienteId: true,
+        anexos: true,
+      }),
+    )
     .min(1)
     .max(500),
 });
@@ -196,6 +241,7 @@ export interface Lancamento {
   servicoNome: string | null;
   clienteId: string | null;
   clienteNome: string | null;
+  anexos: AnexoLancamento[];
   criadoEm: string;
 }
 
@@ -300,6 +346,7 @@ export const periodoQuerySchema = z.object({
   ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data final inválida'),
   /** Por padrão o relatório ignora o que é pessoal. */
   natureza: naturezaLancamentoSchema.optional(),
+  categoriaId: z.uuid().optional(),
 });
 
 export type PeriodoQuery = z.infer<typeof periodoQuerySchema>;

@@ -3,14 +3,14 @@ import type { CSSProperties } from 'react';
 const COR_PADRAO = '#111111';
 
 export const PALETA_ETIQUETAS = [
-  { nome: 'Prioridade', cor: '#DC2626' },
+  { nome: 'Urgente', cor: '#DC2626' },
   { nome: 'Quente', cor: '#F97316' },
-  { nome: 'Proposta', cor: '#D97706' },
-  { nome: 'Urgente', cor: '#BE123C' },
-  { nome: 'VIP', cor: '#111827' },
+  { nome: 'Prioridade', cor: '#D97706' },
+  { nome: 'Aguardando', cor: '#A16207' },
+  { nome: 'Retorno', cor: '#0F766E' },
   { nome: 'Contrato', cor: '#7C3AED' },
-  { nome: 'Retorno', cor: '#C2410C' },
-  { nome: 'Aguardando', cor: '#64748B' },
+  { nome: 'Fechamento', cor: '#059669' },
+  { nome: 'VIP', cor: '#111827' },
   { nome: 'Frio', cor: '#475569' },
   { nome: 'Especial', cor: '#A21CAF' },
 ] as const;

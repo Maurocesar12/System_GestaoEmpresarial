@@ -106,24 +106,36 @@
   --input: oklch(0.78 0 0);
   --ring: var(--primary);
 
-  /* Estados preservam cor própria porque também comunicam significado. */
-  --destructive: oklch(0.28 0 0);
+  /*
+    Estados com significado cognitivo.
+
+    A marca continua preta e branca; estas cores são sinalização. Verde fica
+    para dinheiro que entrou, concluído e saúde. Âmbar pede atenção sem soar
+    como erro. Vermelho marca risco, atraso e perda. Violeta fica para insight,
+    IA e leitura analítica, sem virar a cor principal do produto.
+  */
+  --destructive: oklch(0.49 0.18 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --destrutivo-suave: oklch(0.92 0 0);
+  --destrutivo-suave: oklch(0.95 0.035 27);
 
-  --sucesso: oklch(0.24 0 0);
-  --sucesso-suave: oklch(0.94 0 0);
-  --atencao: oklch(0.38 0 0);
-  --atencao-suave: oklch(0.9 0 0);
-  --info: oklch(0.32 0 0);
-  --info-suave: oklch(0.93 0 0);
+  --sucesso: oklch(0.42 0.12 155);
+  --sucesso-suave: oklch(0.95 0.035 155);
+  --atencao: oklch(0.58 0.13 76);
+  --atencao-suave: oklch(0.96 0.05 83);
+  --info: oklch(0.46 0.12 305);
+  --info-suave: oklch(0.95 0.035 305);
 
-  /* Gráficos monocromáticos com contraste por valor, espessura e área. */
-  --grafico-1: oklch(0.22 0 0);
-  --grafico-2: oklch(0.42 0 0);
-  --grafico-3: oklch(0.62 0 0);
-  --grafico-4: oklch(0.74 0 0);
-  --grafico-5: oklch(0.86 0 0);
+  /*
+    Séries dos gráficos.
+
+    1 = entradas/receita, 2 = saldo/tendência, 3 = saídas/custo,
+    4 = atenção/classificação pendente, 5 = neutro/comparativo.
+  */
+  --grafico-1: oklch(0.49 0.13 155);
+  --grafico-2: oklch(0.38 0.1 305);
+  --grafico-3: oklch(0.55 0.17 27);
+  --grafico-4: oklch(0.64 0.14 76);
+  --grafico-5: oklch(0.48 0.025 260);
 
   --sombra-sutil: 0 1px 2px 0 oklch(0.16 0 0 / 0.07);
   --sombra-media: 0 4px 12px -2px oklch(0.16 0 0 / 0.1), 0 2px 4px -2px oklch(0.16 0 0 / 0.06);
