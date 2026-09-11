@@ -1,54 +1,25 @@
-'use client';
-
-import { useEffect, useRef } from 'react';
-
 /**
  * A gravação do gráfico financeiro, usada no hero e na seção de resultado.
  *
- * ## Por que é componente de cliente
+ * ## Sempre em movimento, por decisão de produto
  *
- * Por causa de `prefers-reduced-motion`. A primeira versão desligava o vídeo
- * no CSS quando a preferência estava ligada — e quem tem "reduzir animações"
- * no Windows (bem mais gente do que se imagina) via um hero **em branco**, sem
- * entender o que tinha sumido.
+ * Houve uma versão que pausava o vídeo quando o sistema pedia menos animação
+ * (`prefers-reduced-motion`). Ficou para trás a pedido: o movimento é o ponto
+ * da peça, e parado ele vira uma imagem estática que não conta nada. Como a
+ * gravação é muda, sem piscadas e em laço contínuo, o incômodo é pequeno perto
+ * do que ela comunica.
  *
- * A resposta certa não é esconder: é parar. Pausado, o vídeo continua sendo
- * uma imagem do gráfico na tela; o que desaparece é só o movimento, que era
- * exatamente o que a preferência pedia. E não custa um arquivo de pôster a
- * mais para baixar.
+ * O efeito colateral bom é que o componente voltou a ser de servidor: **zero
+ * JavaScript** para o navegador, só HTML.
  *
- * O JavaScript aqui é o mínimo: ler a preferência e pausar. Sem estado, sem
- * re-render — o efeito mexe direto no elemento.
+ * `autoPlay muted loop playsInline` é o que faz o vídeo rodar sozinho em
+ * qualquer navegador — sem `playsInline` o iOS abre em tela cheia, e sem
+ * `muted` nenhum navegador deixa iniciar sozinho. `aria-hidden` porque é
+ * decoração: não há informação aqui que não esteja escrita ao lado.
  */
 export function VideoFinanceiro({ className }: { className: string }) {
-  const referencia = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const consulta = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    const aplicar = () => {
-      const video = referencia.current;
-      if (!video) return;
-
-      if (consulta.matches) {
-        video.pause();
-      } else {
-        // `play()` devolve promessa e rejeita se a aba estiver oculta ou se o
-        // navegador recusar o autoplay. Ignorar é o certo: o vídeo é
-        // decoração, e um erro no console não ajudaria ninguém.
-        void video.play().catch(() => undefined);
-      }
-    };
-
-    aplicar();
-    consulta.addEventListener('change', aplicar);
-
-    return () => consulta.removeEventListener('change', aplicar);
-  }, []);
-
   return (
     <video
-      ref={referencia}
       autoPlay
       muted
       loop
