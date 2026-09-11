@@ -100,22 +100,9 @@ function Recursos() {
   );
 }
 
-/**
- * A seção do resultado.
- *
- * É a promessa do produto em três colunas: o que entrou, o que custou, o que
- * sobrou. O gráfico é tridimensional porque esta é a tela que o dono quer ver
- * — e porque volume separa as três grandezas mais rápido do que três números
- * em sequência. O custo disso é zero JavaScript: a explicação está no CSS.
- *
- * O vídeo fica só no hero. Aqui a conversa é sobre números concretos, e três
- * barras com valores dizem isso melhor do que um gráfico genérico em laço.
- */
+/** Demonstra o caminho do orçamento até o resultado financeiro do serviço. */
 function Resultado() {
   return (
-    // `overflow-x-clip` fica na seção, e não no cartão: as peças da cena
-    // precisam escapar do cartão — é o que dá a profundidade —, mas não podem
-    // criar barra de rolagem horizontal na página.
     <section id="resultado" className="scroll-mt-16 overflow-x-clip border-b">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-[1fr_1fr] lg:py-24">
         <div className="flex flex-col gap-5">

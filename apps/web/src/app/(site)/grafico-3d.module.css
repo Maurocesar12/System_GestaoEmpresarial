@@ -1,474 +1,548 @@
-/**
- * As telas do sistema empilhadas em profundidade — CSS puro, sem biblioteca.
- *
- * ## O que a cena diz
- *
- * A promessa do produto é que funil, agenda e financeiro são o mesmo sistema.
- * Três telas soltas lado a lado diriam o contrário; empilhadas no mesmo eixo,
- * com o financeiro na frente e o funil ao fundo, elas viram **uma coisa só
- * vista de perto**. É a diferença entre mostrar três funcionalidades e mostrar
- * um caminho: o orçamento aprovado vira compromisso, o compromisso vira
- * lançamento, o lançamento vira margem.
- *
- * ## Por que não WebGL
- *
- * Uma cena em three.js custaria ~150 kB de JavaScript, um canvas que só pinta
- * depois da hidratação e GPU ocupada na rolagem inteira. `perspective` +
- * `transform` dão a mesma profundidade com **zero kB de JavaScript**, chegam
- * junto com o HTML e sobrevivem ao JS desligado.
- *
- * ## Desempenho
- *
- * Só `transform` e `opacity` animam — as duas propriedades que o navegador
- * resolve no compositor, sem recalcular layout nem repintar.
- */
-
 .cena {
   position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  color: var(--foreground);
+  background:
+    radial-gradient(ellipse at 90% 50%, var(--sucesso-suave), transparent 65%), var(--superficie);
+}
+.cena svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.topo {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 12px;
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  color: var(--muted-foreground);
+}
+.status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sucesso);
+  box-shadow: 0 0 0 4px var(--sucesso-suave);
+  animation: pulsar 3s ease-in-out infinite;
+}
+.controle {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+}
+.controle svg {
+  width: 14px;
+  height: 14px;
+}
+.controle:hover {
+  background: var(--accent);
+}
+.controle:focus-visible,
+.etapa:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.etapas {
+  display: flex;
+  margin: 0 22px;
+  padding: 5px;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+.etapa {
+  position: relative;
+  display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  min-height: 380px;
-  padding: 56px 24px 44px;
-  perspective: 1400px;
-  perspective-origin: 50% 42%;
-}
-
-/* ---------------------------------------------------------------- piso --- */
-
-/* A grade que foge para o fundo: é ela que estabelece o horizonte. */
-.piso {
-  position: absolute;
-  bottom: 14px;
-  left: 50%;
-  width: 160%;
-  height: 420px;
-  transform: translateX(-50%) rotateX(78deg);
-  transform-origin: bottom center;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      color-mix(in oklch, var(--foreground) 13%, transparent) 0 1px,
-      transparent 1px 54px
-    ),
-    repeating-linear-gradient(
-      0deg,
-      color-mix(in oklch, var(--foreground) 9%, transparent) 0 1px,
-      transparent 1px 54px
-    );
-  mask-image: radial-gradient(68% 78% at 50% 100%, #000 22%, transparent 76%);
-  pointer-events: none;
-}
-
-/* --------------------------------------------------------------- telas --- */
-
-/*
- * A pilha balança devagar, de um lado para o outro.
- *
- * É o que transforma "três retângulos inclinados" em cena: parada, a
- * perspectiva é só um desenho; girando, o olho vê as camadas se deslocarem
- * umas em relação às outras e lê profundidade de verdade. Doze segundos por
- * ciclo e oito graus de amplitude — perceptível, nunca inquieto.
- */
-.pilha {
-  position: relative;
-  width: min(300px, 78%);
-  height: 210px;
-  transform-style: preserve-3d;
-  transform: rotateX(13deg) rotateY(-24deg);
-  animation: balancar 12s ease-in-out infinite;
-}
-
-/*
- * Cada tela é uma miniatura de verdade, não um retângulo cinza: tem cabeçalho,
- * conteúdo e as palavras que aparecem no sistema. É o que faz a peça ser
- * reconhecida por quem já viu o produto — e entendida por quem não viu.
- */
-.tela {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
-  border-radius: 12px;
-  background: var(--card);
-  box-shadow: 0 34px 60px -30px rgb(0 0 0 / 0.55);
-  animation: flutuar 7s ease-in-out infinite;
-  /*
-   * Nitidez do texto dentro de uma camada 3D.
-   *
-   * Ao rasterizar um elemento transformado, o navegador escolhe a resolução
-   * uma vez e reaproveita durante a animação. `backface-visibility` e
-   * `will-change` avisam que a camada é própria e se move, e é isso que faz
-   * o texto pequeno das telas sair desenhado na resolução do monitor — em
-   * vez de ampliado a partir de uma textura de baixa resolução.
-   */
-  backface-visibility: hidden;
-  will-change: transform;
-}
-
-/* O empilhamento: cada camada recua no eixo Z e sobe um pouco na tela. */
-.telaFunil {
-  transform: translate3d(-30px, -54px, -150px);
-  animation-delay: 0.9s;
-}
-
-.telaAgenda {
-  transform: translate3d(-15px, -27px, -75px);
-  animation-delay: 0.45s;
-}
-
-.telaFinanceiro {
-  transform: translateZ(0);
-}
-
-.telaCabecalho {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 9%, transparent);
-  background: var(--superficie);
-  font-size: 8.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-.telaCabecalho svg {
-  width: 11px;
-  height: 11px;
-  color: var(--foreground);
-}
-
-.telaCorpo {
-  display: flex;
-  flex: 1;
-  gap: 6px;
-  padding: 9px 10px;
-}
-
-/* --- funil: três colunas com cartões ------------------------------------- */
-
-.colunaFunil {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tituloColuna {
-  font-size: 7px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cartaoFunil {
-  height: 17px;
-  border-radius: 4px;
-  border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
-  background: var(--superficie);
-}
-
-/* O cartão que "andou" de etapa: é o que a automação faz sozinha. */
-.cartaoDestaque {
-  border-color: color-mix(in oklch, var(--sucesso) 45%, transparent);
-  background: color-mix(in oklch, var(--sucesso) 12%, transparent);
-  animation: acender 12s ease-in-out infinite;
-}
-
-/* --- agenda: linhas com horário ------------------------------------------ */
-
-.linhaAgenda {
-  display: flex;
-  align-items: center;
   gap: 7px;
-  padding: 4px 0;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 7%, transparent);
-  font-size: 8px;
+  min-width: 0;
+  padding: 10px 3px;
+  font-size: 14px;
+  border-radius: var(--radius);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    background 0.25s,
+    color 0.25s;
+}
+.etapa[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.etapa:hover:not([aria-pressed='true']) {
+  background: var(--superficie);
+}
+.etapa .seta {
+  position: absolute;
+  width: 10px;
+  right: -7px;
   color: var(--muted-foreground);
 }
-
-.linhaAgenda:last-child {
-  border-bottom: 0;
+.palco {
+  position: relative;
+  padding: 24px 22px 22px;
+  perspective: 1200px;
 }
-
-.hora {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
+.palco::before,
+.palco::after {
+  content: '';
+  position: absolute;
+  inset: 18px 34px 100px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  z-index: -1;
 }
-
-.pilula {
-  margin-left: auto;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--info) 14%, transparent);
-  color: var(--info);
-  font-size: 7px;
-  font-weight: 600;
-  white-space: nowrap;
+.palco::before {
+  transform: translateY(-6px) scale(0.96);
+  opacity: 0.5;
 }
-
-/* Segundo passo da história: o compromisso que nasceu do orçamento. */
-.pilulaAtiva {
-  animation: acender 12s ease-in-out 1.6s infinite;
+.tela {
+  min-height: 318px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 14px 28px -18px color-mix(in oklch, var(--foreground) 35%, transparent);
+  animation: entrar 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-
-/* --- financeiro: linhas de valor e a barra de margem --------------------- */
-
-.linhaValor {
+.cabecalho {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 3.5px 0;
-  font-size: 8px;
+}
+.cabecalho > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.numero {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.numero span {
   color: var(--muted-foreground);
 }
-
-/* Terceiro passo: o serviço executado virando dinheiro em caixa. */
-.linhaAtiva {
-  animation: acender 12s ease-in-out 3.2s infinite;
+.titulo {
+  margin: 12px 0 18px;
+  font-size: 14px;
+  color: var(--muted-foreground);
 }
-
-.valorEntrada {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.colunas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.colunas > span:last-child {
   color: var(--sucesso);
-}
-
-.valorSaida {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--destructive);
-}
-
-.rodapeMargem {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: auto;
-  padding-top: 6px;
-  border-top: 1px solid color-mix(in oklch, var(--foreground) 9%, transparent);
-  font-size: 8px;
-  color: var(--muted-foreground);
+  gap: 5px;
 }
-
-.barraMargem {
+.colunas svg {
+  width: 14px;
+  height: 14px;
+}
+.trilho {
   position: relative;
-  flex: 1;
-  height: 5px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--foreground) 9%, transparent);
+  margin-top: 10px;
+  padding-bottom: 2px;
 }
-
-/* Quarto e último passo: a margem se refazendo a cada volta do ciclo. */
-.barraMargem::after {
+.destino {
   position: absolute;
-  inset: 0 68% 0 0;
-  content: '';
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--grafico-2), var(--sucesso));
-  animation: preencher 12s cubic-bezier(0.22, 1, 0.36, 1) 4.6s infinite;
+  width: 56%;
+  height: 100%;
+  right: 0;
+  border: 1px dashed color-mix(in oklch, var(--sucesso) 35%, transparent);
+  border-radius: var(--radius);
+  background: var(--sucesso-suave);
 }
-
-.percentual {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
-}
-
-/* ------------------------------------------------- peças fora do quadro --- */
-
-/*
- * O que dá imersão: peças posicionadas **além** das bordas do cartão que
- * contém a cena. Nada aqui usa `overflow: hidden` — quem contém a cena
- * precisa deixar vazar, e a seção usa `overflow-x: clip` para isso não virar
- * barra de rolagem.
- */
-.chip {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 12px;
-  border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
-  border-radius: 11px;
-  background: color-mix(in oklch, var(--card) 84%, transparent);
-  box-shadow: 0 22px 44px -18px rgb(0 0 0 / 0.45);
-  backdrop-filter: blur(10px);
-  white-space: nowrap;
-  animation: flutuar 6s ease-in-out infinite;
-}
-
-.chip svg {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
-}
-
-.chipTexto {
+.orcamento {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 5px;
+  width: 64%;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 16px -12px var(--foreground);
+  animation: aprovar 6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-
-.chipTitulo {
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.metadado {
+  font-size: 12px;
   color: var(--muted-foreground);
 }
-
-.chipValor {
+.orcamento strong {
+  font-size: 14px;
+}
+.orcamento > span:not(.metadado) {
   font-size: 12px;
-  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.orcamento b {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
-  color: var(--foreground);
 }
-
-.chipAprovado {
-  top: 16px;
-  right: -44px;
-  transform: rotateX(10deg) rotateY(-16deg);
+.confirmacao {
+  color: var(--sucesso);
+  animation: confirmar 6s both;
 }
-
-.chipAprovado svg {
+.legenda {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.legenda svg {
+  width: 14px;
+  height: 14px;
   color: var(--sucesso);
 }
-
-.chipLembrete {
-  bottom: 62px;
-  left: -50px;
-  animation-delay: 2.1s;
-  transform: rotateX(10deg) rotateY(14deg);
+.dia {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  font-size: 14px;
 }
-
-.chipLembrete svg {
-  color: var(--atencao);
+.dia > span {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
-
-/* A seta que liga as camadas: mostra o caminho, não só as telas. */
-.fluxo {
-  position: absolute;
-  top: 46%;
-  left: 50%;
-  width: 232px;
-  height: 232px;
-  transform: translate(-50%, -50%) rotateX(62deg) rotateZ(-18deg);
-  border: 1px dashed color-mix(in oklch, var(--grafico-2) 34%, transparent);
+.compromisso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  animation: aparecer 0.7s both;
+  animation-delay: calc(var(--ordem) * 0.18s);
+}
+.compromisso time {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.compromisso small {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.novo {
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in oklch, var(--sucesso) 25%, transparent);
+  background: var(--sucesso-suave);
+}
+.novo small {
+  color: var(--sucesso);
+}
+.resumo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+.resumo > div {
+  display: flex;
+  flex-direction: column;
+}
+.resumo > div > span,
+.resumo small {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.resumo strong {
+  font-size: 36px;
+  font-weight: 650;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+.resumo strong span {
+  font-size: 24px;
+  color: var(--muted-foreground);
+}
+.iconeSaldo {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  animation: orbitar 26s linear infinite;
-  pointer-events: none;
+  color: var(--sucesso);
+  background: var(--sucesso-suave);
 }
-
-.fluxo::after {
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  width: 7px;
-  height: 7px;
-  content: '';
+.iconeSaldo svg {
+  width: 22px;
+  height: 22px;
+}
+.balanco {
+  display: grid;
+  gap: 8px;
+  margin-top: 15px;
+}
+.balanco > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  font-size: 12px;
+}
+.balanco b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.balanco i {
+  grid-column: 1 / -1;
+  display: block;
+  width: var(--largura);
+  height: 5px;
+  border-radius: 4px;
+  background: var(--foreground);
+  transform-origin: left;
+  animation: crescer 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--ordem) * 0.2s);
+}
+.balanco > div:nth-child(2) i {
+  background: var(--atencao);
+}
+.balanco > div:last-child i {
+  background: var(--sucesso);
+}
+.margem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 13px;
+  font-size: 12px;
+}
+.margem strong {
+  margin-left: auto;
+  color: var(--sucesso);
+  font-size: 14px;
+}
+.margem svg {
+  color: var(--sucesso);
+  width: 14px;
+  height: 14px;
+}
+.aviso {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  margin: 14px 8px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: 0 12px 24px -18px color-mix(in oklch, var(--foreground) 35%, transparent);
+  animation: aparecer 0.7s 0.9s both;
+}
+.iconeAviso {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  background: var(--sucesso-suave);
+  color: var(--sucesso);
   border-radius: 50%;
-  background: var(--grafico-2);
-  box-shadow: 0 0 12px 2px color-mix(in oklch, var(--grafico-2) 55%, transparent);
 }
-
-/* ---------------------------------------------------------- animações --- */
-
-/*
- * O movimento fica ligado mesmo com `prefers-reduced-motion`, por decisão de
- * produto — a mesma tomada para o vídeo do hero. São animações lentas,
- * contínuas e sem piscar. Para voltar atrás, basta desligar `.tela`, `.chip`
- * e `.fluxo` num bloco de mídia: a cena continua legível parada.
- */
-
-@keyframes flutuar {
-  0%,
-  100% {
-    translate: 0 0;
+.aviso > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.aviso strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.aviso > div > span,
+.agora {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.agora {
+  margin-left: auto;
+  align-self: flex-start;
+}
+.progresso {
+  height: 3px;
+  background: var(--border);
+}
+.progresso > span {
+  display: block;
+  height: 100%;
+  background: var(--sucesso);
+  transform-origin: left;
+  animation: crescer 6s linear both;
+}
+.cena[data-pausado='true'] *,
+.cena[data-pausado='true'] *::before,
+.cena[data-pausado='true'] *::after {
+  animation-play-state: paused;
+}
+/* A seleção manual mostra o estado completo, inclusive com a reprodução pausada. */
+.cena[data-pausado='true'] .tela,
+.cena[data-pausado='true'] .aviso,
+.cena[data-pausado='true'] .compromisso,
+.cena[data-pausado='true'] .confirmacao,
+.cena[data-pausado='true'] .balanco i {
+  animation: none;
+}
+.cena[data-pausado='true'] .orcamento {
+  animation: none;
+  transform: translateX(56.25%);
+}
+.cena[data-pausado='true'] .progresso > span {
+  animation: none;
+}
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(12px) rotateX(4deg);
   }
-  50% {
-    translate: 0 -8px;
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
-
-/* O balanço da pilha inteira: é ele que faz as camadas se descolarem. */
-@keyframes balancar {
-  0%,
-  100% {
-    transform: rotateX(13deg) rotateY(-26deg);
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  50% {
-    transform: rotateX(11deg) rotateY(-14deg);
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
-
-/*
- * O realce que percorre a história.
- *
- * Um ciclo de 12 s para todos, com atrasos diferentes: o cartão fecha no
- * funil, o compromisso aparece na agenda, o valor entra no financeiro e a
- * margem se refaz. Como cada elemento acende por dois segundos e apaga, a
- * sequência lê como um caminho — e não como quatro coisas piscando.
- */
-@keyframes acender {
+@keyframes aprovar {
   0%,
-  16%,
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-  4%,
   12% {
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--sucesso) 40%, transparent);
+    transform: translateX(0);
+  }
+  42%,
+  100% {
+    transform: translateX(56.25%);
   }
 }
-
-@keyframes orbitar {
+@keyframes confirmar {
+  0%,
+  32% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  45%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes crescer {
   from {
-    transform: translate(-50%, -50%) rotateX(62deg) rotateZ(-18deg);
+    transform: scaleX(0);
   }
   to {
-    transform: translate(-50%, -50%) rotateX(62deg) rotateZ(342deg);
+    transform: scaleX(1);
   }
 }
-
-@keyframes preencher {
-  from {
-    inset: 0 100% 0 0;
-  }
-  to {
-    inset: 0 68% 0 0;
+@keyframes pulsar {
+  50% {
+    opacity: 0.45;
   }
 }
-
-/* ------------------------------------------------------------- telas --- */
-
-@media (max-width: 900px) {
-  .cena {
-    min-height: 300px;
-    padding: 40px 16px 28px;
+@media (max-width: 480px) {
+  .topo {
+    padding: 12px 12px 8px;
   }
-
-  .pilha {
-    width: min(260px, 84%);
-    height: 180px;
-    transform: rotateX(11deg) rotateY(-18deg);
+  .status {
+    font-size: 12px;
+    letter-spacing: 0.025em;
   }
-
-  /* Fora do quadro só funciona quando há margem em volta; em tela estreita
-     as peças passariam por cima do texto. */
-  .chip,
-  .fluxo {
+  .etapas {
+    margin: 0 10px;
+    gap: 2px;
+  }
+  .etapa {
+    gap: 5px;
+    font-size: 12px;
+  }
+  .etapa svg {
+    width: 15px;
+    height: 15px;
+  }
+  .etapa .seta {
     display: none;
+  }
+  .palco {
+    padding: 18px 10px 14px;
+  }
+  .tela {
+    min-height: 334px;
+    padding: 12px;
+  }
+  .aviso {
+    margin: 12px 0 0;
+    padding: 10px;
+  }
+  .agora {
+    display: none;
+  }
+  .compromisso {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .compromisso small {
+    flex-basis: 100%;
+    padding-left: 40px;
+  }
+  .orcamento {
+    width: 78%;
+  }
+  @keyframes aprovar {
+    0%,
+    12% {
+      transform: translateX(0);
+    }
+    42%,
+    100% {
+      transform: translateX(28.2%);
+    }
+  }
+  .cena[data-pausado='true'] .orcamento {
+    transform: translateX(28.2%);
   }
 }
