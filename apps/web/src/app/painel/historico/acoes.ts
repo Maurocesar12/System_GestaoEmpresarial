@@ -14,3 +14,22 @@ export async function removerHistorico(id: string): Promise<ResultadoAcao> {
   revalidatePath('/painel/historico');
   return {};
 }
+
+export async function removerHistoricos(ids: string[]): Promise<ResultadoAcao> {
+  const unicos = [...new Set(ids)].filter(Boolean);
+
+  if (unicos.length === 0) {
+    return { erro: 'Selecione pelo menos um histórico para excluir.' };
+  }
+
+  try {
+    await Promise.all(
+      unicos.map((id) => apiComSessao<void>(`/auditoria/${id}`, { method: 'DELETE' })),
+    );
+  } catch (erro) {
+    return traduzirErroAcao(erro, 'Não foi possível excluir os históricos selecionados.');
+  }
+
+  revalidatePath('/painel/historico');
+  return {};
+}
