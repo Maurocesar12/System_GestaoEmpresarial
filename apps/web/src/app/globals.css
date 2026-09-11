@@ -285,18 +285,40 @@
     animation: entrada-suave var(--duracao-normal) var(--curva);
   }
 
-  /* Entrada progressiva das seções comerciais quando chegam à tela. */
+  /*
+   * Entrada progressiva das seções comerciais quando chegam à tela.
+   *
+   * Conduzida pela rolagem, não por JavaScript: `animation-timeline: view()`
+   * amarra o progresso da animação à posição do bloco na viewport. Antes disso
+   * havia um `IntersectionObserver` por bloco — JavaScript baixado e hidratado
+   * numa página que, fora isso, é estática.
+   *
+   * O padrão é o estado **visível**. Quem não tem animação por rolagem
+   * (Safari, Firefox) simplesmente lê a página; a animação é um acréscimo para
+   * quem tem, nunca a condição para o texto aparecer.
+   */
   .revelar-site {
-    opacity: 0;
-    transform: translateY(18px);
-    transition:
-      opacity 560ms var(--curva) var(--atraso-revelar, 0ms),
-      transform 560ms var(--curva) var(--atraso-revelar, 0ms);
+    opacity: 1;
   }
 
-  .revelar-site[data-visivel='true'] {
-    opacity: 1;
-    transform: none;
+  @supports (animation-timeline: view()) {
+    .revelar-site {
+      animation: revelar-entrada 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 22%;
+      animation-delay: var(--atraso-revelar, 0ms);
+    }
+  }
+
+  @keyframes revelar-entrada {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /* Elevação pequena: comunica que o cartão é uma unidade, sem parecer botão. */
@@ -375,6 +397,7 @@
     }
 
     .revelar-site {
+      animation: none;
       opacity: 1;
       transform: none;
     }

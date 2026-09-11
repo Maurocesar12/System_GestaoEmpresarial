@@ -189,6 +189,15 @@ model Tenant {
   /// Fim do período de teste. Depois disso o acesso depende da assinatura.
   trialTerminaEm DateTime? @map("trial_termina_em")
 
+  /// Dia em que o último pagamento foi confirmado.
+  ///
+  /// É daqui que sai o prazo de acesso: cada pagamento vale um mês contado
+  /// deste dia (`calcularAcesso`, em `@gestao/shared-types`). Fica no tenant, e
+  /// não na `Assinatura`, porque a regra precisa valer também para quem pagou
+  /// por fora do Asaas — e porque barrar o login não pode depender de um
+  /// registro de gateway existir.
+  ultimoPagamentoEm DateTime? @map("ultimo_pagamento_em") @db.Date
+
   criadoEm     DateTime  @default(now()) @map("criado_em")
   atualizadoEm DateTime  @updatedAt @map("atualizado_em")
   /// Cancelamento é registrado, não apagado — a exclusão definitiva dos dados
@@ -219,6 +228,7 @@ model Tenant {
   previsoesFinanceiras  PrevisaoFinanceira[]
 
   @@index([status])
+  @@index([ultimoPagamentoEm])
   @@map("tenant")
 }
 

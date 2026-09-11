@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { ServerCrash } from 'lucide-react';
 import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
+import { AvisoPagamento } from '@/components/painel/aviso-pagamento';
 import { ShellPainel } from '@/components/painel/shell-painel';
 import { ProvedorDeAvisos } from '@/components/ui/avisos';
 import { estilosBotao } from '@/components/ui/botao';
@@ -58,6 +59,12 @@ export default async function LayoutPainel({ children }: { children: React.React
     // componente de cliente à toa.
     <ProvedorDeAvisos>
       <ShellPainel usuario={usuario} aoSair={sair}>
+        {/*
+          O aviso de pagamento fica dentro do shell, acima do conteúdo: assim
+          acompanha a pessoa em qualquer tela do painel, e não só na primeira
+          que ela abriu depois de entrar.
+        */}
+        <AvisoPagamento acesso={usuario.acesso} />
         {children}
       </ShellPainel>
     </ProvedorDeAvisos>

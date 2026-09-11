@@ -152,8 +152,16 @@ export const MENU: readonly GrupoMenu[] = [
   },
 ];
 
-/** Grupos que sobram para um papel, já sem os grupos que ficaram vazios. */
-export function menuDoUsuario(usuario: UsuarioAutenticado): GrupoMenu[] {
+/**
+ * Grupos que sobram para um papel, já sem os grupos que ficaram vazios.
+ *
+ * Pede só papel e permissões: é o que a filtragem usa. Exigir o
+ * `UsuarioAutenticado` inteiro obrigaria quem chama a ter em mãos campos que
+ * não têm nada a ver com montar menu.
+ */
+export function menuDoUsuario(
+  usuario: Pick<UsuarioAutenticado, 'papel' | 'permissoes'>,
+): GrupoMenu[] {
   return MENU.map((grupo) => ({
     ...grupo,
     itens: grupo.itens.filter(

@@ -34,6 +34,21 @@ const usuarioCookieSchema = z.object({
   permissoes: z.array(z.enum(PERMISSOES)),
   tenantId: z.string(),
   nomeEmpresa: z.string(),
+  /**
+   * Prazo de acesso, para o aviso de vencimento aparecer já na primeira tela.
+   *
+   * Opcional de propósito: um cookie gravado antes desta versão não tem o
+   * campo, e recusá-lo derrubaria a sessão de todo mundo no dia do deploy. Sem
+   * ele o painel apenas não mostra o aviso, até a sessão ser renovada.
+   */
+  acesso: z
+    .object({
+      liberado: z.boolean(),
+      motivo: z.enum(['trial', 'pago', 'sem_pagamento', 'vencido', 'cancelado']),
+      acessoAte: z.string().nullable(),
+      diasRestantes: z.number().nullable(),
+    })
+    .optional(),
 });
 
 export async function gravarSessao(sessao: SessaoResponse): Promise<void> {
@@ -77,7 +92,16 @@ export async function lerRefreshToken(): Promise<string | undefined> {
   return jar.get(COOKIE_REFRESH)?.value;
 }
 
-export async function lerUsuarioDaSessao(): Promise<SessaoResponse['usuario'] | undefined> {
+/**
+ * O usuário como ele vem do cookie.
+ *
+ * Difere de `UsuarioAutenticado` num ponto: `acesso` é opcional, porque
+ * cookies gravados por versões anteriores não têm o campo. É o tipo que o
+ * painel usa, e ele aceita sem conversão o que a API devolve em `/auth/eu`.
+ */
+export type UsuarioDaSessao = z.infer<typeof usuarioCookieSchema>;
+
+export async function lerUsuarioDaSessao(): Promise<UsuarioDaSessao | undefined> {
   const jar = await cookies();
   const bruto = jar.get(COOKIE_USUARIO)?.value;
 

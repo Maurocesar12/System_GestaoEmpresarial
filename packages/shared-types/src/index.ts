@@ -9,6 +9,7 @@ export * from './common/opcional';
 export * from './common/paginacao';
 export * from './common/resposta-api';
 export * from './auth';
+export * from './plataforma/acesso';
 export * from './plataforma/equipe';
 export * from './plataforma/permissoes';
 export * from './plataforma/auditoria';

@@ -1,12 +1,23 @@
-import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
   CODIGOS_ERRO,
-  type StatusTenant,
+  calcularAcesso,
+  mensagemDeAcesso,
+  type DadosDeAcesso,
   type JwtPayload,
   type LoginInput,
   type SessaoResponse,
+  type SituacaoDeAcesso,
+  type StatusTenant,
   type UsuarioAutenticado,
   permissoesDoUsuario,
 } from '@gestao/shared-types';
@@ -81,7 +92,7 @@ export class AuthService {
     }
 
     const tenant = await this.buscarTenantDoLogin(usuario.tenantId);
-    this.garantirTenantOperante(tenant.status);
+    const acesso = this.garantirAcessoEmDia(tenant);
 
     const permissoes = permissoesDoUsuario(
       usuario.papel,
@@ -101,6 +112,7 @@ export class AuthService {
         nomeEmpresa: tenant.nome,
       },
       refreshToken,
+      acesso,
     );
   }
 
@@ -121,7 +133,13 @@ export class AuthService {
       throw this.credenciaisInvalidas();
     }
 
-    this.garantirTenantOperante(usuario.tenant.status);
+    // Renovar também confere: sem isto, uma aba aberta continuaria trocando
+    // token por token indefinidamente depois do vencimento.
+    const acesso = this.garantirAcessoEmDia({
+      status: usuario.tenant.status,
+      trialTerminaEm: usuario.tenant.trialTerminaEm?.toISOString() ?? null,
+      ultimoPagamentoEm: usuario.tenant.ultimoPagamentoEm?.toISOString() ?? null,
+    });
 
     return {
       ...this.montarTokens({
@@ -145,6 +163,7 @@ export class AuthService {
         ),
         tenantId: usuario.tenantId,
         nomeEmpresa: usuario.tenant.nome,
+        acesso,
       },
     };
   }
@@ -153,8 +172,21 @@ export class AuthService {
     await this.refreshTokens.revogar(refreshToken);
   }
 
-  /** Emite os tokens e monta a resposta de sessão. */
-  async montarSessao(usuario: UsuarioAutenticado, refreshToken?: string): Promise<SessaoResponse> {
+  /**
+   * Emite os tokens e monta a resposta de sessão.
+   *
+   * O `acesso` é calculado aqui quando quem chama não tem o dado em mãos —
+   * cadastro novo e aceite de convite, por exemplo. Deixar o campo por conta
+   * do chamador significaria, mais cedo ou mais tarde, uma sessão nascendo sem
+   * prazo de vencimento e um painel sem aviso nenhum.
+   */
+  async montarSessao(
+    usuario: Omit<UsuarioAutenticado, 'acesso'>,
+    refreshToken?: string,
+    acesso?: SituacaoDeAcesso,
+  ): Promise<SessaoResponse> {
+    const situacao = acesso ?? calcularAcesso(await this.buscarTenantDoLogin(usuario.tenantId));
+
     const tokenAtual =
       refreshToken ?? (await this.refreshTokens.emitir(usuario.tenantId, usuario.id));
 
@@ -166,17 +198,26 @@ export class AuthService {
         tenantId: usuario.tenantId,
       }),
       refreshToken: tokenAtual,
-      usuario,
+      usuario: { ...usuario, acesso: situacao },
     };
   }
 
-  private buscarTenantDoLogin(tenantId: string): Promise<{ nome: string; status: StatusTenant }> {
-    return this.prisma.comTenantExplicito(tenantId, (tx) =>
+  private async buscarTenantDoLogin(
+    tenantId: string,
+  ): Promise<DadosDeAcesso & { nome: string; status: StatusTenant }> {
+    const tenant = await this.prisma.comTenantExplicito(tenantId, (tx) =>
       tx.tenant.findUniqueOrThrow({
         where: { id: tenantId },
-        select: { nome: true, status: true },
+        select: { nome: true, status: true, trialTerminaEm: true, ultimoPagamentoEm: true },
       }),
     );
+
+    return {
+      nome: tenant.nome,
+      status: tenant.status,
+      trialTerminaEm: tenant.trialTerminaEm?.toISOString() ?? null,
+      ultimoPagamentoEm: tenant.ultimoPagamentoEm?.toISOString() ?? null,
+    };
   }
 
   private registrarUltimoLogin(tenantId: string, usuarioId: string): void {
@@ -220,22 +261,43 @@ export class AuthService {
   }
 
   /**
-   * Barra o acesso de empresa suspensa ou cancelada.
+   * Barra a entrada de quem está sem pagamento em dia, e devolve o prazo.
    *
-   * `trial` e `ativo` entram normalmente. A suspensão por inadimplência é
-   * aplicada aqui e não no meio das telas: é mais simples e não deixa brecha
-   * de uma rota esquecida continuar respondendo.
+   * A regra é uma só — cada pagamento vale um mês a partir do dia em que foi
+   * confirmado, e antes do primeiro pagamento vale o período de teste — e mora
+   * em `calcularAcesso`, para a API barrar e a tela avisar exatamente pelo
+   * mesmo critério.
+   *
+   * A verificação fica no login e na renovação da sessão, não espalhada pelas
+   * telas: são as duas únicas portas de entrada, e uma rota nova nasce
+   * protegida sem ninguém precisar lembrar disso. O preço é a sessão aberta
+   * sobreviver até o access token expirar (15 minutos) — aceitável para
+   * cobrança, e o tipo de brecha que não vale um `guard` em cada requisição.
+   *
+   * O status `suspenso` continua valendo como bloqueio manual do suporte,
+   * independente da data de pagamento.
    */
-  private garantirTenantOperante(status: StatusTenant): void {
-    if (status === 'suspenso' || status === 'cancelado') {
+  private garantirAcessoEmDia(tenant: DadosDeAcesso & { status: StatusTenant }): SituacaoDeAcesso {
+    if (tenant.status === 'suspenso') {
       throw new ForbiddenException({
         codigo: CODIGOS_ERRO.TENANT_SUSPENSO,
         mensagem:
-          status === 'suspenso'
-            ? 'Acesso suspenso por pendência no pagamento. Regularize para voltar a usar o sistema.'
-            : 'Esta conta foi cancelada.',
+          'Acesso suspenso por pendência no pagamento. Regularize para voltar a usar o sistema.',
       });
     }
+
+    const situacao = calcularAcesso(tenant);
+
+    if (!situacao.liberado) {
+      // 402 em vez de 403: o filtro global traduz para `TENANT_SUSPENSO`, e o
+      // status diz ao frontend que o caminho é pagar, não pedir permissão.
+      throw new HttpException(
+        { codigo: CODIGOS_ERRO.TENANT_SUSPENSO, mensagem: mensagemDeAcesso(situacao) },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
+    return situacao;
   }
 
   private credenciaisInvalidas(): UnauthorizedException {

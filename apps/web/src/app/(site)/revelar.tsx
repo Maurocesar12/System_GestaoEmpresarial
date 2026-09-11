@@ -1,39 +1,30 @@
-'use client';
+import type { CSSProperties, ReactNode } from 'react';
 
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
-
-interface RevelarProps {
+/**
+ * Mostra um bloco quando ele entra na tela.
+ *
+ * Era um componente de cliente com `IntersectionObserver`: JavaScript baixado,
+ * hidratado e executado numa página de marketing, para fazer o que a própria
+ * rolagem já sabe fazer. Agora é `animation-timeline: view()` — o navegador
+ * liga a animação à posição do elemento na viewport, sem observador, sem
+ * estado e **sem JavaScript nenhum**.
+ *
+ * Onde a animação por rolagem não existe (Safari e Firefox, hoje), a regra
+ * `@supports` do `globals.css` deixa o bloco visível desde o início: o texto
+ * de uma landing page nunca pode depender de animação para aparecer.
+ */
+export function Revelar({
+  children,
+  className = '',
+  atrasoMs = 0,
+}: {
   children: ReactNode;
   className?: string;
+  /** Atraso relativo, para blocos vizinhos não subirem exatamente juntos. */
   atrasoMs?: number;
-}
-
-/** Mostra um bloco quando ele entra na tela, sem biblioteca de animação. */
-export function Revelar({ children, className = '', atrasoMs = 0 }: RevelarProps) {
-  const referencia = useRef<HTMLDivElement>(null);
-  const [visivel, setVisivel] = useState(false);
-
-  useEffect(() => {
-    const elemento = referencia.current;
-    if (!elemento) return;
-
-    const observador = new IntersectionObserver(
-      ([entrada]) => {
-        if (!entrada?.isIntersecting) return;
-        setVisivel(true);
-        observador.disconnect();
-      },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
-    );
-
-    observador.observe(elemento);
-    return () => observador.disconnect();
-  }, []);
-
+}) {
   return (
     <div
-      ref={referencia}
-      data-visivel={visivel}
       className={`revelar-site ${className}`}
       style={{ '--atraso-revelar': `${atrasoMs}ms` } as CSSProperties}
     >

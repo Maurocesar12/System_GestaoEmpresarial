@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   Sparkles,
   TrendingUp,
+  Users,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
@@ -171,5 +172,102 @@ export const RECURSOS_IA: readonly RecursoIA[] = [
     pergunta: '"O cliente ligou e eu não lembro o que combinamos."',
     descricao:
       'Um parágrafo curto com o essencial daquele cliente: o que já foi feito, o que está em aberto e o que ficou pendente da última vez.',
+  },
+];
+
+/**
+ * O inventário do produto, módulo a módulo.
+ *
+ * Os cartões de `RECURSOS` vendem a ideia; esta lista responde a pergunta
+ * seguinte, que é a que trava a decisão de compra: *"mas o que exatamente vem
+ * junto?"*. Por isso aqui é enumeração seca, no vocabulário de quem usa.
+ *
+ * Regra ao editar: **só entra o que existe hoje, em produção**. O que está por
+ * vir tem lugar próprio, em `RECURSOS_IA` com `disponivel: false` — misturar os
+ * dois transforma a página numa promessa, e a primeira semana de uso em
+ * decepção.
+ */
+export interface Modulo {
+  icone: LucideIcon;
+  nome: string;
+  resumo: string;
+  itens: readonly string[];
+}
+
+export const MODULOS: readonly Modulo[] = [
+  {
+    icone: Contact,
+    nome: 'Clientes',
+    resumo: 'A ficha de quem você atende, com tudo que já aconteceu.',
+    itens: [
+      'Cadastro com telefone, documento, origem e etiquetas',
+      'Histórico de atendimentos por cliente',
+      'Busca por nome, telefone ou documento',
+      'Importação de planilha e exportação dos dados',
+    ],
+  },
+  {
+    icone: KanbanSquare,
+    nome: 'Negociações',
+    resumo: 'O quadro que mostra em que pé está cada conversa.',
+    itens: [
+      'Etapas prontas, ajustáveis à sua operação',
+      'Destaque para o que está parado há dias',
+      'Orçamento aprovado avança de etapa sozinho',
+    ],
+  },
+  {
+    icone: FileText,
+    nome: 'Orçamentos e serviços',
+    resumo: 'A proposta que vira agenda, e o serviço que carrega o custo.',
+    itens: [
+      'Orçamento com itens, valores e situação',
+      'Catálogo de serviços com preço e custo',
+      'Aprovação que cria o compromisso na agenda',
+    ],
+  },
+  {
+    icone: CalendarDays,
+    nome: 'Agenda e lembretes',
+    resumo: 'O compromisso marcado e o retorno que não se perde.',
+    itens: [
+      'Agendamentos ligados ao cliente e ao serviço',
+      'Serviço concluído entra no histórico do cliente',
+      'Lembrete de retorno com envio automático por e-mail',
+    ],
+  },
+  {
+    icone: Wallet,
+    nome: 'Financeiro',
+    resumo: 'Onde o dinheiro entra, sai e finalmente faz sentido.',
+    itens: [
+      'Entradas e saídas com competência e data de pagamento',
+      'Contas a pagar e a receber com vencimento e baixa',
+      'Categorias, custo fixo e custo variável',
+      'Nota fiscal, boleto e comprovante anexados ao lançamento',
+      'Reservas com meta e pró-labore com histórico',
+      'Conciliação do extrato e importação de planilha',
+    ],
+  },
+  {
+    icone: TrendingUp,
+    nome: 'Resultado',
+    resumo: 'A resposta que a planilha não dava.',
+    itens: [
+      'Margem por tipo de serviço, já calculada',
+      'Fluxo de caixa do período com entradas e saídas',
+      'Teto de retirada sugerido a partir do que entrou de fato',
+      'Previsão do caixa com IA, no plano Pro',
+    ],
+  },
+  {
+    icone: Users,
+    nome: 'Equipe e acesso',
+    resumo: 'A equipe usando o sistema sem ver o que não deve.',
+    itens: [
+      'Convite por e-mail com papel definido',
+      'Permissão por ação — quem atende não vê faturamento',
+      'Histórico de quem alterou o quê, e quando',
+    ],
   },
 ];

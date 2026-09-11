@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import {
   formatarBRL,
   LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
+  mensagemDeAcesso,
   type ConsumoIaResponse,
   type PlanoCatalogo,
   type PlanoAtualResponse,
@@ -12,6 +13,7 @@ import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { Selo } from '@/components/ui/selo';
 import { apiComSessao } from '@/lib/api-servidor';
+import { formatarDataCompleta } from '@/lib/formatacao';
 
 export const metadata: Metadata = { title: 'Plano e consumo' };
 
@@ -39,6 +41,30 @@ export default async function PaginaPlano() {
             {atual.assinatura.status}
           </Selo>
         </CartaoCabecalho>
+
+        {/*
+          O prazo aparece aqui porque é para esta tela que o aviso do topo do
+          painel manda quem precisa pagar — chegar e não encontrar a data
+          deixaria a pessoa no mesmo lugar de onde saiu.
+        */}
+        <CartaoConteudo className="border-t">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-muted-foreground text-xs">Acesso garantido até</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">
+                {atual.assinatura.acesso.acessoAte
+                  ? formatarDataCompleta(atual.assinatura.acesso.acessoAte)
+                  : '—'}
+              </p>
+            </div>
+
+            <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
+              {mensagemDeAcesso(atual.assinatura.acesso)}
+              {atual.assinatura.ultimoPagamentoEm &&
+                ` Último pagamento confirmado em ${formatarDataCompleta(atual.assinatura.ultimoPagamentoEm)}.`}
+            </p>
+          </div>
+        </CartaoConteudo>
         <CartaoConteudo className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Uso rotulo="Usuários" usado={atual.uso.usuarios} limite={atual.limites.usuarios} />
           <Uso rotulo="Clientes" usado={atual.uso.clientes} limite={atual.limites.clientes} />
@@ -120,13 +146,7 @@ function Uso({ rotulo, usado, limite }: { rotulo: string; usado: number; limite:
   );
 }
 
-function Plano({
-  plano,
-  atual,
-}: {
-  plano: PlanoCatalogo;
-  atual: boolean;
-}) {
+function Plano({ plano, atual }: { plano: PlanoCatalogo; atual: boolean }) {
   return (
     <Cartao className={plano.destaque ? 'ring-primary/25 ring-1' : undefined}>
       <CartaoConteudo className="flex flex-col gap-5 p-6">
@@ -163,9 +183,13 @@ function itensDoPlano(plano: PlanoCatalogo): string[] {
     plano.usuariosInclusos === null
       ? 'Usuários incluídos sem franquia definida'
       : `${plano.usuariosInclusos} usuários incluídos`,
-    plano.limiteUsuarios === null ? 'Usuários sem limite definido' : `Até ${plano.limiteUsuarios} usuários`,
+    plano.limiteUsuarios === null
+      ? 'Usuários sem limite definido'
+      : `Até ${plano.limiteUsuarios} usuários`,
     `${formatarBRL(plano.precoUsuarioAdicional)} por usuário ativo adicional`,
-    plano.limiteClientes === null ? 'Clientes sem limite definido' : `${plano.limiteClientes.toLocaleString('pt-BR')} clientes`,
+    plano.limiteClientes === null
+      ? 'Clientes sem limite definido'
+      : `${plano.limiteClientes.toLocaleString('pt-BR')} clientes`,
     'CRM, funil, agenda, financeiro e histórico',
     plano.iaHabilitada
       ? `${previsoes} previsões financeiras com IA por mês`

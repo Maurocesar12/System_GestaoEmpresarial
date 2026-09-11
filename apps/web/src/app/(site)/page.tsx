@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { estilosBotao } from '@/components/ui/botao';
 import { cn } from '@/lib/utils';
-import { PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
-import { DemonstracaoPrevisao } from './demonstracao-previsao';
+import { MODULOS, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
+import { ComoAIAFunciona, DemonstracaoPrevisao } from './demonstracao-previsao';
+import { Grafico3D } from './grafico-3d';
 import { Hero } from './hero';
 import { Revelar } from './revelar';
 
@@ -19,7 +20,9 @@ export default function PaginaInicial() {
     <>
       <Hero />
       <Recursos />
+      <Resultado />
       <ComoFunciona />
+      <OQueVemJunto />
       <InteligenciaArtificial />
       <Seguranca />
       <Planos />
@@ -97,6 +100,102 @@ function Recursos() {
   );
 }
 
+/**
+ * A seção do resultado.
+ *
+ * É a promessa do produto em três colunas: o que entrou, o que custou, o que
+ * sobrou. O gráfico é tridimensional porque esta é a tela que o dono quer ver
+ * — e porque volume separa as três grandezas mais rápido do que três números
+ * em sequência. O custo disso é zero JavaScript: a explicação está no CSS.
+ */
+function Resultado() {
+  return (
+    <section id="resultado" className="scroll-mt-16 border-b">
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-[1fr_1fr] lg:py-24">
+        <div className="flex flex-col gap-5">
+          <CabecalhoSecao
+            rotulo="O resultado"
+            titulo="No fim do mês, a pergunta é uma só: sobrou quanto?"
+          >
+            O sistema já sabe responder, porque cada recebimento nasceu ligado ao serviço que o
+            gerou e cada custo, ao trabalho que o consumiu. Não é relatório que alguém monta no fim
+            do mês — é a conta que se fecha sozinha desde o primeiro lançamento.
+          </CabecalhoSecao>
+
+          <ul className="flex flex-col gap-3 text-sm">
+            {[
+              'Margem por tipo de serviço, não só o total da empresa',
+              'Retirada do dono comparada ao que o caixa sustenta',
+              'Conta a receber separada do que já entrou de verdade',
+            ].map((item) => (
+              <li key={item} className="flex gap-3">
+                <Check aria-hidden className="text-sucesso mt-0.5 size-4 shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="bg-superficie rounded-xl border">
+          <Grafico3D />
+          <p className="text-muted-foreground border-t px-6 py-3 text-center text-xs">
+            Exemplo de um mês · dados ilustrativos
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * O inventário do produto.
+ *
+ * Os cartões de recurso vendem a ideia; esta seção responde à pergunta que
+ * trava a decisão — *"o que exatamente vem junto?"*. Por isso é lista seca,
+ * agrupada por módulo, com o que existe hoje e nada do que ainda virá.
+ */
+function OQueVemJunto() {
+  return (
+    <section id="incluso" className="scroll-mt-16 border-b">
+      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
+        <CabecalhoSecao rotulo="O que vem junto" titulo="Tudo isto já está no sistema hoje.">
+          Sem módulo vendido à parte e sem “fale com o comercial”. O que está listado aqui funciona
+          desde o primeiro dia da sua conta.
+        </CabecalhoSecao>
+
+        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {MODULOS.map((modulo) => (
+            <article
+              key={modulo.nome}
+              className="cartao-elevavel bg-card flex flex-col gap-4 rounded-lg border p-6 shadow-[var(--sombra-sutil)]"
+            >
+              <span className="bg-muted text-foreground flex size-9 items-center justify-center rounded-md border border-current/10">
+                <modulo.icone aria-hidden className="size-5" />
+              </span>
+
+              <div>
+                <h3 className="font-semibold tracking-tight">{modulo.nome}</h3>
+                <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                  {modulo.resumo}
+                </p>
+              </div>
+
+              <ul className="flex flex-col gap-2 border-t pt-4 text-sm">
+                {modulo.itens.map((item) => (
+                  <li key={item} className="text-muted-foreground flex gap-2.5 leading-relaxed">
+                    <Check aria-hidden className="text-sucesso mt-1 size-3.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ComoFunciona() {
   return (
     <section id="como-funciona" className="bg-superficie scroll-mt-16 border-b">
@@ -135,73 +234,45 @@ function InteligenciaArtificial() {
     <section id="ia" className="bg-superficie scroll-mt-16 overflow-hidden border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <Revelar>
-          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-            <div className="flex flex-col items-start gap-5">
-              <span className="flex flex-wrap items-center gap-2">
-                <RotuloSecao>Previsão financeira com IA</RotuloSecao>
-                <span className="bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-xs font-medium">
-                  Disponível no Pro
-                </span>
+          <div className="flex max-w-2xl flex-col items-start gap-5">
+            <span className="flex flex-wrap items-center gap-2">
+              <RotuloSecao>Previsão financeira com IA</RotuloSecao>
+              <span className="bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-xs font-medium">
+                Disponível no Pro
               </span>
+            </span>
 
-              <h2 className="text-3xl font-semibold tracking-tight text-balance">
-                Veja o caixa dos próximos meses antes de tomar a decisão.
-              </h2>
+            <h2 className="text-3xl font-semibold tracking-tight text-balance">
+              Veja o caixa dos próximos meses antes de tomar a decisão.
+            </h2>
 
-              <p className="text-muted-foreground leading-relaxed">
-                A previsão combina o histórico financeiro com contas a pagar e a receber já
-                registradas. O resultado aparece em gráficos claros, aponta riscos e sugere onde
-                agir primeiro.
-              </p>
-            </div>
-
-            <ol className="grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
-              {[
-                {
-                  icone: Database,
-                  titulo: 'Organiza os números',
-                  descricao: 'Reúne entradas, saídas e compromissos futuros sem expor clientes.',
-                },
-                {
-                  icone: TrendingUp,
-                  titulo: 'Projeta cenários',
-                  descricao: 'Mostra a evolução provável do saldo e a faixa de variação.',
-                },
-                {
-                  icone: Sparkles,
-                  titulo: 'Transforma em ação',
-                  descricao: 'Explica riscos e recomenda próximos passos em linguagem simples.',
-                },
-              ].map((passo, indice) => (
-                <li key={passo.titulo} className="flex gap-3">
-                  <span
-                    className={cn(
-                      'flex size-9 shrink-0 items-center justify-center rounded-full border border-current/10',
-                      indice === 0
-                        ? 'bg-info-suave text-info'
-                        : indice === 1
-                          ? 'bg-sucesso-suave text-sucesso'
-                          : 'bg-atencao-suave text-atencao',
-                    )}
-                  >
-                    <passo.icone className="size-4" aria-hidden />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">
-                      <span className="text-muted-foreground mr-2 tabular-nums">0{indice + 1}</span>
-                      {passo.titulo}
-                    </p>
-                    <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
-                      {passo.descricao}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <p className="text-muted-foreground leading-relaxed">
+              A conta é do sistema: histórico do que entrou e saiu, mais as contas a pagar e a
+              receber que já estão registradas. A IA entra depois — para ler esse cenário, apontar
+              o risco e dizer por onde começar.
+            </p>
           </div>
 
           <div className="mt-10">
             <DemonstracaoPrevisao />
+          </div>
+
+          {/*
+            Os passos vêm depois do gráfico de propósito: primeiro a pessoa vê
+            o resultado que interessa a ela, e só então se pergunta como aquilo
+            foi parar ali — que é quando a explicação do mecanismo é lida.
+          */}
+          <div className="mt-12">
+            <h3 className="text-xl font-semibold tracking-tight">
+              Como a IA trabalha aqui dentro
+            </h3>
+            <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed">
+              Em quatro passos, e com a fronteira dos seus dados explícita em cada um.
+            </p>
+
+            <div className="mt-8">
+              <ComoAIAFunciona />
+            </div>
           </div>
         </Revelar>
 

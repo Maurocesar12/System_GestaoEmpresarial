@@ -1,0 +1,137 @@
+/**
+ * Demonstração da previsão com IA — troca de cenário sem JavaScript.
+ *
+ * Os três cenários vêm prontos no HTML; um grupo de `<input type="radio">`
+ * escondido decide qual aparece, pelo combinador de irmãos. O componente
+ * inteiro deixou de ser de cliente: nada é baixado, hidratado ou executado
+ * para trocar de cenário — e teclado e leitor de tela funcionam porque os
+ * controles são rádios de verdade, não `<div>` com `onClick`.
+ *
+ * `nth-of-type` casa o rádio com a aba e com o painel de mesma ordem. É a
+ * amarração frágil deste arquivo: **a ordem dos três rádios, das três abas e
+ * dos três painéis precisa ser a mesma**. Em troca, não há `:has()`, id
+ * global nem estado em lugar nenhum.
+ */
+
+.demo {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sombra-media);
+}
+
+.radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 14px 16px 0;
+}
+
+.aba {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: var(--background);
+  transition:
+    color var(--duracao-rapida) var(--curva),
+    background-color var(--duracao-rapida) var(--curva),
+    border-color var(--duracao-rapida) var(--curva);
+}
+
+.aba:hover {
+  color: var(--foreground);
+  border-color: color-mix(in oklch, var(--foreground) 30%, var(--border));
+}
+
+/*
+ * Existe para ser o alvo do combinador de irmãos (`.radio ~ .painel`). Sem
+ * uma classe própria, os seletores de troca de cenário não teriam onde pegar.
+ */
+.painel {
+  display: block;
+}
+
+/* O painel só aparece quando o rádio de mesma ordem está marcado. */
+.cenario {
+  display: none;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+}
+
+.radio:nth-of-type(1):checked ~ .painel > .cenario:nth-of-type(1),
+.radio:nth-of-type(2):checked ~ .painel > .cenario:nth-of-type(2),
+.radio:nth-of-type(3):checked ~ .painel > .cenario:nth-of-type(3) {
+  display: flex;
+}
+
+.radio:nth-of-type(1):checked ~ .abas > .aba:nth-of-type(1),
+.radio:nth-of-type(2):checked ~ .abas > .aba:nth-of-type(2),
+.radio:nth-of-type(3):checked ~ .abas > .aba:nth-of-type(3) {
+  color: var(--background);
+  background: var(--foreground);
+  border-color: var(--foreground);
+}
+
+/* O foco precisa aparecer na aba: o rádio que o recebe é invisível. */
+.radio:nth-of-type(1):focus-visible ~ .abas > .aba:nth-of-type(1),
+.radio:nth-of-type(2):focus-visible ~ .abas > .aba:nth-of-type(2),
+.radio:nth-of-type(3):focus-visible ~ .abas > .aba:nth-of-type(3) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.grafico {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/*
+ * A linha projetada se desenha da esquerda para a direita quando a seção
+ * chega à tela. `stroke-dashoffset` anima no compositor, sem custo de layout.
+ */
+.linhaProjetada {
+  stroke-dasharray: 900;
+  animation: desenhar 1100ms var(--curva) both;
+  animation-timeline: view();
+  animation-range: entry 20% cover 30%;
+}
+
+@keyframes desenhar {
+  from {
+    stroke-dashoffset: 900;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@supports not (animation-timeline: view()) {
+  .linhaProjetada {
+    animation-timeline: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linhaProjetada {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}

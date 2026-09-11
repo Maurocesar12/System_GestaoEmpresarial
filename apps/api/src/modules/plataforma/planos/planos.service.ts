@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   HIERARQUIA_PLANOS,
+  calcularAcesso,
   LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
   type PlanoCatalogo,
   type PlanoAtualResponse,
@@ -86,6 +87,12 @@ export class PlanosService {
       assinatura: {
         status: tenant.status,
         trialTerminaEm: tenant.trialTerminaEm?.toISOString() ?? null,
+        ultimoPagamentoEm: tenant.ultimoPagamentoEm?.toISOString().slice(0, 10) ?? null,
+        acesso: calcularAcesso({
+          status: tenant.status,
+          trialTerminaEm: tenant.trialTerminaEm?.toISOString() ?? null,
+          ultimoPagamentoEm: tenant.ultimoPagamentoEm?.toISOString() ?? null,
+        }),
       },
       integracaoIa: {
         conectada: Boolean(this.config.get('OPENAI_API_KEY', { infer: true })),

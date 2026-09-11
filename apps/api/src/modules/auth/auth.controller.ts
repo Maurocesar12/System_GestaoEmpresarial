@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  calcularAcesso,
   emailSchema,
   loginSchema,
   refreshTokenSchema,
@@ -43,7 +44,9 @@ export class AuthController {
   @Post('recuperar-senha')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle(LIMITE_LOGIN)
-  async solicitarSenha(@Body(new ZodValidationPipe(solicitarSchema)) dados: { email: string }): Promise<void> {
+  async solicitarSenha(
+    @Body(new ZodValidationPipe(solicitarSchema)) dados: { email: string },
+  ): Promise<void> {
     await this.recuperacao.solicitar(dados.email);
   }
 
@@ -97,7 +100,11 @@ export class AuthController {
     const usuario = await this.prisma.comTenant((tx) =>
       tx.usuario.findUniqueOrThrow({
         where: { id: contexto.usuarioId },
-        include: { tenant: { select: { nome: true } } },
+        include: {
+          tenant: {
+            select: { nome: true, status: true, trialTerminaEm: true, ultimoPagamentoEm: true },
+          },
+        },
       }),
     );
 
@@ -112,6 +119,14 @@ export class AuthController {
       ),
       tenantId: usuario.tenantId,
       nomeEmpresa: usuario.tenant.nome,
+      // Recalculado a cada chamada, e não lido de um cache: o painel usa este
+      // valor para decidir o aviso de vencimento, e um dia de atraso na conta
+      // é um dia avisando errado.
+      acesso: calcularAcesso({
+        status: usuario.tenant.status,
+        trialTerminaEm: usuario.tenant.trialTerminaEm?.toISOString() ?? null,
+        ultimoPagamentoEm: usuario.tenant.ultimoPagamentoEm?.toISOString() ?? null,
+      }),
     };
   }
 }

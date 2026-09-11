@@ -1,3 +1,5 @@
+import type { SituacaoDeAcesso } from './acesso';
+
 export type PlanoComercialSlug = 'essencial' | 'profissional';
 
 export const HIERARQUIA_PLANOS: readonly PlanoComercialSlug[] = ['essencial', 'profissional'];
@@ -55,6 +57,10 @@ export interface PlanoAtualResponse {
   assinatura: {
     status: string;
     trialTerminaEm: string | null;
+    /** Dia do último pagamento confirmado, `AAAA-MM-DD`. */
+    ultimoPagamentoEm: string | null;
+    /** Até quando o acesso está garantido, pela regra de um mês por pagamento. */
+    acesso: SituacaoDeAcesso;
   };
   integracaoIa: {
     conectada: boolean;

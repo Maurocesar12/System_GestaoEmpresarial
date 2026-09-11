@@ -1,5 +1,3 @@
-import Papa from 'papaparse';
-
 /**
  * Leitura de planilha no navegador.
  *
@@ -44,7 +42,11 @@ function decodificarTexto(bytes: ArrayBuffer): string {
   }
 }
 
-function lerCsv(texto: string): PlanilhaLida {
+async function lerCsv(texto: string): Promise<PlanilhaLida> {
+  // Sob demanda, pelo mesmo motivo do Excel logo abaixo: quem abre a tela de
+  // importação e desiste não deveria ter baixado um analisador de CSV junto.
+  const { default: Papa } = await import('papaparse');
+
   const resultado = Papa.parse<string[]>(texto, {
     // Sem `header: true`: o cabeçalho é tratado como uma linha comum para que a
     // tela mostre exatamente o que veio no arquivo, inclusive nomes repetidos

@@ -23,7 +23,14 @@ import { hrefAtivo, menuDoUsuario } from './menu';
  * dois terços de um celular.
  */
 interface Props {
-  usuario: UsuarioAutenticado;
+  /**
+   * Só o que o shell desenha e usa para montar o menu.
+   *
+   * Um `Pick` em vez do `UsuarioAutenticado` inteiro porque a sessão nem
+   * sempre vem completa: a lida do cookie pode não trazer campos novos, e o
+   * cabeçalho não deveria deixar de renderizar por causa disso.
+   */
+  usuario: Pick<UsuarioAutenticado, 'nome' | 'papel' | 'permissoes' | 'nomeEmpresa'>;
   /** Server Action de logout, recebida do layout (componente de servidor). */
   aoSair: () => Promise<void>;
   children: ReactNode;

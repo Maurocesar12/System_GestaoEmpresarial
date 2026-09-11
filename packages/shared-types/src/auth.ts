@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { PapelUsuario } from './enums';
 import type { Permissao } from './plataforma/permissoes';
+import type { SituacaoDeAcesso } from './plataforma/acesso';
 
 /**
  * Contrato de autenticação (arquitetura §9.1).
@@ -67,6 +68,14 @@ export interface UsuarioAutenticado {
   tenantId: string;
   /** Nome da empresa, para exibir no cabeçalho sem uma segunda requisição. */
   nomeEmpresa: string;
+  /**
+   * Até quando a empresa tem acesso, e por quê.
+   *
+   * Viaja junto da sessão para o painel conseguir avisar do vencimento sem uma
+   * requisição extra a cada carregamento — o aviso precisa aparecer no
+   * primeiro instante depois do login, que é quando a pessoa está olhando.
+   */
+  acesso: SituacaoDeAcesso;
 }
 
 export interface SessaoResponse {
