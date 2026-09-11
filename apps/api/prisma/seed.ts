@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { urlAdministrativa } from '../src/config/url-banco';
 import { PrismaClient } from '../src/generated/prisma/client';
 
 /**
@@ -13,10 +14,20 @@ import { PrismaClient } from '../src/generated/prisma/client';
  * Rode com: pnpm --filter @gestao/api db:seed
  */
 
+const conexao = urlAdministrativa();
+
+if (!conexao) {
+  // Falha aqui com o nome das variáveis. Sem esta checagem, o adaptador recebe
+  // `undefined` e o `pg` cai nos padrões do ambiente (`PGHOST`, usuário do
+  // sistema), produzindo um erro de conexão que não menciona configuração
+  // nenhuma — e o build do Render morre sem dizer o que preencher.
+  throw new Error(
+    'Nenhuma conexão configurada para o seed: defina DATABASE_URL (ou ADMIN_DATABASE_URL).',
+  );
+}
+
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({
-    connectionString: process.env.ADMIN_DATABASE_URL ?? process.env.DATABASE_URL,
-  }),
+  adapter: new PrismaPg({ connectionString: conexao }),
 });
 
 /**
@@ -46,7 +57,8 @@ const PLANOS = [
     slug: 'essencial',
     nome: 'Básico',
     preco: '100.00',
-    descricao: 'Para organizar CRM, agenda, clientes e financeiro com previsões gratuitas limitadas.',
+    descricao:
+      'Para organizar CRM, agenda, clientes e financeiro com previsões gratuitas limitadas.',
     nivel: 1,
     destaque: false,
     usuariosInclusos: 2,
@@ -62,7 +74,8 @@ const PLANOS = [
     slug: 'profissional',
     nome: 'Premium',
     preco: '200.00',
-    descricao: 'Para empresas que querem mais usuários, mais clientes e previsões financeiras com IA em volume.',
+    descricao:
+      'Para empresas que querem mais usuários, mais clientes e previsões financeiras com IA em volume.',
     nivel: 2,
     destaque: true,
     usuariosInclusos: 5,

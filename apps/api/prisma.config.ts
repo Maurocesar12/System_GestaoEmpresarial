@@ -2,6 +2,7 @@
 // npm install --save-dev prisma dotenv
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
+import { urlAdministrativa } from './src/config/url-banco';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -9,13 +10,8 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    // Permite aplicar migrations no banco isolado de integração sem editar o
-    // arquivo .env. Em produção, prefira ADMIN_DATABASE_URL: a aplicação deve
-    // usar um role sem BYPASSRLS, enquanto migrations precisam de permissão
-    // administrativa para alterar schema e catálogo global.
-    url:
-      process.env['PRISMA_USE_TEST_DB'] === '1'
-        ? process.env['TEST_DATABASE_URL']
-        : (process.env['ADMIN_DATABASE_URL'] ?? process.env['DATABASE_URL']),
+    // A escolha da conexão (e o porquê de string vazia contar como ausente)
+    // está documentada em `src/config/url-banco.ts`.
+    url: urlAdministrativa(),
   },
 });
