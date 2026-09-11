@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { MODELO_ANALISE_LOCAL } from './assistente-demonstracao';
 import { AssistenteOpenAI } from './assistente-openai';
 
 const CONTEXTO = {
@@ -68,6 +69,6 @@ describe('AssistenteOpenAI', () => {
     ).analisarPrevisao(CONTEXTO);
 
     expect(resultado.modo).toBe('demonstracao');
-    expect(resultado.modelo).toBe('analise-local-v1');
+    expect(resultado.modelo).toBe(MODELO_ANALISE_LOCAL);
   });
 });

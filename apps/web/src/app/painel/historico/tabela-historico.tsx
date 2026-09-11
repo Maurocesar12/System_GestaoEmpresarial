@@ -1,6 +1,6 @@
 'use client';
 
-import { Trash2, X } from 'lucide-react';
+import { CheckCheck, ListChecks, Trash2, X } from 'lucide-react';
 import { useMemo, useState, useTransition } from 'react';
 import { LIMITE_EXCLUSAO_HISTORICO } from '@gestao/shared-types';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -42,6 +42,10 @@ export function TabelaHistorico({
   /** Sem a permissão, a tabela vira só leitura: nem caixas, nem botões. */
   podeExcluir: boolean;
 }) {
+  // A seleção começa desligada: no uso comum o histórico é lido, não editado, e
+  // uma coluna de caixas em toda linha sugere o contrário. Quem vai excluir em
+  // lote diz isso primeiro, no botão "Selecionar".
+  const [selecionando, setSelecionando] = useState(false);
   const [selecionados, setSelecionados] = useState<ReadonlySet<string>>(() => new Set());
   const [erro, setErro] = useState<string>();
   const [confirmandoLote, setConfirmandoLote] = useState(false);
@@ -61,6 +65,11 @@ export function TabelaHistorico({
   const limparSelecao = () => {
     setSelecionados(new Set());
     setConfirmandoLote(false);
+  };
+
+  const sairDaSelecao = () => {
+    setSelecionando(false);
+    limparSelecao();
   };
 
   const alternarTodos = () => {
@@ -87,10 +96,10 @@ export function TabelaHistorico({
     iniciarExclusaoLote(async () => {
       const resultado = await removerHistoricos(idsSelecionados);
 
-      // A seleção é limpa mesmo quando dá erro: as linhas que sobraram chegam
-      // de novo do servidor, e reaproveitar ids antigos tentaria excluir o que
-      // já saiu.
-      limparSelecao();
+      // Sai do modo de seleção mesmo quando dá erro: as linhas que sobraram
+      // chegam de novo do servidor, e reaproveitar ids antigos tentaria excluir
+      // o que já saiu.
+      sairDaSelecao();
 
       if (resultado.erro) {
         setErro(resultado.erro);
@@ -105,64 +114,84 @@ export function TabelaHistorico({
       {podeExcluir && (
         <div className="flex min-h-10 flex-wrap items-center justify-between gap-3">
           <p className="text-muted-foreground text-sm">
-            {quantidadeSelecionada > 0
-              ? `${quantidadeSelecionada} histórico(s) selecionado(s)`
-              : 'Selecione históricos para excluir em lote.'}
+            {!selecionando
+              ? 'Exclua um registro pela linha, ou vários de uma vez.'
+              : quantidadeSelecionada > 0
+                ? `${quantidadeSelecionada} de ${registros.length} selecionado(s)`
+                : 'Marque os registros que quer excluir.'}
           </p>
 
-          {quantidadeSelecionada > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {!selecionando ? (
               <Botao
                 type="button"
-                variante="sutil"
+                variante="secundario"
                 tamanho="sm"
-                disabled={excluindoLote}
-                onClick={limparSelecao}
+                disabled={registros.length === 0}
+                onClick={() => setSelecionando(true)}
               >
-                <X aria-hidden />
-                Limpar seleção
+                <ListChecks aria-hidden />
+                Selecionar
               </Botao>
+            ) : !confirmandoLote ? (
+              <>
+                <Botao
+                  type="button"
+                  variante="sutil"
+                  tamanho="sm"
+                  onClick={alternarTodos}
+                  disabled={registros.length === 0}
+                >
+                  <CheckCheck aria-hidden />
+                  {todosSelecionados ? 'Desmarcar todos' : 'Selecionar todos'}
+                </Botao>
 
-              {!confirmandoLote ? (
                 <Botao
                   type="button"
                   variante="perigo"
                   tamanho="sm"
-                  disabled={excedeuLimite}
+                  // Sem nada marcado o botão fica visível, mas inerte: some daqui
+                  // seria mudar o lugar do "Cancelar" a cada clique numa caixa.
+                  disabled={quantidadeSelecionada === 0 || excedeuLimite}
                   onClick={() => setConfirmandoLote(true)}
                 >
                   <Trash2 aria-hidden />
-                  Excluir selecionados
+                  Excluir{quantidadeSelecionada > 0 ? ` (${quantidadeSelecionada})` : ''}
                 </Botao>
-              ) : (
-                <span
-                  role="alertdialog"
-                  aria-label="Confirmar exclusão dos históricos selecionados"
-                  className="border-destructive/30 bg-destrutivo-suave text-destructive inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
+
+                <Botao type="button" variante="sutil" tamanho="sm" onClick={sairDaSelecao}>
+                  <X aria-hidden />
+                  Cancelar
+                </Botao>
+              </>
+            ) : (
+              <span
+                role="alertdialog"
+                aria-label="Confirmar exclusão dos históricos selecionados"
+                className="border-destructive/30 bg-destrutivo-suave text-destructive inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
+              >
+                Excluir {quantidadeSelecionada} registro(s)?
+                <Botao
+                  type="button"
+                  variante="perigo"
+                  tamanho="sm"
+                  carregando={excluindoLote}
+                  onClick={excluirSelecionados}
                 >
-                  Excluir {quantidadeSelecionada} registro(s)?
-                  <Botao
-                    type="button"
-                    variante="perigo"
-                    tamanho="sm"
-                    carregando={excluindoLote}
-                    onClick={excluirSelecionados}
-                  >
-                    Excluir
-                  </Botao>
-                  <Botao
-                    type="button"
-                    variante="sutil"
-                    tamanho="sm"
-                    disabled={excluindoLote}
-                    onClick={() => setConfirmandoLote(false)}
-                  >
-                    Cancelar
-                  </Botao>
-                </span>
-              )}
-            </div>
-          )}
+                  Excluir
+                </Botao>
+                <Botao
+                  type="button"
+                  variante="sutil"
+                  tamanho="sm"
+                  disabled={excluindoLote}
+                  onClick={() => setConfirmandoLote(false)}
+                >
+                  Cancelar
+                </Botao>
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -175,7 +204,7 @@ export function TabelaHistorico({
       <Cartao>
         <TabelaRolavel>
           <TabelaCabecalho>
-            {podeExcluir && (
+            {selecionando && (
               <TabelaColuna className="w-0">
                 <label className="flex size-5 items-center justify-center">
                   <input
@@ -201,7 +230,9 @@ export function TabelaHistorico({
             <TabelaColuna>Ação</TabelaColuna>
             <TabelaColuna>Registro</TabelaColuna>
             <TabelaColuna>Resumo</TabelaColuna>
-            {podeExcluir && <TabelaColuna className="w-0 text-right">Ações</TabelaColuna>}
+            {podeExcluir && !selecionando && (
+              <TabelaColuna className="w-0 text-right">Ações</TabelaColuna>
+            )}
           </TabelaCabecalho>
           <TabelaCorpo>
             {registros.map((registro) => (
@@ -209,7 +240,7 @@ export function TabelaHistorico({
                 key={registro.id}
                 className={selecionados.has(registro.id) ? 'bg-accent/45' : undefined}
               >
-                {podeExcluir && (
+                {selecionando && (
                   <TabelaCelula className="w-0">
                     <label className="flex size-5 items-center justify-center">
                       <input
@@ -232,7 +263,7 @@ export function TabelaHistorico({
                 <TabelaCelula className="min-w-[20rem]">
                   <span className="line-clamp-2">{registro.resumo}</span>
                 </TabelaCelula>
-                {podeExcluir && (
+                {podeExcluir && !selecionando && (
                   <TabelaCelula className="text-right">
                     <BotaoExcluirHistorico
                       id={registro.id}

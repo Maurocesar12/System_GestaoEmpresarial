@@ -28,7 +28,6 @@ export const PERMISSOES = [
   'ia.visualizar_consumo',
   'equipe.gerenciar',
   'auditoria.visualizar',
-  'auditoria.excluir',
   'empresa.configurar',
 ] as const;
 
@@ -139,7 +138,6 @@ export const GRUPOS_PERMISSOES: ReadonlyArray<{
     itens: [
       { codigo: 'equipe.gerenciar', rotulo: 'Gerenciar equipe e convites' },
       { codigo: 'auditoria.visualizar', rotulo: 'Visualizar auditoria' },
-      { codigo: 'auditoria.excluir', rotulo: 'Excluir registros do histórico' },
       { codigo: 'empresa.configurar', rotulo: 'Configurar empresa e campos' },
     ],
   },

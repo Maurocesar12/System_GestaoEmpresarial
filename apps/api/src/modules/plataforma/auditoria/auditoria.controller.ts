@@ -16,6 +16,7 @@ import {
   type RegistroAuditoria,
   type ResultadoExclusaoHistorico,
 } from '@gestao/shared-types';
+import { Papeis } from '../../../common/decorators/papeis.decorator';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { CorpoValidado, QueryValidada } from '../../../common/decorators/validado.decorator';
 import { AuditoriaService } from './auditoria.service';
@@ -23,9 +24,12 @@ import { AuditoriaService } from './auditoria.service';
 /**
  * Rotas do histórico.
  *
- * Ler é a permissão padrão do controller; excluir exige a sua própria. Quem
- * consulta o histórico não ganha, de brinde, o direito de apagar o rastro do
- * que aconteceu na empresa.
+ * Ler depende da permissão de auditoria; excluir é do administrador, e só.
+ *
+ * Excluir não virou permissão concedível de propósito: o histórico é o que
+ * prova o que cada funcionário fez, e um funcionário que pode apagá-lo pode
+ * apagar o próprio rastro. Como papel, a regra não depende de ninguém lembrar
+ * de desmarcar uma caixa na tela de equipe.
  */
 @Controller('auditoria')
 @Permissoes('auditoria.visualizar')
@@ -47,7 +51,7 @@ export class AuditoriaController {
    * morre junto, e a resposta diz quantos registros saíram de fato.
    */
   @Delete()
-  @Permissoes('auditoria.excluir')
+  @Papeis('admin')
   async removerVarios(
     @CorpoValidado(exclusaoHistoricoSchema) { ids }: ExclusaoHistoricoInput,
   ): Promise<ResultadoExclusaoHistorico> {
@@ -56,7 +60,7 @@ export class AuditoriaController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Permissoes('auditoria.excluir')
+  @Papeis('admin')
   async remover(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.auditoria.remover(id);
   }

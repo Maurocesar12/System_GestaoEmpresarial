@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { PapeisGuard } from './common/guards/papeis.guard';
 import { PermissoesGuard } from './common/guards/permissoes.guard';
 import { AuditoriaInterceptor } from './common/interceptors/auditoria.interceptor';
 import { validateEnv, type Env } from './config/env.schema';
@@ -95,6 +96,12 @@ import { IaModule } from './modules/ia/ia.module';
       // Roda depois do JwtAuthGuard — a ordem aqui é a ordem de execução.
       provide: APP_GUARD,
       useClass: PermissoesGuard,
+    },
+    {
+      // Papel é checado por último: quando a rota exige os dois, a mensagem que
+      // chega ao usuário é a mais específica das duas.
+      provide: APP_GUARD,
+      useClass: PapeisGuard,
     },
     {
       provide: APP_INTERCEPTOR,

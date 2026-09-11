@@ -4,7 +4,6 @@ import { Search, ScrollText } from 'lucide-react';
 import {
   ACOES_AUDITORIA,
   ENTIDADES_AUDITORIA,
-  possuiPermissao,
   type AcaoAuditoria,
   type EntidadeAuditoria,
   type Paginado,
@@ -78,10 +77,10 @@ export default async function PaginaHistorico({ searchParams }: Props) {
 
   const [historico, usuario] = await Promise.all([carregarHistorico(query), lerUsuarioDaSessao()]);
 
-  // Quem não pode excluir não vê o botão. A API recusa de qualquer forma — esta
-  // checagem existe para não oferecer uma ação que terminaria em "sem
-  // permissão", não como segurança.
-  const podeExcluir = usuario ? possuiPermissao(usuario, 'auditoria.excluir') : false;
+  // Excluir histórico é do administrador, e não uma permissão que se conceda a
+  // um funcionário — a API recusa qualquer outro papel. Esta checagem existe só
+  // para não oferecer uma ação que terminaria em "sem permissão".
+  const podeExcluir = usuario?.papel === 'admin';
 
   return (
     <div className="flex flex-col gap-6">

@@ -1,6 +1,16 @@
 import { formatarBRL, type AnalisePrevisaoFinanceira } from '@gestao/shared-types';
 import { AssistenteIa, type ContextoPrevisao, type ResultadoAssistenteIa } from './assistente-ia';
 
+/**
+ * Versão do conjunto de regras da análise local.
+ *
+ * Viaja no registro de consumo de IA, que é o que permite saber depois com
+ * qual lógica cada análise foi gerada. Suba o número junto com mudanças nas
+ * regras — e como a constante é usada também nos testes, ela não fica para
+ * trás quando isso acontece.
+ */
+export const MODELO_ANALISE_LOCAL = 'analise-local-v2';
+
 /** Análise gerencial baseada em regras, sem chamadas a provedores externos. */
 export class AssistenteDemonstracao extends AssistenteIa {
   analisarPrevisao(contexto: ContextoPrevisao): Promise<ResultadoAssistenteIa> {
@@ -22,7 +32,7 @@ export class AssistenteDemonstracao extends AssistenteIa {
 
     return Promise.resolve({
       modo: 'demonstracao',
-      modelo: 'analise-local-v2',
+      modelo: MODELO_ANALISE_LOCAL,
       inputTokens: 0,
       outputTokens: 0,
       analise: {
