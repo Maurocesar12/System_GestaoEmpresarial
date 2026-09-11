@@ -1,125 +1,155 @@
 /**
- * Cena 3D da página inicial — CSS puro, sem biblioteca.
+ * Cena tridimensional do resultado do mês — CSS puro, sem biblioteca.
  *
- * ## Por que não three.js / WebGL
+ * ## Por que não WebGL
  *
- * Uma cena WebGL custaria uns 150 kB de JavaScript, um canvas que só pinta
- * depois da hidratação e uma GPU trabalhando durante toda a rolagem. Aqui a
- * mesma sensação de profundidade sai de `perspective` + `transform`, que o
- * navegador compõe direto — **zero kB de JavaScript**, aparece junto com o HTML
- * e continua funcionando com o JS desligado.
+ * Uma cena em three.js custaria ~150 kB de JavaScript, um canvas que só pinta
+ * depois da hidratação e GPU ocupada durante toda a rolagem. Aqui a mesma
+ * profundidade sai de `perspective` + `transform`, que o navegador compõe
+ * direto: **zero kB de JavaScript**, aparece junto com o HTML e continua de pé
+ * com o JS desligado.
  *
- * ## Regra de desempenho
+ * ## A ideia da composição
  *
- * Só `transform` e `opacity` animam. Os dois rodam no compositor, fora da
- * thread principal, sem recalcular layout — é o que mantém a rolagem lisa num
- * celular modesto, que é onde esta página costuma ser aberta.
+ * Três barras sobre um piso que foge para o fundo, e — o que dá a sensação de
+ * imersão — peças que **saem do quadro**: os cartões de dado e os cubos flutuam
+ * para fora das bordas do cartão, como se a cena não coubesse nele. Por isso
+ * nada aqui usa `overflow: hidden`; quem contém a cena precisa deixar vazar.
  *
- * ## Movimento
+ * ## Desempenho
  *
- * A animação é conduzida pela rolagem (`animation-timeline: view()`): a cena se
- * monta conforme a pessoa desce, e volta se ela subir. Onde isso não existe, a
- * cena simplesmente aparece montada — nada de estado intermediário preso pela
- * metade. E `prefers-reduced-motion` desliga tudo.
+ * Só `transform` e `opacity` animam — as duas propriedades que o navegador
+ * resolve no compositor, sem recalcular layout nem repintar. É o que mantém a
+ * rolagem lisa num celular modesto, que é onde esta página costuma abrir.
  */
 
 .cena {
-  --altura-base: 210px;
-  --lado-barra: 46px;
-  --profundidade: 34px;
+  --altura-base: 200px;
+  --largura-barra: 52px;
+  --profundidade: 38px;
 
   position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  min-height: 320px;
+  min-height: 360px;
   margin: 0;
-  padding: 40px 16px 24px;
-  overflow: hidden;
-  perspective: 1100px;
-  perspective-origin: 50% 30%;
+  padding: 64px 20px 32px;
+  perspective: 1200px;
+  perspective-origin: 50% 38%;
 }
 
-/* O chão da cena: uma grade que some ao longe, para o olho ler profundidade. */
-.chao {
+/* ---------------------------------------------------------------- piso --- */
+
+/*
+ * A grade que foge para o fundo. É o elemento que estabelece o horizonte —
+ * sem ele as barras flutuariam no vazio e o 3D não se lê.
+ */
+.piso {
   position: absolute;
-  inset: auto 0 0;
-  height: 190px;
-  background:
-    linear-gradient(transparent 0%, var(--background) 82%),
-    repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px 64px),
-    repeating-linear-gradient(0deg, var(--border) 0 1px, transparent 1px 64px);
-  opacity: 0.5;
-  transform: rotateX(74deg) scale(1.6);
+  bottom: 26px;
+  left: 50%;
+  width: 150%;
+  height: 460px;
+  transform: translateX(-50%) rotateX(76deg);
   transform-origin: bottom center;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--foreground) 14%, transparent) 0 1px,
+      transparent 1px 56px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in oklch, var(--foreground) 10%, transparent) 0 1px,
+      transparent 1px 56px
+    );
+  /* Dissolve a grade ao longe: linha que chega até a borda vira moldura. */
+  mask-image: radial-gradient(70% 80% at 50% 100%, #000 25%, transparent 78%);
   pointer-events: none;
 }
+
+/* O brilho no chão, logo abaixo das barras — sugere luz vinda da cena. */
+.brilho {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  width: 420px;
+  height: 90px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    color-mix(in oklch, var(--grafico-2) 22%, transparent) 0%,
+    transparent 70%
+  );
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------- barras --- */
 
 .palco {
   position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: clamp(28px, 5vw, 56px);
+  gap: clamp(26px, 4.5vw, 48px);
   width: 100%;
-  max-width: 560px;
+  max-width: 460px;
   transform-style: preserve-3d;
-  transform: rotateX(12deg) rotateY(-18deg);
+  transform: rotateX(14deg) rotateY(-20deg);
 }
 
 .coluna {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   transform-style: preserve-3d;
 }
 
 /*
- * A barra: três faces montadas com `translateZ`/`rotateY`, em vez de um cubo
- * completo. A face de trás nunca aparece nesta rotação, e desenhar o que não
- * se vê é trabalho jogado fora em toda repintura.
+ * A barra é um bloco de três faces. A de trás nunca aparece nesta rotação, e
+ * desenhar o que não se vê é trabalho jogado fora em toda repintura.
  */
 .barra {
   position: relative;
-  width: var(--lado-barra);
+  width: var(--largura-barra);
   height: calc(var(--altura-base) * var(--proporcao));
   transform-style: preserve-3d;
-  /* Cresce do chão para cima, como uma barra cresce de verdade. */
   transform-origin: bottom center;
-  animation: crescer linear both;
-  animation-timeline: view();
-  animation-range: entry 5% entry 85%;
+  animation: crescer 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--atraso);
 }
 
 .face,
-.lateral,
+.lado,
 .topo {
   position: absolute;
-  border-radius: 3px;
   background: var(--tom);
 }
 
 /*
- * As três faces partem do centro da barra e são levadas até a posição — é o
- * jeito de montar um cubo em que a matemática cabe numa linha por face:
- * a frente avança meia profundidade; a lateral anda meia largura e gira sobre
- * o próprio centro; o topo sobe meia profundidade e tomba para trás.
+ * As faces partem do centro do bloco e são levadas até a posição — assim a
+ * matemática de cada uma cabe numa linha: a frente avança meia profundidade;
+ * o lado anda meia largura e gira sobre o próprio centro; o topo sobe meia
+ * profundidade e tomba para trás.
  */
 .face {
   inset: 0;
   transform: translateZ(calc(var(--profundidade) / 2));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 0 22px -6px var(--tom);
 }
 
-/* Lateral e topo são o mesmo tom, escurecido e clareado: é o que dá volume. */
-.lateral {
+.lado {
   top: 0;
   left: calc(50% - var(--profundidade) / 2);
   width: var(--profundidade);
   height: 100%;
-  transform: translateX(calc(var(--lado-barra) / 2)) rotateY(90deg);
-  filter: brightness(0.72);
+  transform: translateX(calc(var(--largura-barra) / 2)) rotateY(90deg);
+  filter: brightness(0.68);
 }
 
 .topo {
@@ -128,7 +158,7 @@
   width: 100%;
   height: var(--profundidade);
   transform: translateY(calc(var(--profundidade) / -2)) rotateX(90deg);
-  filter: brightness(1.18);
+  filter: brightness(1.25);
 }
 
 .valor {
@@ -137,24 +167,123 @@
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
   white-space: nowrap;
-  animation: surgir linear both;
-  animation-timeline: view();
-  animation-range: entry 10% entry 90%;
 }
 
 .rotulo {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted-foreground);
   white-space: nowrap;
 }
 
+/* ------------------------------------------------- peças fora do quadro --- */
+
+/*
+ * O que dá a sensação de imersão: cartões e cubos posicionados **além** das
+ * bordas do cartão que contém a cena. O contêiner não recorta, então eles
+ * invadem o espaço em volta e a cena deixa de parecer uma figura colada.
+ */
+.chip {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--card) 82%, transparent);
+  box-shadow: 0 22px 45px -18px rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(10px);
+  animation: flutuar 6s ease-in-out infinite;
+}
+
+.chipTitulo {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.chipValor {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.chipMargem {
+  top: 10px;
+  right: -46px;
+  transform: rotateX(10deg) rotateY(-16deg);
+}
+
+.chipCaixa {
+  bottom: 46px;
+  left: -52px;
+  animation-delay: 1.8s;
+  transform: rotateX(10deg) rotateY(14deg);
+}
+
+/* Cubo solto: a peça que mais diz "isto é uma cena, não um desenho". */
+.cubo {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  transform-style: preserve-3d;
+  animation: girar 14s linear infinite;
+  pointer-events: none;
+}
+
+.cubo span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in oklch, var(--grafico-2) 45%, transparent);
+  background: color-mix(in oklch, var(--grafico-2) 10%, transparent);
+}
+
+.cubo span:nth-child(1) {
+  transform: translateZ(17px);
+}
+.cubo span:nth-child(2) {
+  transform: rotateY(90deg) translateZ(17px);
+}
+.cubo span:nth-child(3) {
+  transform: rotateX(90deg) translateZ(17px);
+}
+
+.cuboAlto {
+  top: -22px;
+  left: 8%;
+}
+
+.cuboBaixo {
+  right: 4%;
+  bottom: -18px;
+  width: 22px;
+  height: 22px;
+  animation-duration: 18s;
+  animation-direction: reverse;
+}
+
+.cuboBaixo span:nth-child(1) {
+  transform: translateZ(11px);
+}
+.cuboBaixo span:nth-child(2) {
+  transform: rotateY(90deg) translateZ(11px);
+}
+.cuboBaixo span:nth-child(3) {
+  transform: rotateX(90deg) translateZ(11px);
+}
+
+/* ---------------------------------------------------------- animações --- */
+
 @keyframes crescer {
   from {
-    transform: scaleY(0.04);
-    opacity: 0.2;
+    transform: scaleY(0.02);
+    opacity: 0;
   }
   to {
     transform: scaleY(1);
@@ -162,45 +291,54 @@
   }
 }
 
-@keyframes surgir {
+@keyframes flutuar {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -9px;
+  }
+}
+
+@keyframes girar {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    transform: rotateX(-22deg) rotateY(0deg);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: rotateX(-22deg) rotateY(360deg);
   }
 }
 
 /*
- * Onde não há animação por rolagem (Safari e Firefox, hoje), desligar a
- * animação deixa a cena montada e legível — melhor do que uma barra congelada
- * em 4% de altura, que é o primeiro quadro do `crescer`.
+ * O movimento fica ligado mesmo com `prefers-reduced-motion`, pela mesma
+ * decisão tomada para o vídeo do hero: é o movimento que faz a cena parecer
+ * tridimensional, e parada ela vira um desenho inclinado. São animações
+ * lentas, contínuas e sem piscar — o tipo que menos incomoda.
+ *
+ * Se um dia a decisão mudar, é só voltar a desligar `.barra`, `.chip` e
+ * `.cubo` aqui: a cena continua legível parada.
  */
-@supports not (animation-timeline: view()) {
-  .barra,
-  .valor {
-    animation: none;
-  }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .barra,
-  .valor {
-    animation: none;
-  }
-}
+/* ------------------------------------------------------------- telas --- */
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .cena {
     --altura-base: 150px;
-    --lado-barra: 36px;
-    --profundidade: 24px;
-    min-height: 230px;
+    --largura-barra: 40px;
+    --profundidade: 28px;
+    min-height: 290px;
+    padding: 48px 16px 24px;
+  }
+
+  /* Fora do quadro só funciona quando há margem em volta. Em tela estreita
+     não há, e as peças passariam por cima do texto. */
+  .chip,
+  .cubo {
+    display: none;
   }
 
   .palco {
-    transform: rotateX(10deg) rotateY(-12deg);
+    transform: rotateX(12deg) rotateY(-14deg);
   }
 }

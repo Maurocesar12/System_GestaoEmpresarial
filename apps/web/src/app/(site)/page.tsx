@@ -113,7 +113,10 @@ function Recursos() {
  */
 function Resultado() {
   return (
-    <section id="resultado" className="scroll-mt-16 border-b">
+    // `overflow-x-clip` fica na seção, e não no cartão: as peças da cena
+    // precisam escapar do cartão — é o que dá a profundidade —, mas não podem
+    // criar barra de rolagem horizontal na página.
+    <section id="resultado" className="scroll-mt-16 overflow-x-clip border-b">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-[1fr_1fr] lg:py-24">
         <div className="flex flex-col gap-5">
           <CabecalhoSecao
