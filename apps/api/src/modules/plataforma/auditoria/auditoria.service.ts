@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  CODIGOS_ERRO,
   paginar,
   type AcaoAuditoria,
   type AuditoriaQuery,
@@ -87,10 +88,44 @@ export class AuditoriaService {
     );
   }
 
+  /**
+   * Exclui um registro. Some da lista quem já não existe mais: 404.
+   *
+   * O 404 é o que distingue "outra pessoa apagou antes de você" de "apaguei" —
+   * sem ele a tela confirmaria uma exclusão que não aconteceu.
+   */
   async remover(id: string): Promise<void> {
-    const removido = await this.prisma.comTenant(async (tx) => {
-      const registro = await tx.logAuditoria.findFirst({
-        where: { id, tenantId: tenantAtual() },
+    const removidos = await this.removerVarios([id]);
+
+    if (removidos === 0) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Histórico não encontrado.',
+      });
+    }
+  }
+
+  /**
+   * Exclui um lote de registros e devolve quantos saíram de fato.
+   *
+   * Tudo numa transação só: apagar o histórico e registrar quem o apagou não
+   * podem se separar — se a segunda parte falhasse, o rastro sumiria sem deixar
+   * vestígio, que é exatamente o que a auditoria existe para impedir.
+   *
+   * Ids que não existem mais (ou são de outra empresa, que a RLS já esconde)
+   * são simplesmente ignorados: o número devolvido conta só o que foi apagado
+   * agora, e é ele que a tela usa para avisar o usuário.
+   */
+  async removerVarios(ids: readonly string[]): Promise<number> {
+    const unicos = [...new Set(ids)];
+
+    if (unicos.length === 0) return 0;
+
+    return this.prisma.comTenant(async (tx) => {
+      // Lê antes de apagar: o registro da exclusão guarda o conteúdo removido,
+      // e depois do `delete` não haveria mais de onde tirá-lo.
+      const registros = await tx.logAuditoria.findMany({
+        where: { id: { in: unicos } },
         select: {
           id: true,
           usuarioId: true,
@@ -102,32 +137,24 @@ export class AuditoriaService {
         },
       });
 
-      if (!registro) return false;
+      if (registros.length === 0) return 0;
 
-      await tx.logAuditoria.deleteMany({ where: { id: registro.id, tenantId: tenantAtual() } });
-
-      await this.registrar(tx, {
-        entidade: 'auditoria',
-        entidadeId: registro.id,
-        acao: 'excluiu',
-        resumo: `Histórico excluído: ${registro.resumo ?? this.montarResumo(registro)}`,
-        antes: {
-          id: registro.id,
-          usuarioId: registro.usuarioId,
-          entidade: registro.entidade,
-          entidadeId: registro.entidadeId,
-          acao: registro.acao,
-          resumo: registro.resumo,
-          criadoEm: registro.criadoEm.toISOString(),
-        },
+      const { count } = await tx.logAuditoria.deleteMany({
+        where: { id: { in: registros.map((registro) => registro.id) } },
       });
 
-      return true;
-    });
+      for (const registro of registros) {
+        await this.registrar(tx, {
+          entidade: 'auditoria',
+          entidadeId: registro.id,
+          acao: 'excluiu',
+          resumo: `Histórico excluído: ${registro.resumo ?? this.montarResumo(registro)}`,
+          antes: { ...registro, criadoEm: registro.criadoEm.toISOString() },
+        });
+      }
 
-    if (!removido) {
-      throw new NotFoundException('Histórico não encontrado.');
-    }
+      return count;
+    });
   }
 
   private montarFiltro(query: AuditoriaQuery): Prisma.LogAuditoriaWhereInput {

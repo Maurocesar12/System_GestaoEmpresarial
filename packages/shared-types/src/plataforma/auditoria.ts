@@ -61,3 +61,29 @@ export interface RegistroAuditoria {
   depois: unknown;
   criadoEm: string;
 }
+
+/**
+ * Teto de uma exclusão em lote.
+ *
+ * A remoção roda numa transação só — o que garante que o histórico e o registro
+ * da própria exclusão nunca divirjam. Transação longa segura conexão do pool e
+ * bloqueia linhas, então o lote tem tamanho máximo: a tela pagina de 30 em 30 e
+ * nunca chega perto disso.
+ */
+export const LIMITE_EXCLUSAO_HISTORICO = 100;
+
+export const exclusaoHistoricoSchema = z.object({
+  ids: z
+    .array(z.uuid('Histórico inválido.'))
+    .min(1, 'Selecione ao menos um histórico para excluir.')
+    .max(LIMITE_EXCLUSAO_HISTORICO, `Exclua no máximo ${LIMITE_EXCLUSAO_HISTORICO} por vez.`)
+    // Clicar duas vezes na mesma linha não pode contar como dois registros.
+    .transform((ids) => [...new Set(ids)]),
+});
+
+export type ExclusaoHistoricoInput = z.infer<typeof exclusaoHistoricoSchema>;
+
+/** Quantos registros a exclusão realmente apagou — pode ser menos que o pedido. */
+export interface ResultadoExclusaoHistorico {
+  removidos: number;
+}

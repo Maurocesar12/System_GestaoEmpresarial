@@ -4,6 +4,7 @@ import { Search, ScrollText } from 'lucide-react';
 import {
   ACOES_AUDITORIA,
   ENTIDADES_AUDITORIA,
+  possuiPermissao,
   type AcaoAuditoria,
   type EntidadeAuditoria,
   type Paginado,
@@ -19,6 +20,7 @@ import { Paginacao } from '@/components/ui/paginacao';
 import { Selecao } from '@/components/ui/selecao';
 import { ApiRequestError } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
+import { lerUsuarioDaSessao } from '@/lib/sessao';
 import { TabelaHistorico } from './tabela-historico';
 
 export const metadata: Metadata = { title: 'Histórico' };
@@ -74,7 +76,12 @@ export default async function PaginaHistorico({ searchParams }: Props) {
     if (filtros[chave]) query.set(chave, filtros[chave]);
   }
 
-  const historico = await carregarHistorico(query);
+  const [historico, usuario] = await Promise.all([carregarHistorico(query), lerUsuarioDaSessao()]);
+
+  // Quem não pode excluir não vê o botão. A API recusa de qualquer forma — esta
+  // checagem existe para não oferecer uma ação que terminaria em "sem
+  // permissão", não como segurança.
+  const podeExcluir = usuario ? possuiPermissao(usuario, 'auditoria.excluir') : false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,7 +92,7 @@ export default async function PaginaHistorico({ searchParams }: Props) {
 
       <Filtros filtros={filtros} />
 
-      <ConteudoHistorico historico={historico} filtros={filtros} />
+      <ConteudoHistorico historico={historico} filtros={filtros} podeExcluir={podeExcluir} />
     </div>
   );
 }
@@ -117,9 +124,11 @@ async function carregarHistorico(query: URLSearchParams): Promise<
 function ConteudoHistorico({
   filtros,
   historico,
+  podeExcluir,
 }: {
   filtros: Awaited<Props['searchParams']>;
   historico: Awaited<ReturnType<typeof carregarHistorico>>;
+  podeExcluir: boolean;
 }) {
   if (!historico.sucesso) return <AvisoErro mensagem={historico.erro} />;
 
@@ -135,7 +144,10 @@ function ConteudoHistorico({
 
   return (
     <>
-      <TabelaHistorico registros={historico.registros.map(mapearLinhaHistorico)} />
+      <TabelaHistorico
+        registros={historico.registros.map(mapearLinhaHistorico)}
+        podeExcluir={podeExcluir}
+      />
 
       <Paginacao
         meta={historico.meta}
