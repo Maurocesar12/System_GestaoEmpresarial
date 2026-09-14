@@ -169,6 +169,15 @@ export default async function PaginaPainel() {
         {reativacao && <CartaoReativacao reativacao={reativacao} />}
       </div>
 
+      {/*
+        O dinheiro vem antes da operação, e não no fim da página. Ele estava
+        depois de cinco blocos — quem abria o painel rolava meia tela até o
+        número que mais decide o dia.
+      */}
+      {financeiro && <GraficoResumoPainel serie={financeiro.serie} />}
+
+      {financeiro && <ContasEmAberto financeiro={financeiro} />}
+
       <div className="grid gap-4 lg:grid-cols-2">
         {funil && <BlocoDoFunil funil={funil} />}
 
@@ -308,10 +317,6 @@ export default async function PaginaPainel() {
           />
         )}
       </div>
-
-      {financeiro && <GraficoResumoPainel serie={financeiro.serie} />}
-
-      {financeiro && <ContasEmAberto financeiro={financeiro} />}
 
       {painel.atividade.length > 0 && <Atividade eventos={painel.atividade} />}
     </div>
