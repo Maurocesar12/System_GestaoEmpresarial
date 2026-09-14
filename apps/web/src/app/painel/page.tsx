@@ -20,6 +20,7 @@ import {
   DIAS_PARA_REATIVACAO,
   formatarBRL,
   formatarEspera,
+  possuiPermissao,
   ROTULO_MOTIVO_REATIVACAO,
   ROTULO_SITUACAO_LEAD,
   type AlertaDoPainel,
@@ -44,9 +45,11 @@ import { Selo } from '@/components/ui/selo';
 import { apiComSessao } from '@/lib/api-servidor';
 import { linkTelefone, linkWhatsApp } from '@/lib/contato';
 import { formatarQuando } from '@/lib/formatacao';
+import { lerUsuarioDaSessao } from '@/lib/sessao';
 import { cn } from '@/lib/utils';
 import { AtualizacaoAutomatica } from './atualizacao-automatica';
 import { GraficoResumoPainel } from './grafico-resumo-painel';
+import { NovoLead } from './novo-lead';
 
 export const metadata: Metadata = {
   title: 'Painel',
@@ -75,13 +78,21 @@ export const metadata: Metadata = {
  * eles não saem do banco.
  */
 export default async function PaginaPainel() {
-  const painel = await apiComSessao<PainelTempoReal>('/painel/tempo-real');
+  const [painel, usuario] = await Promise.all([
+    apiComSessao<PainelTempoReal>('/painel/tempo-real'),
+    lerUsuarioDaSessao(),
+  ]);
 
   if (painel.totalClientes === 0) {
     return <PrimeirosPassos />;
   }
 
   const { leads, funil, comercial, agenda, followUps, reativacao, financeiro } = painel;
+
+  // Sem cookie legível, o botão aparece: a API recusa de verdade quem não pode
+  // cadastrar, e esconder a ação de um administrador por causa de um cookie
+  // ausente seria o pior dos dois erros possíveis.
+  const podeCriarLead = !usuario || possuiPermissao(usuario, 'clientes.criar');
 
   return (
     <div className="flex flex-col gap-6">
@@ -154,7 +165,7 @@ export default async function PaginaPainel() {
         Os dois não têm tela própria — o cartão é a lista inteira.
       */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {leads && <CartaoLeads leads={leads} />}
+        {leads && <CartaoLeads leads={leads} podeCriar={podeCriarLead} />}
         {reativacao && <CartaoReativacao reativacao={reativacao} />}
       </div>
 
@@ -326,15 +337,25 @@ const TOM_DO_MOTIVO: Record<MotivoReativacao, 'sucesso' | 'perigo' | 'atencao' |
 };
 
 /**
- * Cartão de leads: a fila de entrada inteira, aqui mesmo.
+ * Cartão de leads: a fila de entrada do CRM, com a porta de entrada junto.
  *
  * Não é amostra com link para uma tela maior — leads não tem tela própria. O
- * cartão precisa então responder sozinho as três perguntas do começo do dia:
- * quem chegou, em que pé está, e quem ainda não recebeu contato. Por isso ele
- * traz a quebra por situação no topo, o tempo de espera destacado em quem
- * aguarda e o botão de falar com a pessoa na própria linha.
+ * cartão responde sozinho as três perguntas do começo do dia (quem chegou, em
+ * que pé está, quem ainda não recebeu contato) e resolve a quarta: **registrar
+ * o que acabou de chegar**, sem sair daqui.
+ *
+ * O "Novo lead" fica na linha do resumo, e não no cabeçalho: aberto, o
+ * formulário precisa da largura inteira do cartão, e ali ele quebra para a
+ * própria linha sem espremer o título.
  */
-function CartaoLeads({ leads }: { leads: NonNullable<PainelTempoReal['leads']> }) {
+function CartaoLeads({
+  leads,
+  podeCriar,
+}: {
+  leads: NonNullable<PainelTempoReal['leads']>;
+  /** Cortesia com o usuário: quem não pode cadastrar não vê o botão. A API é quem recusa de verdade. */
+  podeCriar: boolean;
+}) {
   const emContato = Math.max(
     0,
     leads.noPeriodo - leads.aguardandoContato - leads.comProposta - leads.ganhos,
@@ -353,8 +374,8 @@ function CartaoLeads({ leads }: { leads: NonNullable<PainelTempoReal['leads']> }
         </span>
       </CartaoCabecalho>
 
-      {leads.noPeriodo > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-b px-4 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
+        <div className="flex flex-wrap gap-1.5">
           {leads.aguardandoContato > 0 && (
             <Selo tom="atencao" comPonto>
               {leads.aguardandoContato} aguardando
@@ -372,17 +393,18 @@ function CartaoLeads({ leads }: { leads: NonNullable<PainelTempoReal['leads']> }
             </Selo>
           )}
         </div>
-      )}
+
+        {podeCriar && <NovoLead origensConhecidas={leads.porOrigem.map((item) => item.origem)} />}
+      </div>
 
       {leads.ultimos.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-10 text-center">
           <p className="text-muted-foreground text-sm">Nenhum lead novo nos últimos 30 dias.</p>
-          <Link
-            href="/painel/clientes/novo"
-            className={estilosBotao({ variante: 'secundario', tamanho: 'sm' })}
-          >
-            Cadastrar lead
-          </Link>
+          <p className="text-muted-foreground max-w-xs text-xs">
+            {podeCriar
+              ? 'Use "Novo lead" aqui em cima para registrar quem acabou de entrar em contato.'
+              : 'Quem for cadastrado como cliente aparece aqui automaticamente.'}
+          </p>
         </div>
       ) : (
         <CartaoLista className="flex-1">

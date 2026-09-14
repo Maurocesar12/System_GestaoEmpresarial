@@ -103,6 +103,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Clientes > Novo cliente**. Só o nome é obrigatório; telefone, e-mail, CPF/CNPJ e observações são opcionais.\n\n' +
+      'Para quem acabou de ligar, o caminho mais rápido é o botão "Novo lead", no cartão de leads do Início: ele cadastra o cliente na hora, sem sair da tela.\n\n' +
       'Telefone e documento podem ser digitados com ou sem máscara — o sistema guarda só os dígitos e formata na exibição.\n\n' +
       'Todo cliente novo entra automaticamente na primeira etapa do funil: o cadastro é o começo da relação comercial.\n\n' +
       'A busca da listagem procura por nome, e-mail e telefone ao mesmo tempo, então serve tanto para quem lembra o nome quanto para quem só tem o número que ligou.',
@@ -156,7 +157,8 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       '• **Proposta enviada** — existe orçamento em aberto.\n' +
       '• **Fechado** — existe orçamento aprovado.\n\n' +
       'Quem está aguardando há mais de 24 horas aparece destacado e vira alerta no topo do painel. Cada linha traz o atalho de WhatsApp e de ligação, para falar com a pessoa sem abrir a ficha.\n\n' +
-      'Preencha o campo **Origem** no cadastro do cliente para saber de onde vêm seus leads.',
+      'Para **registrar um lead que acabou de chegar**, use o botão "Novo lead" no próprio cartão: pede só o nome, e telefone, e-mail e origem se você tiver. O lead entra na fila na hora e o formulário continua aberto para o próximo — o resto da ficha fica para depois, na tela do cliente.\n\n' +
+      'Preencha a **origem** sempre que souber de onde a pessoa veio: é o que faz o resumo por canal valer alguma coisa. O campo sugere as origens que você já usou, para "Instagram" e "instagram" não virarem duas linhas diferentes.',
     relacionados: ['reativacao', 'clientes-cadastro', 'funil'],
   },
   {

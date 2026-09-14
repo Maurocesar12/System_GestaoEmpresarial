@@ -46,9 +46,10 @@ Já implementado:
 - Onboarding self-service criando tenant, usuário admin e dados-semente.
 - Isolamento multi-tenant com contexto por requisição, Prisma extension e RLS.
 - Clientes, histórico de atendimentos e origem/UTM.
-- Cartão de leads no painel: a fila de quem chegou, com situação calculada
-  (aguardando contato, em contato, proposta enviada, fechado) e atalho de
-  WhatsApp ou ligação em cada linha.
+- Cartão de leads no painel: cadastro rápido do lead que acabou de chegar
+  (nome, telefone, e-mail e origem, sem sair da tela) e a fila de quem chegou,
+  com situação calculada (aguardando contato, em contato, proposta enviada,
+  fechado) e atalho de WhatsApp ou ligação em cada linha.
 - Cartão de reativação no painel: clientes frios ranqueados por quanto já
   fecharam, com o motivo de cada um (comprou e sumiu, recusou, sem resposta,
   nunca fechou) e o atalho para agendar o retorno.
