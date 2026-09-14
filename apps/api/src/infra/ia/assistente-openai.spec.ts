@@ -1,12 +1,14 @@
 import { Logger } from '@nestjs/common';
 import { MODELO_ANALISE_LOCAL } from './assistente-demonstracao';
 import { AssistenteOpenAI } from './assistente-openai';
+import { negocioDeTeste } from './fixtures-previsao';
 
 const CONTEXTO = {
   identificadorSeguro: 'hash-seguro',
   saldoAtual: '1000.00',
   historico: [],
   projecoes: [],
+  negocio: negocioDeTeste(),
 };
 
 describe('AssistenteOpenAI', () => {

@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import {
   chatIaSchema,
   gerarPrevisaoFinanceiraSchema,
+  type CapacidadesChat,
   type ChatIaInput,
   type ChatIaResponse,
   type ConsumoIaResponse,
@@ -40,6 +41,18 @@ export class IaController {
     @CorpoValidado(gerarPrevisaoFinanceiraSchema) dados: GerarPrevisaoFinanceiraInput,
   ): Promise<PrevisaoFinanceiraResponse> {
     return this.previsao.gerar(dados);
+  }
+
+  /**
+   * O que o chat oferece a este usuário.
+   *
+   * Consultado antes da primeira pergunta: é o plano da empresa que decide se a
+   * janela abre como ajuda do sistema ou como assistente com IA, e a tela
+   * precisa saber disso para não se apresentar errado.
+   */
+  @Get('chat/capacidades')
+  capacidadesDoChat(): Promise<CapacidadesChat> {
+    return this.chat.capacidades();
   }
 
   @Post('chat')

@@ -1,4 +1,4 @@
-import { formatarBRL, type FluxoDeCaixa } from '@gestao/shared-types';
+import { formatarBRL, type BlocoFinanceiro } from '@gestao/shared-types';
 import {
   Activity,
   ArrowDownRight,
@@ -26,12 +26,17 @@ interface PontoResumo {
   saldo: number;
 }
 
-export function GraficoResumoPainel({ fluxos }: { fluxos: FluxoDeCaixa[] }) {
-  const pontos = fluxos.map((fluxo) => ({
-    mes: fluxo.periodo.de.slice(0, 7),
-    entradas: Number(fluxo.entradas),
-    saidas: Number(fluxo.saidas),
-    saldo: Number(fluxo.saldo),
+/**
+ * A série mensal chega pronta do painel, e não de seis consultas de fluxo de
+ * caixa como antes: a tela inteira agora vem de uma leitura só, então os seis
+ * meses do gráfico são o mesmo instante do resto dos números.
+ */
+export function GraficoResumoPainel({ serie }: { serie: BlocoFinanceiro['serie'] }) {
+  const pontos = serie.map((mes) => ({
+    mes: mes.mes,
+    entradas: Number(mes.entradas),
+    saidas: Number(mes.saidas),
+    saldo: Number(mes.saldo),
   }));
 
   const totalEntradas = somar(pontos, 'entradas');

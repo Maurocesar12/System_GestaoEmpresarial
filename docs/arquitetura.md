@@ -132,6 +132,10 @@ Para vazar dado seria preciso furar as três camadas ao mesmo tempo.
 
 ### Núcleo — CRM
 - **ClientesModule** — cadastro e histórico de atendimento.
+- **LeadsModule** — leituras derivadas da carteira: fila de entrada (quem chegou
+  e ainda não foi atendido) e lista de reativação (quem esfriou). Sem tabela
+  própria — é consulta sobre cliente, atendimento, orçamento e agendamento, o
+  que impede a lista de envelhecer.
 - **FunilModule** — etapas e movimentação do cliente entre elas.
 - **ServicosModule** — catálogo de serviços do tenant.
 - **OrcamentosModule** — orçamentos e status.
@@ -143,6 +147,15 @@ Para vazar dado seria preciso furar as três camadas ao mesmo tempo.
 - **FinanceiroModule** — lançamentos de entrada e saída, separação pessoal/empresa.
 - **CustosModule** — custos fixos e variáveis, custo operacional diário.
 - **RelatoriosModule** — fluxo de caixa, faturamento semanal/mensal, margem por serviço, pró-labore, reserva.
+
+### Transversal
+- **PainelModule** — a tela inicial em uma requisição: lê leads, funil,
+  comercial, agenda, follow-ups, reativação, caixa e atividade na **mesma
+  transação**, para que o painel inteiro mostre o mesmo instante. Cada bloco só
+  é consultado se a permissão de quem pediu alcança o assunto (§9.5).
+- **IaModule** — o chat (ajuda do sistema em todos os planos, assistente com IA
+  no Premium) e a previsão financeira. O chat com IA reaproveita o
+  `PainelService`, para nunca contradizer a tela aberta ao lado.
 
 ### Beta
 - **MarketingModule** — origem de lead, UTM, formulário embedável, métricas de conversão.

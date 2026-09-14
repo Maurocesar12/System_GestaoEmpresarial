@@ -15,12 +15,14 @@ import { AgendamentosModule } from './modules/crm/agendamentos/agendamentos.modu
 import { AtendimentosModule } from './modules/crm/atendimentos/atendimentos.module';
 import { ClientesModule } from './modules/crm/clientes/clientes.module';
 import { FunilModule } from './modules/crm/funil/funil.module';
+import { LeadsModule } from './modules/crm/leads/leads.module';
 import { LembretesModule } from './modules/crm/lembretes/lembretes.module';
 import { OrcamentosModule } from './modules/crm/orcamentos/orcamentos.module';
 import { ServicosModule } from './modules/crm/servicos/servicos.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { HealthModule } from './modules/health/health.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { PainelModule } from './modules/painel/painel.module';
 import { EquipeModule } from './modules/plataforma/equipe/equipe.module';
 import { AuditoriaModule } from './modules/plataforma/auditoria/auditoria.module';
 import { ConfiguracoesModule } from './modules/plataforma/configuracoes/configuracoes.module';
@@ -72,12 +74,14 @@ import { IaModule } from './modules/ia/ia.module';
     ClientesModule,
     AtendimentosModule,
     FunilModule,
+    LeadsModule,
     ServicosModule,
     OrcamentosModule,
     AgendamentosModule,
     LembretesModule,
     FinanceiroModule,
     IaModule,
+    PainelModule,
     HealthModule,
   ],
   providers: [

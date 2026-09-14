@@ -58,7 +58,7 @@ const PLANOS = [
     nome: 'Básico',
     preco: '100.00',
     descricao:
-      'Para organizar CRM, agenda, clientes e financeiro com previsões gratuitas limitadas.',
+      'Para organizar leads, CRM, agenda, clientes e financeiro, com assistente de ajuda do sistema.',
     nivel: 1,
     destaque: false,
     usuariosInclusos: 2,
@@ -67,7 +67,10 @@ const PLANOS = [
     limiteClientes: 500,
     limiteEnviosMensais: 300,
     iaHabilitada: false,
-    limitePrevisoesIaMensais: 3,
+    // Zero, e não três: a previsão deixou de existir em versão gratuita. A
+    // "IA gratuita" anterior era uma análise local por regras com aparência de
+    // IA — quem a usava decidia com uma média achando que tinha uma projeção.
+    limitePrevisoesIaMensais: 0,
     ativo: true,
   },
   {
@@ -75,7 +78,7 @@ const PLANOS = [
     nome: 'Premium',
     preco: '200.00',
     descricao:
-      'Para empresas que querem mais usuários, mais clientes e previsões financeiras com IA em volume.',
+      'Para quem quer o assistente com IA sobre os próprios números, previsão financeira completa, mais usuários e mais clientes.',
     nivel: 2,
     destaque: true,
     usuariosInclusos: 5,

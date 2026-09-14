@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import {
   formatarBRL,
-  LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
   mensagemDeAcesso,
   type ConsumoIaResponse,
   type PlanoCatalogo,
@@ -174,10 +173,16 @@ function Plano({ plano, atual }: { plano: PlanoCatalogo; atual: boolean }) {
   );
 }
 
+/**
+ * O que cada plano entrega.
+ *
+ * A linha da IA mudou de sentido: o plano sem IA não tem mais "previsões
+ * gratuitas" — tem o assistente de ajuda, que responde sobre o sistema. Anunciar
+ * uma cota de previsões que não existe era o que fazia alguém assinar o Básico
+ * esperando o que só o Premium entrega.
+ */
 function itensDoPlano(plano: PlanoCatalogo): string[] {
-  const previsoes =
-    plano.limitePrevisoesIaMensais ??
-    (plano.iaHabilitada ? 'previsões sem limite definido' : LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS);
+  const previsoes = plano.limitePrevisoesIaMensais ?? 'Previsões sem limite definido';
 
   return [
     plano.usuariosInclusos === null
@@ -190,9 +195,14 @@ function itensDoPlano(plano: PlanoCatalogo): string[] {
     plano.limiteClientes === null
       ? 'Clientes sem limite definido'
       : `${plano.limiteClientes.toLocaleString('pt-BR')} clientes`,
-    'CRM, funil, agenda, financeiro e histórico',
+    'CRM, leads, reativação, funil, agenda, financeiro e histórico',
     plano.iaHabilitada
-      ? `${previsoes} previsões financeiras com IA por mês`
-      : `${previsoes} previsões gratuitas com IA por mês`,
+      ? 'Assistente com IA sobre os seus números'
+      : 'Assistente de ajuda sobre o uso do sistema',
+    plano.iaHabilitada
+      ? typeof previsoes === 'number'
+        ? `${previsoes} previsões financeiras com IA por mês`
+        : previsoes
+      : 'Previsão financeira com IA: somente no Premium',
   ];
 }

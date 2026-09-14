@@ -46,6 +46,13 @@ Já implementado:
 - Onboarding self-service criando tenant, usuário admin e dados-semente.
 - Isolamento multi-tenant com contexto por requisição, Prisma extension e RLS.
 - Clientes, histórico de atendimentos e origem/UTM.
+- Entrada de leads: fila do que chegou, com situação calculada (aguardando
+  contato, em contato, proposta enviada, fechado) e resumo por origem.
+- Lista de reativação: clientes frios ranqueados por quanto já fecharam, com o
+  motivo de cada um (comprou e sumiu, recusou, sem resposta, nunca fechou).
+- Painel inicial em tempo real: uma requisição só, alertas do que precisa de
+  ação, blocos de leads, funil, agenda, follow-ups, reativação e caixa, com
+  atualização automática a cada 30 segundos e feed do que acabou de acontecer.
 - Funil de vendas com etapas configuráveis e movimentação por kanban.
 - Catálogo de serviços.
 - Orçamentos com status e movimentação automática no funil.
@@ -54,7 +61,14 @@ Já implementado:
 - Envio automático dos lembretes por e-mail: varredura agendada, fila BullMQ e
   worker. Depende de `REDIS_URL`; sem ela os lembretes ficam pendentes.
 - Financeiro com categorias, lançamentos, fluxo de caixa e margem por serviço.
-- Previsão financeira com IA no plano Premium, com modo local sem custo para desenvolvimento.
+- Assistente de ajuda sobre o uso do sistema, em todos os planos, sem custo e
+  sem ler dados da empresa.
+- Assistente com IA no plano Premium, conversando sobre o mesmo panorama que o
+  painel mostra e respeitando as permissões de quem pergunta.
+- Previsão financeira com IA no plano Premium: além do extrato, considera
+  propostas em aberto, taxa de conversão, agendamentos futuros, pró-labore e
+  contas vencidas, com cenários e oportunidades. Modo local sem custo para
+  desenvolvimento.
 - Consumo de IA, tokens e custo estimado atribuídos por empresa e usuário.
 - Planos Básico (R$ 100) e Premium (R$ 200), com vagas incluídas, cobrança estimada
   por usuário ativo adicional e limites aplicados pela API.
@@ -265,21 +279,21 @@ Arquivo local: `apps/api/.env`.
 
 Principais variáveis:
 
-| Variável                  | Descrição                                       |
-| ------------------------- | ----------------------------------------------- |
+| Variável                  | Descrição                                          |
+| ------------------------- | -------------------------------------------------- |
 | `DATABASE_URL`            | Conexão da aplicação com PostgreSQL, sem BYPASSRLS |
-| `TEST_DATABASE_URL`       | Conexão usada pelos testes de integração        |
-| `ADMIN_DATABASE_URL`      | Conexão administrativa para migrations e seed   |
-| `JWT_SECRET`              | Segredo para assinar JWT, mínimo 32 caracteres  |
-| `CORS_ORIGINS`            | Origens liberadas, separadas por vírgula        |
-| `APP_URL`                 | URL do frontend usada nos convites da equipe    |
-| `ONBOARDING_PLANO_PADRAO` | Plano usado no cadastro inicial                 |
-| `ONBOARDING_TRIAL_DIAS`   | Duração do trial                                |
-| `REDIS_URL`               | Reservado para BullMQ/Upstash                   |
-| `SMTP_URL`                | Conexão SMTP usada em convites e lembretes      |
-| `EMAIL_REMETENTE`         | Nome e e-mail do domínio remetente              |
-| `OPENAI_API_KEY`          | Chave privada da OpenAI; vazia usa demonstração |
-| `OPENAI_MODEL`            | Modelo usado na análise financeira              |
+| `TEST_DATABASE_URL`       | Conexão usada pelos testes de integração           |
+| `ADMIN_DATABASE_URL`      | Conexão administrativa para migrations e seed      |
+| `JWT_SECRET`              | Segredo para assinar JWT, mínimo 32 caracteres     |
+| `CORS_ORIGINS`            | Origens liberadas, separadas por vírgula           |
+| `APP_URL`                 | URL do frontend usada nos convites da equipe       |
+| `ONBOARDING_PLANO_PADRAO` | Plano usado no cadastro inicial                    |
+| `ONBOARDING_TRIAL_DIAS`   | Duração do trial                                   |
+| `REDIS_URL`               | Reservado para BullMQ/Upstash                      |
+| `SMTP_URL`                | Conexão SMTP usada em convites e lembretes         |
+| `EMAIL_REMETENTE`         | Nome e e-mail do domínio remetente                 |
+| `OPENAI_API_KEY`          | Chave privada da OpenAI; vazia usa demonstração    |
+| `OPENAI_MODEL`            | Modelo usado na análise financeira                 |
 
 Veja o modelo completo em [apps/api/.env.example](apps/api/.env.example).
 

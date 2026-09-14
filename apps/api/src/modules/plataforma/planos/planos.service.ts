@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import {
   HIERARQUIA_PLANOS,
   calcularAcesso,
-  LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
   type PlanoCatalogo,
   type PlanoAtualResponse,
   type PlanosCatalogoResponse,
@@ -79,9 +78,9 @@ export class PlanosService {
       limites: {
         usuarios: tenant.plano.limiteUsuarios,
         clientes: tenant.plano.limiteClientes,
-        previsoesIaMensais: tenant.plano.iaHabilitada
-          ? tenant.plano.limitePrevisoesIaMensais
-          : LIMITE_PREVISOES_IA_GRATUITAS_MENSAIS,
+        // Zero, e não `null`, para quem não tem IA no plano: `null` significa
+        // "sem teto" no resto do contrato, e diria exatamente o contrário.
+        previsoesIaMensais: tenant.plano.iaHabilitada ? tenant.plano.limitePrevisoesIaMensais : 0,
       },
       uso: { usuarios, clientes, previsoesIaNoMes: previsoes },
       assinatura: {
