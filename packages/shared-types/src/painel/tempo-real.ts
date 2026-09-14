@@ -29,17 +29,31 @@ export interface LeadDoPainel {
   criadoEm: string;
   situacao: SituacaoLead;
   horasAteContato: number;
+  /**
+   * Telefone do lead, para o cartão oferecer a ligação direto.
+   *
+   * O gesto que se quer depois de ver "chegou há 3 h e ninguém falou com ele"
+   * não é abrir a ficha: é falar com a pessoa. Sem o número aqui, o cartão
+   * viraria mais um lugar que mostra o problema e manda procurar a solução em
+   * outra tela.
+   */
+  telefone: string | null;
 }
 
 export interface BlocoLeads {
   hoje: number;
   ontem: number;
   seteDias: number;
+  /** Total que chegou na janela analisada — a base das outras contagens. */
+  noPeriodo: number;
   aguardandoContato: number;
   /** Aguardando além do prazo de resposta. É o que vira alerta. */
   semContatoNoPrazo: number;
+  comProposta: number;
+  ganhos: number;
   valorEmProposta: string;
   porOrigem: Array<{ origem: string; total: number }>;
+  /** A fila em si — o cartão a mostra inteira, sem tela intermediária. */
   ultimos: LeadDoPainel[];
 }
 
@@ -123,11 +137,22 @@ export interface ClienteFrioDoPainel {
   motivo: MotivoReativacao;
   diasSemContato: number;
   valorHistorico: string;
+  /** Para ligar ou mandar mensagem sem sair do painel. */
+  telefone: string | null;
 }
 
 export interface BlocoReativacao {
   total: number;
+  /** Quantos foram ranqueados — o cartão mostra os melhores desses. */
+  analisados: number;
   valorHistorico: string;
+  /**
+   * Quantos frios por motivo.
+   *
+   * O motivo muda a conversa da ligação, então saber que são "oito que
+   * compraram e sumiram" vale mais que saber que são "oito clientes frios".
+   */
+  porMotivo: Array<{ motivo: MotivoReativacao; total: number }>;
   principais: ClienteFrioDoPainel[];
 }
 

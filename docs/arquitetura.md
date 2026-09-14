@@ -135,7 +135,8 @@ Para vazar dado seria preciso furar as três camadas ao mesmo tempo.
 - **LeadsModule** — leituras derivadas da carteira: fila de entrada (quem chegou
   e ainda não foi atendido) e lista de reativação (quem esfriou). Sem tabela
   própria — é consulta sobre cliente, atendimento, orçamento e agendamento, o
-  que impede a lista de envelhecer.
+  que impede a lista de envelhecer. As duas aparecem como **cartões do painel**,
+  e não como telas próprias: são o começo do dia, não um destino de menu.
 - **FunilModule** — etapas e movimentação do cliente entre elas.
 - **ServicosModule** — catálogo de serviços do tenant.
 - **OrcamentosModule** — orçamentos e status.

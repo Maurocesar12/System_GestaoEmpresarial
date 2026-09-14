@@ -21,7 +21,7 @@ import {
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
 import { exigirContextoTenant } from '../../infra/tenant/tenant-context';
-import { LeadsService } from '../crm/leads/leads.service';
+import { contarMotivos, LeadsService } from '../crm/leads/leads.service';
 import { hojeEmDia } from '../financeiro/datas';
 
 const ZERO = new Prisma.Decimal(0);
@@ -38,6 +38,16 @@ const CANDIDATOS_FRIOS_NO_PAINEL = 60;
 
 /** Dias de antecedência a partir dos quais uma proposta entra em "vencendo". */
 const DIAS_PROPOSTA_VENCENDO = 7;
+
+/**
+ * Quantos itens cabem nos cartões de leads e de reativação.
+ *
+ * Os dois deixaram de ter tela própria: o cartão **é** a fila, e não uma amostra
+ * com link para o resto. Seis é o que cabe sem esticar a coluna além dos outros
+ * blocos do painel — o suficiente para a fila de um dia de trabalho, que é o
+ * horizonte real de quem abre a tela de manhã.
+ */
+const ITENS_DO_CARTAO = 6;
 
 /** Meses do gráfico de caixa do painel. */
 const MESES_DA_SERIE = 6;
@@ -121,15 +131,18 @@ export class PainelService {
   private async montarLeads(tx: TransacaoComTenant, agora: Date): Promise<BlocoLeads> {
     const [resumo, ultimos] = await Promise.all([
       this.leads.resumirEntrada(tx, agora, DIAS_LEAD_RECENTE),
-      this.leads.ultimosLeads(tx, agora, DIAS_LEAD_RECENTE, 5),
+      this.leads.ultimosLeads(tx, agora, DIAS_LEAD_RECENTE, ITENS_DO_CARTAO),
     ]);
 
     return {
       hoje: resumo.hoje,
       ontem: resumo.ontem,
       seteDias: resumo.seteDias,
+      noPeriodo: resumo.noPeriodo,
       aguardandoContato: resumo.aguardandoContato,
       semContatoNoPrazo: resumo.semContatoNoPrazo,
+      comProposta: resumo.comProposta,
+      ganhos: resumo.ganhos,
       valorEmProposta: resumo.valorEmProposta,
       porOrigem: resumo.porOrigem,
       ultimos: ultimos.map((lead) => ({
@@ -139,6 +152,7 @@ export class PainelService {
         criadoEm: lead.criadoEm,
         situacao: lead.situacao,
         horasAteContato: lead.horasAteContato,
+        telefone: lead.telefone,
       })),
     };
   }
@@ -375,15 +389,18 @@ export class PainelService {
 
     return {
       total,
+      analisados: clientes.length,
       valorHistorico: clientes
         .reduce((soma, cliente) => soma.plus(cliente.valorHistorico), ZERO)
         .toFixed(2),
-      principais: clientes.slice(0, 5).map((cliente) => ({
+      porMotivo: contarMotivos(clientes),
+      principais: clientes.slice(0, ITENS_DO_CARTAO).map((cliente) => ({
         id: cliente.id,
         nome: cliente.nome,
         motivo: cliente.motivo,
         diasSemContato: cliente.diasSemContato,
         valorHistorico: cliente.valorHistorico,
+        telefone: cliente.telefone,
       })),
     };
   }
@@ -622,7 +639,10 @@ function montarAlertas(dados: {
       tom: 'perigo',
       titulo: `${dados.leads.semContatoNoPrazo} lead(s) sem contato`,
       detalhe: 'Chegaram há mais de um dia e ninguém falou com eles.',
-      href: '/painel/leads?situacao=aguardando',
+      // Âncora na própria tela: leads e reativação são cartões do painel, e não
+      // telas à parte. Mandar para outra página o que está dois blocos abaixo
+      // seria fazer a pessoa sair de onde a informação já estava.
+      href: '#leads',
     });
   }
 
@@ -689,7 +709,7 @@ function montarAlertas(dados: {
       tom: 'info',
       titulo: `${dados.reativacao.total} cliente(s) para reativar`,
       detalhe: 'Sem nenhum contato há tempo demais. A venda mais barata é a de quem já comprou.',
-      href: '/painel/reativacao',
+      href: '#reativacao',
     });
   }
 

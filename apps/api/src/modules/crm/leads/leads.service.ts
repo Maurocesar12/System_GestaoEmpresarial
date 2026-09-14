@@ -408,7 +408,13 @@ function paraClienteFrio(
   };
 }
 
-function contarMotivos(
+/**
+ * Quantos frios por motivo, do mais comum ao menos.
+ *
+ * Exportado porque o cartão de reativação do painel mostra a mesma quebra —
+ * contar de novo lá abriria espaço para os dois números discordarem.
+ */
+export function contarMotivos(
   clientes: ClienteParaReativar[],
 ): Array<{ motivo: MotivoReativacao; total: number }> {
   const contagem = new Map<MotivoReativacao, number>();

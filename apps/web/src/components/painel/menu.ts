@@ -3,8 +3,6 @@ import {
   Contact,
   FileText,
   HandCoins,
-  HeartHandshake,
-  Inbox,
   KanbanSquare,
   LayoutDashboard,
   Bell,
@@ -53,25 +51,15 @@ export const MENU: readonly GrupoMenu[] = [
   },
   {
     titulo: 'Relacionamento',
+    // Leads e reativação não entram aqui de propósito: são **cartões do
+    // painel**, não telas. Quem abre o sistema de manhã já cai na fila de quem
+    // chegou e na lista de quem esfriou — dois itens a mais no menu só
+    // adicionariam caminho para a mesma informação.
     itens: [
-      // Leads antes de Clientes: a fila de entrada é o que se olha primeiro no
-      // dia, e a listagem completa é onde se procura alguém específico.
-      {
-        href: '/painel/leads',
-        rotulo: 'Leads',
-        icone: Inbox,
-        permissao: 'clientes.visualizar',
-      },
       {
         href: '/painel/clientes',
         rotulo: 'Clientes',
         icone: Contact,
-        permissao: 'clientes.visualizar',
-      },
-      {
-        href: '/painel/reativacao',
-        rotulo: 'Reativação',
-        icone: HeartHandshake,
         permissao: 'clientes.visualizar',
       },
       {

@@ -181,7 +181,8 @@ describe('painel (HTTP)', () => {
 
     expect(alerta).toBeDefined();
     expect(alerta.tom).toBe('perigo');
-    expect(alerta.href).toContain('/painel/leads');
+    // Âncora, e não rota: leads é um cartão do próprio painel.
+    expect(alerta.href).toBe('#leads');
     expect(painel.leads.semContatoNoPrazo).toBeGreaterThanOrEqual(1);
   });
 

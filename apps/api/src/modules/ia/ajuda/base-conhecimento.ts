@@ -76,7 +76,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'O painel responde três perguntas, nesta ordem: **quanto está em jogo**, **o que está parado** e **o que fazer agora**.\n\n' +
-      'No topo ficam os alertas — leads sem contato, contas vencidas, compromissos atrasados. Em seguida vêm os blocos de entrada de leads, funil, agenda, follow-ups, reativação e caixa.\n\n' +
+      'No topo ficam os alertas — leads sem contato, contas vencidas, compromissos atrasados — e os indicadores. Logo abaixo vêm os dois cartões que abrem o dia: **Leads que chegaram** e **Clientes para reativar**. Depois, funil, agenda, follow-ups, propostas vencendo, caixa e o que acabou de acontecer.\n\n' +
       'A tela se atualiza sozinha a cada 30 segundos e mostra o horário da última leitura. Você pode pausar a atualização automática se estiver lendo com calma, e forçar uma atualização na hora pelo botão ao lado do relógio.\n\n' +
       'Cada pessoa vê só os blocos que a permissão dela alcança: quem não tem acesso ao financeiro não recebe os números de caixa.',
     relacionados: ['leads', 'reativacao', 'permissoes'],
@@ -133,7 +133,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
   {
     id: 'leads',
     titulo: 'Leads que chegaram',
-    href: '/painel/leads',
+    href: '/painel#leads',
     termos: [
       'lead',
       'leads',
@@ -149,19 +149,20 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       'de onde veio',
     ],
     resposta:
-      'Em **Relacionamento > Leads**. É a fila de entrada: todo cliente cadastrado nos últimos dias aparece aqui, do mais recente para o mais antigo.\n\n' +
+      'No **Início**, no cartão "Leads que chegaram" — não é uma tela à parte. É a fila de entrada: todo cliente cadastrado nos últimos 30 dias aparece ali, do mais recente para o mais antigo.\n\n' +
       'A situação de cada lead é calculada sozinha, ninguém precisa marcar nada:\n\n' +
       '• **Aguardando contato** — ninguém registrou atendimento, agendou nem enviou proposta.\n' +
       '• **Em contato** — já houve atendimento ou visita marcada.\n' +
       '• **Proposta enviada** — existe orçamento em aberto.\n' +
       '• **Fechado** — existe orçamento aprovado.\n\n' +
-      'Quem está aguardando há mais de 24 horas aparece destacado e vira alerta no painel. Preencha o campo **Origem** no cadastro do cliente para o resumo por canal mostrar de onde vêm seus leads.',
+      'Quem está aguardando há mais de 24 horas aparece destacado e vira alerta no topo do painel. Cada linha traz o atalho de WhatsApp e de ligação, para falar com a pessoa sem abrir a ficha.\n\n' +
+      'Preencha o campo **Origem** no cadastro do cliente para saber de onde vêm seus leads.',
     relacionados: ['reativacao', 'clientes-cadastro', 'funil'],
   },
   {
     id: 'reativacao',
     titulo: 'Lista de reativação',
-    href: '/painel/reativacao',
+    href: '/painel#reativacao',
     termos: [
       'reativacao',
       'reativar',
@@ -176,13 +177,13 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       'inativo',
     ],
     resposta:
-      'Em **Relacionamento > Reativação**. Lista quem está sem nenhum contato há mais tempo que o corte escolhido (60 dias por padrão) e não tem proposta aberta nem retorno já marcado.\n\n' +
+      'No **Início**, no cartão "Clientes para reativar". Ele lista quem está há mais de 60 dias sem nenhum contato e não tem proposta aberta nem retorno já marcado.\n\n' +
       'A fila vem ordenada por quanto o cliente já gastou com você, porque é essa a ligação que costuma valer mais. Cada linha traz o motivo, que muda a conversa:\n\n' +
       '• **Comprou e sumiu** — ofereça a revisão ou o próximo serviço.\n' +
       '• **Recusou a proposta** — uma condição nova costuma reabrir o assunto.\n' +
       '• **Proposta sem resposta** — pergunte o que faltou antes de reenviar.\n' +
       '• **Nunca fechou** — confirme se a necessidade ainda existe.\n\n' +
-      'Assim que você registra um atendimento ou marca um follow-up, o cliente sai da lista sozinho.',
+      'Os atalhos da linha resolvem os dois gestos possíveis: falar agora, pelo WhatsApp ou telefone, ou agendar o retorno. Assim que você registra um atendimento ou marca um follow-up, o cliente sai da lista sozinho.',
     relacionados: ['leads', 'lembretes', 'atendimentos'],
   },
   {

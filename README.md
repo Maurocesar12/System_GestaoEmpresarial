@@ -46,13 +46,16 @@ Já implementado:
 - Onboarding self-service criando tenant, usuário admin e dados-semente.
 - Isolamento multi-tenant com contexto por requisição, Prisma extension e RLS.
 - Clientes, histórico de atendimentos e origem/UTM.
-- Entrada de leads: fila do que chegou, com situação calculada (aguardando
-  contato, em contato, proposta enviada, fechado) e resumo por origem.
-- Lista de reativação: clientes frios ranqueados por quanto já fecharam, com o
-  motivo de cada um (comprou e sumiu, recusou, sem resposta, nunca fechou).
+- Cartão de leads no painel: a fila de quem chegou, com situação calculada
+  (aguardando contato, em contato, proposta enviada, fechado) e atalho de
+  WhatsApp ou ligação em cada linha.
+- Cartão de reativação no painel: clientes frios ranqueados por quanto já
+  fecharam, com o motivo de cada um (comprou e sumiu, recusou, sem resposta,
+  nunca fechou) e o atalho para agendar o retorno.
 - Painel inicial em tempo real: uma requisição só, alertas do que precisa de
-  ação, blocos de leads, funil, agenda, follow-ups, reativação e caixa, com
-  atualização automática a cada 30 segundos e feed do que acabou de acontecer.
+  ação, cartões de leads e reativação, funil, agenda, follow-ups, propostas
+  vencendo e caixa, com atualização automática a cada 30 segundos e feed do que
+  acabou de acontecer.
 - Funil de vendas com etapas configuráveis e movimentação por kanban.
 - Catálogo de serviços.
 - Orçamentos com status e movimentação automática no funil.

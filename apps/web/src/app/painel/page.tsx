@@ -5,22 +5,28 @@ import {
   AlertTriangle,
   BellRing,
   CalendarClock,
+  CalendarPlus,
   FileText,
   HeartHandshake,
   Hourglass,
   Inbox,
   Info,
   KanbanSquare,
+  MessageCircle,
+  Phone,
   TriangleAlert,
 } from 'lucide-react';
 import {
+  DIAS_PARA_REATIVACAO,
   formatarBRL,
   formatarEspera,
   ROTULO_MOTIVO_REATIVACAO,
   ROTULO_SITUACAO_LEAD,
   type AlertaDoPainel,
   type BlocoFunil,
+  type MotivoReativacao,
   type PainelTempoReal,
+  type SituacaoLead,
   type TomAlerta,
 } from '@gestao/shared-types';
 import { estilosBotao } from '@/components/ui/botao';
@@ -36,6 +42,7 @@ import {
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
 import { Selo } from '@/components/ui/selo';
 import { apiComSessao } from '@/lib/api-servidor';
+import { linkTelefone, linkWhatsApp } from '@/lib/contato';
 import { formatarQuando } from '@/lib/formatacao';
 import { cn } from '@/lib/utils';
 import { AtualizacaoAutomatica } from './atualizacao-automatica';
@@ -97,7 +104,7 @@ export default async function PaginaPainel() {
             titulo="Leads hoje"
             valor={String(leads.hoje)}
             detalhe={`${leads.seteDias} nos últimos 7 dias`}
-            href="/painel/leads"
+            href="#leads"
             destaque={leads.hoje > 0}
           />
         )}
@@ -141,49 +148,17 @@ export default async function PaginaPainel() {
         )}
       </FaixaDeIndicadores>
 
+      {/*
+        Leads e reativação abrem a área de blocos, lado a lado: são a fila de
+        entrada e a fila de saída da carteira, e é por elas que o dia começa.
+        Os dois não têm tela própria — o cartão é a lista inteira.
+      */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {leads && (
-          <Bloco
-            titulo="Chegaram agora"
-            href="/painel/leads"
-            rotuloLink="ver leads"
-            icone={Inbox}
-            vazio="Nenhum lead novo no período."
-            rodape={
-              leads.aguardandoContato > 0
-                ? `${leads.aguardandoContato} aguardando contato · ${formatarBRL(leads.valorEmProposta)} em proposta`
-                : `${formatarBRL(leads.valorEmProposta)} em proposta`
-            }
-            itens={leads.ultimos}
-            renderizar={(lead) => (
-              <CartaoItem key={lead.id}>
-                <div className="flex min-w-0 flex-col">
-                  <Link
-                    href={`/painel/clientes/${lead.id}`}
-                    className="truncate text-sm font-medium underline-offset-4 hover:underline"
-                  >
-                    {lead.nome}
-                  </Link>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {lead.origem ?? 'sem origem'} · {ROTULO_SITUACAO_LEAD[lead.situacao]}
-                  </span>
-                </div>
+        {leads && <CartaoLeads leads={leads} />}
+        {reativacao && <CartaoReativacao reativacao={reativacao} />}
+      </div>
 
-                <span
-                  className={cn(
-                    'shrink-0 text-xs tabular-nums',
-                    lead.situacao === 'aguardando'
-                      ? 'text-atencao font-medium'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  {formatarEspera(lead.horasAteContato)}
-                </span>
-              </CartaoItem>
-            )}
-          />
-        )}
-
+      <div className="grid gap-4 lg:grid-cols-2">
         {funil && <BlocoDoFunil funil={funil} />}
 
         {agenda && (
@@ -241,37 +216,6 @@ export default async function PaginaPainel() {
 
                 <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                   {formatarQuando(lembrete.dataEnvio)}
-                </span>
-              </CartaoItem>
-            )}
-          />
-        )}
-
-        {reativacao && (
-          <Bloco
-            titulo="Para reativar"
-            href="/painel/reativacao"
-            rotuloLink="ver lista"
-            icone={HeartHandshake}
-            vazio="Nenhum cliente esfriou. Bom sinal."
-            rodape={`${reativacao.total} cliente(s) frio(s) · ${formatarBRL(reativacao.valorHistorico)} já fechados com eles`}
-            itens={reativacao.principais}
-            renderizar={(cliente) => (
-              <CartaoItem key={cliente.id}>
-                <div className="flex min-w-0 flex-col">
-                  <Link
-                    href={`/painel/clientes/${cliente.id}`}
-                    className="truncate text-sm font-medium underline-offset-4 hover:underline"
-                  >
-                    {cliente.nome}
-                  </Link>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {ROTULO_MOTIVO_REATIVACAO[cliente.motivo]} · {cliente.diasSemContato} dias
-                  </span>
-                </div>
-
-                <span className="shrink-0 text-xs font-medium tabular-nums">
-                  {Number(cliente.valorHistorico) > 0 ? formatarBRL(cliente.valorHistorico) : '—'}
                 </span>
               </CartaoItem>
             )}
@@ -359,6 +303,296 @@ export default async function PaginaPainel() {
       {financeiro && <ContasEmAberto financeiro={financeiro} />}
 
       {painel.atividade.length > 0 && <Atividade eventos={painel.atividade} />}
+    </div>
+  );
+}
+
+const TOM_DA_SITUACAO: Record<SituacaoLead, 'atencao' | 'info' | 'neutro' | 'sucesso'> = {
+  aguardando: 'atencao',
+  em_contato: 'info',
+  com_proposta: 'neutro',
+  ganho: 'sucesso',
+};
+
+/**
+ * O tom carrega significado: verde é quem já comprou (a melhor ligação),
+ * vermelho é recusa explícita, âmbar é silêncio, cinza é quem nunca avançou.
+ */
+const TOM_DO_MOTIVO: Record<MotivoReativacao, 'sucesso' | 'perigo' | 'atencao' | 'neutro'> = {
+  comprou_e_sumiu: 'sucesso',
+  proposta_recusada: 'perigo',
+  proposta_sem_resposta: 'atencao',
+  nunca_fechou: 'neutro',
+};
+
+/**
+ * Cartão de leads: a fila de entrada inteira, aqui mesmo.
+ *
+ * Não é amostra com link para uma tela maior — leads não tem tela própria. O
+ * cartão precisa então responder sozinho as três perguntas do começo do dia:
+ * quem chegou, em que pé está, e quem ainda não recebeu contato. Por isso ele
+ * traz a quebra por situação no topo, o tempo de espera destacado em quem
+ * aguarda e o botão de falar com a pessoa na própria linha.
+ */
+function CartaoLeads({ leads }: { leads: NonNullable<PainelTempoReal['leads']> }) {
+  const emContato = Math.max(
+    0,
+    leads.noPeriodo - leads.aguardandoContato - leads.comProposta - leads.ganhos,
+  );
+
+  return (
+    <Cartao id="leads" className="flex scroll-mt-4 flex-col">
+      <CartaoCabecalho>
+        <CartaoTitulo className="flex items-center gap-2">
+          <Inbox aria-hidden className="text-muted-foreground size-4" />
+          Leads que chegaram
+        </CartaoTitulo>
+
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {leads.hoje} hoje · {leads.seteDias} em 7 dias
+        </span>
+      </CartaoCabecalho>
+
+      {leads.noPeriodo > 0 && (
+        <div className="flex flex-wrap gap-1.5 border-b px-4 py-2.5">
+          {leads.aguardandoContato > 0 && (
+            <Selo tom="atencao" comPonto>
+              {leads.aguardandoContato} aguardando
+            </Selo>
+          )}
+          {emContato > 0 && (
+            <Selo tom="info" comPonto>
+              {emContato} em contato
+            </Selo>
+          )}
+          {leads.comProposta > 0 && <Selo comPonto>{leads.comProposta} com proposta</Selo>}
+          {leads.ganhos > 0 && (
+            <Selo tom="sucesso" comPonto>
+              {leads.ganhos} fechado(s)
+            </Selo>
+          )}
+        </div>
+      )}
+
+      {leads.ultimos.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+          <p className="text-muted-foreground text-sm">Nenhum lead novo nos últimos 30 dias.</p>
+          <Link
+            href="/painel/clientes/novo"
+            className={estilosBotao({ variante: 'secundario', tamanho: 'sm' })}
+          >
+            Cadastrar lead
+          </Link>
+        </div>
+      ) : (
+        <CartaoLista className="flex-1">
+          {leads.ultimos.map((lead) => (
+            <CartaoItem key={lead.id} className="gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <Link
+                  href={`/painel/clientes/${lead.id}`}
+                  className="truncate text-sm font-medium underline-offset-4 hover:underline"
+                >
+                  {lead.nome}
+                </Link>
+
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <Selo tom={TOM_DA_SITUACAO[lead.situacao]}>
+                    {ROTULO_SITUACAO_LEAD[lead.situacao]}
+                  </Selo>
+                  <span className="text-muted-foreground truncate text-xs">
+                    {lead.origem ?? 'sem origem'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <span
+                  className={cn(
+                    'text-xs tabular-nums',
+                    lead.situacao === 'aguardando'
+                      ? 'text-atencao font-medium'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {formatarEspera(lead.horasAteContato)}
+                </span>
+
+                <AcoesDeContato nome={lead.nome} telefone={lead.telefone} />
+              </div>
+            </CartaoItem>
+          ))}
+        </CartaoLista>
+      )}
+
+      <p className="text-muted-foreground border-t px-4 py-2.5 text-xs">
+        {leads.noPeriodo} lead(s) em 30 dias
+        {Number(leads.valorEmProposta) > 0 &&
+          ` · ${formatarBRL(leads.valorEmProposta)} em proposta`}
+        {leads.semContatoNoPrazo > 0 && (
+          <span className="text-destructive font-medium">
+            {' '}
+            · {leads.semContatoNoPrazo} esperando há mais de 24 h
+          </span>
+        )}
+      </p>
+    </Cartao>
+  );
+}
+
+/**
+ * Cartão de reativação: a fila de quem esfriou, ordenada por quanto já gastou.
+ *
+ * O cliente frio não aparece em lugar nenhum do sistema — não tem proposta
+ * aberta, agendamento nem lembrete pendente — e é justamente por isso que ele
+ * some. Aqui ele aparece com o motivo (que muda a conversa), há quantos dias
+ * sumiu, quanto já fechou, e os dois gestos que resolvem: falar agora ou marcar
+ * o retorno.
+ */
+function CartaoReativacao({
+  reativacao,
+}: {
+  reativacao: NonNullable<PainelTempoReal['reativacao']>;
+}) {
+  return (
+    <Cartao id="reativacao" className="flex scroll-mt-4 flex-col">
+      <CartaoCabecalho>
+        <CartaoTitulo className="flex items-center gap-2">
+          <HeartHandshake aria-hidden className="text-muted-foreground size-4" />
+          Clientes para reativar
+        </CartaoTitulo>
+
+        <span className="text-muted-foreground shrink-0 text-xs">
+          sem contato há {DIAS_PARA_REATIVACAO}+ dias
+        </span>
+      </CartaoCabecalho>
+
+      {reativacao.porMotivo.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 border-b px-4 py-2.5">
+          {reativacao.porMotivo.map((item) => (
+            <Selo key={item.motivo} tom={TOM_DO_MOTIVO[item.motivo]} comPonto>
+              {item.total} {ROTULO_MOTIVO_REATIVACAO[item.motivo].toLowerCase()}
+            </Selo>
+          ))}
+        </div>
+      )}
+
+      {reativacao.principais.length === 0 ? (
+        <p className="text-muted-foreground flex-1 px-4 py-10 text-center text-sm">
+          Nenhum cliente esfriou. Bom sinal.
+        </p>
+      ) : (
+        <CartaoLista className="flex-1">
+          {reativacao.principais.map((cliente) => (
+            <CartaoItem key={cliente.id} className="gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <Link
+                  href={`/painel/clientes/${cliente.id}`}
+                  className="truncate text-sm font-medium underline-offset-4 hover:underline"
+                >
+                  {cliente.nome}
+                </Link>
+
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <Selo tom={TOM_DO_MOTIVO[cliente.motivo]}>
+                    {ROTULO_MOTIVO_REATIVACAO[cliente.motivo]}
+                  </Selo>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {cliente.diasSemContato} dias
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                {Number(cliente.valorHistorico) > 0 && (
+                  <span className="text-xs font-medium tabular-nums">
+                    {formatarBRL(cliente.valorHistorico)}
+                  </span>
+                )}
+
+                <AcoesDeContato
+                  nome={cliente.nome}
+                  telefone={cliente.telefone}
+                  lembreteDe={cliente.id}
+                />
+              </div>
+            </CartaoItem>
+          ))}
+        </CartaoLista>
+      )}
+
+      {/*
+        O total vem do banco; a quebra por motivo e o valor vêm dos que foram
+        ranqueados. Numa carteira grande os dois números diferem, e o rodapé diz
+        isso em vez de deixar a soma dos selos parecer errada.
+      */}
+      <p className="text-muted-foreground border-t px-4 py-2.5 text-xs">
+        {reativacao.total} cliente(s) frio(s)
+        {reativacao.total > reativacao.analisados && ` · ${reativacao.analisados} analisados`}
+        {Number(reativacao.valorHistorico) > 0 &&
+          ` · ${formatarBRL(reativacao.valorHistorico)} já fechados com eles`}
+      </p>
+    </Cartao>
+  );
+}
+
+/**
+ * Falar com a pessoa, sem sair do painel.
+ *
+ * O gesto seguinte a ver "chegou há 3 h e ninguém atendeu" ou "sumiu há 150
+ * dias" não é abrir a ficha: é ligar ou mandar mensagem. Sem estes atalhos, o
+ * caminho seria abrir o cliente, selecionar o telefone, copiar e colar no
+ * WhatsApp — quatro passos para algo que acontece dezenas de vezes por dia.
+ *
+ * Sem telefone cadastrado, nada é oferecido: um botão que abre uma conversa com
+ * número quebrado é pior que botão nenhum.
+ */
+function AcoesDeContato({
+  nome,
+  telefone,
+  lembreteDe,
+}: {
+  nome: string;
+  telefone: string | null;
+  /** Quando informado, oferece marcar o retorno para este cliente. */
+  lembreteDe?: string;
+}) {
+  const whatsapp = linkWhatsApp(telefone);
+  const chamada = linkTelefone(telefone);
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {whatsapp && (
+        <a
+          href={whatsapp}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Conversar com ${nome} no WhatsApp`}
+          className="hover:bg-accent text-muted-foreground hover:text-foreground rounded-md p-1.5 transition-colors"
+        >
+          <MessageCircle aria-hidden className="size-4" />
+        </a>
+      )}
+
+      {chamada && (
+        <a
+          href={chamada}
+          aria-label={`Ligar para ${nome}`}
+          className="hover:bg-accent text-muted-foreground hover:text-foreground rounded-md p-1.5 transition-colors"
+        >
+          <Phone aria-hidden className="size-4" />
+        </a>
+      )}
+
+      {lembreteDe && (
+        <Link
+          href={`/painel/lembretes/novo?cliente=${lembreteDe}`}
+          aria-label={`Agendar retorno para ${nome}`}
+          className="hover:bg-accent text-muted-foreground hover:text-foreground rounded-md p-1.5 transition-colors"
+        >
+          <CalendarPlus aria-hidden className="size-4" />
+        </Link>
+      )}
     </div>
   );
 }
