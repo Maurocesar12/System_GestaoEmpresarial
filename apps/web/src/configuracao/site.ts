@@ -20,4 +20,6 @@ export const SITE = {
   corFundo: '#f7f7f7',
   corFundoEscuro: '#050505',
   url: new URL(urlPublica),
+  /** Contato do encarregado de dados (LGPD art. 41), publicado em `/privacidade`. */
+  emailPrivacidade: process.env.NEXT_PUBLIC_EMAIL_PRIVACIDADE || null,
 } as const;

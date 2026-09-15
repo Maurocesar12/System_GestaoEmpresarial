@@ -18,6 +18,14 @@ export default function PaginaCadastro() {
 
       <FormularioCadastro />
 
+      <p className="text-muted-foreground text-center text-xs">
+        Ao criar a conta, você declara ter lido a{' '}
+        <Link href="/privacidade" className="text-foreground underline underline-offset-4">
+          Política de Privacidade
+        </Link>
+        .
+      </p>
+
       <p className="text-muted-foreground text-center text-sm">
         Já tem conta?{' '}
         <Link href="/entrar" className="text-foreground font-medium underline underline-offset-4">

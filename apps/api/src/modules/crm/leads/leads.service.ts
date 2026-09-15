@@ -24,6 +24,7 @@ import {
   MS_POR_DIA,
   MS_POR_HORA,
   SEM_NENHUM_CONTATO,
+  CLIENTE_ATIVO,
 } from './regras-leads';
 
 /**
@@ -194,7 +195,7 @@ export class LeadsService {
     const inicioSemana = new Date(agora.getTime() - 7 * MS_POR_DIA);
     const prazo = new Date(agora.getTime() - HORAS_LEAD_SEM_CONTATO * MS_POR_HORA);
 
-    const aguardando = { criadoEm: { gte: desde }, ...SEM_NENHUM_CONTATO };
+    const aguardando = { ...CLIENTE_ATIVO, criadoEm: { gte: desde }, ...SEM_NENHUM_CONTATO };
 
     const [
       hoje,
@@ -208,25 +209,35 @@ export class LeadsService {
       propostas,
       origens,
     ] = await Promise.all([
-      tx.cliente.count({ where: { criadoEm: { gte: inicioHoje } } }),
-      tx.cliente.count({ where: { criadoEm: { gte: inicioOntem, lt: inicioHoje } } }),
-      tx.cliente.count({ where: { criadoEm: { gte: inicioSemana } } }),
-      tx.cliente.count({ where: { criadoEm: { gte: desde } } }),
+      tx.cliente.count({ where: { ...CLIENTE_ATIVO, criadoEm: { gte: inicioHoje } } }),
+      tx.cliente.count({
+        where: { ...CLIENTE_ATIVO, criadoEm: { gte: inicioOntem, lt: inicioHoje } },
+      }),
+      tx.cliente.count({ where: { ...CLIENTE_ATIVO, criadoEm: { gte: inicioSemana } } }),
+      tx.cliente.count({ where: { ...CLIENTE_ATIVO, criadoEm: { gte: desde } } }),
       tx.cliente.count({ where: aguardando }),
       tx.cliente.count({ where: { ...aguardando, criadoEm: { gte: desde, lt: prazo } } }),
       tx.cliente.count({
-        where: { criadoEm: { gte: desde }, orcamentos: { some: { status: 'aberto' } } },
+        where: {
+          ...CLIENTE_ATIVO,
+          criadoEm: { gte: desde },
+          orcamentos: { some: { status: 'aberto' } },
+        },
       }),
       tx.cliente.count({
-        where: { criadoEm: { gte: desde }, orcamentos: { some: { status: 'aprovado' } } },
+        where: {
+          ...CLIENTE_ATIVO,
+          criadoEm: { gte: desde },
+          orcamentos: { some: { status: 'aprovado' } },
+        },
       }),
       tx.orcamento.aggregate({
-        where: { status: 'aberto', cliente: { criadoEm: { gte: desde } } },
+        where: { status: 'aberto', cliente: { ...CLIENTE_ATIVO, criadoEm: { gte: desde } } },
         _sum: { valor: true },
       }),
       tx.cliente.groupBy({
         by: ['origem'],
-        where: { criadoEm: { gte: desde } },
+        where: { ...CLIENTE_ATIVO, criadoEm: { gte: desde } },
         _count: { _all: true },
         orderBy: { _count: { id: 'desc' } },
         take: 8,

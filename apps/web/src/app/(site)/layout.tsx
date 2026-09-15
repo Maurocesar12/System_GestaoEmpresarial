@@ -17,12 +17,14 @@ import { NavegacaoMobile } from './navegacao-mobile';
  * sistema: quem chega nesta página ainda não é usuário.
  */
 
+// Com a barra na frente: o layout também serve `/privacidade`, onde uma âncora
+// solta procuraria a seção na página errada.
 const SECOES = [
-  { href: '#recursos', rotulo: 'O que faz' },
-  { href: '#como-funciona', rotulo: 'Como funciona' },
-  { href: '#ia', rotulo: 'Previsão com IA' },
-  { href: '#seguranca', rotulo: 'Segurança' },
-  { href: '#planos', rotulo: 'Planos' },
+  { href: '/#recursos', rotulo: 'O que faz' },
+  { href: '/#como-funciona', rotulo: 'Como funciona' },
+  { href: '/#ia', rotulo: 'Previsão com IA' },
+  { href: '/#seguranca', rotulo: 'Segurança' },
+  { href: '/#planos', rotulo: 'Planos' },
 ];
 
 export default function LayoutSite({ children }: { children: React.ReactNode }) {
@@ -89,6 +91,9 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
             </span>
 
             <div className="flex gap-5">
+              <Link href="/privacidade" className="hover:text-foreground transition-colors">
+                Privacidade
+              </Link>
               <Link href="/entrar" className="hover:text-foreground transition-colors">
                 Entrar
               </Link>

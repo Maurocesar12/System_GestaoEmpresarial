@@ -15,6 +15,7 @@ export * from './plataforma/permissoes';
 export * from './plataforma/auditoria';
 export * from './plataforma/configuracoes';
 export * from './plataforma/planos';
+export * from './plataforma/lgpd';
 export * from './ia/chat';
 export * from './ia/previsao-financeira';
 export * from './crm/agendamentos';

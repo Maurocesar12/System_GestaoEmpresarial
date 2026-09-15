@@ -98,6 +98,8 @@ export interface Cliente {
   utmCampaign: string | null;
   camposPersonalizados: Record<string, string>;
   etiquetas: string[];
+  /** Quando os dados pessoais foram eliminados a pedido do titular. */
+  anonimizadoEm: string | null;
   criadoEm: string;
   atualizadoEm: string;
 }

@@ -1,6 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Logger, Module, type DynamicModule } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 import { NotificacoesModule } from '../../../../infra/notificacoes/notificacoes.module';
 import { FILA_LEMBRETES } from './envio.constantes';
 import { LembretesAgendador } from './lembretes.agendador';
@@ -39,10 +38,6 @@ export class LembretesEnvioModule {
     return {
       module: LembretesEnvioModule,
       imports: [
-        // Liga o suporte a `@Cron`. Fica aqui, e não no AppModule, porque o
-        // agendador de lembretes é hoje a única tarefa periódica do sistema —
-        // quando surgir a segunda, isto sobe para a raiz.
-        ScheduleModule.forRoot(),
         BullModule.forRoot({ connection: { url: redisUrl } }),
         BullModule.registerQueue({
           name: FILA_LEMBRETES,

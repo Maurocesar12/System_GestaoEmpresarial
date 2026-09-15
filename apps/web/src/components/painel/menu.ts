@@ -14,6 +14,7 @@ import {
   ScrollText,
   BrainCircuit,
   CreditCard,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { possuiPermissao, type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
@@ -150,6 +151,12 @@ export const MENU: readonly GrupoMenu[] = [
         href: '/painel/configuracoes',
         rotulo: 'Configurações',
         icone: Settings,
+        permissao: 'empresa.configurar',
+      },
+      {
+        href: '/painel/privacidade',
+        rotulo: 'Privacidade e dados',
+        icone: ShieldCheck,
         permissao: 'empresa.configurar',
       },
     ],

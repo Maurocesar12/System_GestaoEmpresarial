@@ -357,6 +357,11 @@ model Cliente {
 
   camposPersonalizados Json @default("{}") @map("campos_personalizados")
 
+  /// Preenchido quando o titular pediu a eliminação dos dados (LGPD art. 18).
+  /// O registro continua existindo para não quebrar orçamentos e lançamentos
+  /// ligados a ele, mas sem nada que identifique a pessoa.
+  anonimizadoEm DateTime? @map("anonimizado_em")
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -782,4 +787,19 @@ model LogAuditoria {
   @@index([tenantId, entidade, entidadeId])
   @@index([tenantId, criadoEm])
   @@map("log_auditoria")
+}
+
+/// Comprovante de que os dados de uma conta cancelada foram apagados.
+///
+/// Sem chave estrangeira para `tenant`, de propósito: a linha é gravada na
+/// mesma transação que apaga a empresa e precisa sobreviver a ela. Não guarda
+/// nome, CNPJ nem e-mail — só o suficiente para responder quando a exclusão
+/// aconteceu.
+model RegistroExclusaoConta {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @unique @map("tenant_id") @db.Uuid
+  canceladoEm DateTime @map("cancelado_em")
+  excluidoEm  DateTime @default(now()) @map("excluido_em")
+
+  @@map("registro_exclusao_conta")
 }

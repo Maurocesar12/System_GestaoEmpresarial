@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -255,6 +256,13 @@ export class ClientesService {
         });
       }
 
+      if (existe.anonimizadoEm) {
+        throw new ConflictException({
+          codigo: CODIGOS_ERRO.CONFLITO,
+          mensagem: 'Este cliente foi anonimizado a pedido do titular e não pode ser editado.',
+        });
+      }
+
       await this.garantirPersonalizacao(tx, dados);
       const alterado = await tx.cliente.update({
         where: { id },
@@ -312,7 +320,9 @@ export class ClientesService {
    * o registro guardado como "11912345678".
    */
   private montarFiltro(busca?: string, origem?: string): Prisma.ClienteWhereInput {
-    const where: Prisma.ClienteWhereInput = {};
+    // Anonimizado não é mais cliente de ninguém: continua acessível pelo id,
+    // a partir dos orçamentos e lançamentos ligados a ele, mas sai da carteira.
+    const where: Prisma.ClienteWhereInput = { anonimizadoEm: null };
 
     if (origem) {
       where.origem = origem;
@@ -366,7 +376,7 @@ export class ClientesService {
       return;
     }
 
-    const total = await tx.cliente.count();
+    const total = await tx.cliente.count({ where: { anonimizadoEm: null } });
     const vagas = Math.max(limite - total, 0);
 
     if (quantidade > vagas) {
@@ -499,6 +509,7 @@ export class ClientesService {
       utmCampaign: registro.utmCampaign,
       camposPersonalizados: registro.camposPersonalizados as Record<string, string>,
       etiquetas: registro.etiquetas?.map((item) => item.etiquetaId) ?? [],
+      anonimizadoEm: registro.anonimizadoEm?.toISOString() ?? null,
       criadoEm: registro.criadoEm.toISOString(),
       atualizadoEm: registro.atualizadoEm.toISOString(),
     };

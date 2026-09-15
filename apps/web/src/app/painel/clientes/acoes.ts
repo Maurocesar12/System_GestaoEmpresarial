@@ -58,6 +58,18 @@ export async function removerCliente(id: string): Promise<ResultadoAcao> {
   redirect('/painel/clientes');
 }
 
+/** Fica na ficha em vez de redirecionar: a tela passa a mostrar o aviso de anonimizado. */
+export async function anonimizarCliente(id: string): Promise<ResultadoAcao> {
+  try {
+    await apiComSessao<void>(`/clientes/${id}/anonimizar`, { method: 'POST' });
+  } catch (erro) {
+    return traduzirErroAcao(erro, 'Não foi possível anonimizar. Tente novamente.');
+  }
+
+  revalidatePath('/painel/clientes', 'layout');
+  return {};
+}
+
 /**
  * Envia um lote de clientes vindo da planilha.
  *

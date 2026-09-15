@@ -7,6 +7,7 @@ export const PERMISSOES = [
   'clientes.editar',
   'clientes.excluir',
   'clientes.importar',
+  'clientes.dados_pessoais',
   'funil.visualizar',
   'funil.movimentar',
   'funil.configurar',
@@ -97,6 +98,10 @@ export const GRUPOS_PERMISSOES: ReadonlyArray<{
       { codigo: 'clientes.editar', rotulo: 'Editar clientes' },
       { codigo: 'clientes.excluir', rotulo: 'Excluir clientes' },
       { codigo: 'clientes.importar', rotulo: 'Importar clientes' },
+      {
+        codigo: 'clientes.dados_pessoais',
+        rotulo: 'Exportar e anonimizar dados pessoais (LGPD)',
+      },
     ],
   },
   {

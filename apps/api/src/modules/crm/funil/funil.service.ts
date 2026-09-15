@@ -85,7 +85,7 @@ export class FunilService {
 
         // Clientes cadastrados que ainda não entraram no funil.
         const totalForaDoFunil = await tx.cliente.count({
-          where: { posicaoFunil: { is: null } },
+          where: { posicaoFunil: { is: null }, anonimizadoEm: null },
         });
 
         return { etapas, posicoes, orcamentos, totalForaDoFunil };

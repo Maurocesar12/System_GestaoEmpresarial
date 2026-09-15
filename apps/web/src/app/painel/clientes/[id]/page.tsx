@@ -4,6 +4,7 @@ import {
   ROTULO_CANAL_LEMBRETE,
   ROTULO_STATUS,
   formatarBRL,
+  possuiPermissao,
   type Atendimento,
   type Cliente,
   type EtapaFunil,
@@ -12,7 +13,9 @@ import {
   type Paginado,
   type ConfiguracoesEmpresa,
 } from '@gestao/shared-types';
+import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao } from '@/lib/api-servidor';
+import { lerUsuarioDaSessao } from '@/lib/sessao';
 import {
   formatarDataCompleta,
   formatarDataLonga,
@@ -21,6 +24,7 @@ import {
 } from '@/lib/formatacao';
 import { FormularioCliente } from '../formulario-cliente';
 import { Atendimentos } from './atendimentos';
+import { BotaoAnonimizar } from './botao-anonimizar';
 import { BotaoRemover } from './botao-remover';
 import { EntrarNoFunil } from './entrar-no-funil';
 
@@ -44,18 +48,22 @@ interface Props {
 export default async function PaginaCliente({ params }: Props) {
   const { id } = await params;
 
-  const [cliente, etapas, orcamentos, atendimentos, lembretes, configuracoes] = await Promise.all([
-    apiComSessao<Cliente>(`/clientes/${id}`),
-    apiComSessao<EtapaFunil[]>('/funil/etapas'),
-    apiComSessao<Paginado<Orcamento>>(`/orcamentos?clienteId=${id}&porPagina=50`),
-    apiComSessao<Atendimento[]>(`/clientes/${id}/atendimentos`),
-    apiComSessao<Paginado<LembreteFollowUp>>(
-      `/lembretes?clienteId=${id}&status=pendente&porPagina=5`,
-    ),
-    apiComSessao<ConfiguracoesEmpresa>('/configuracoes'),
-  ]);
+  const [usuario, cliente, etapas, orcamentos, atendimentos, lembretes, configuracoes] =
+    await Promise.all([
+      lerUsuarioDaSessao(),
+      apiComSessao<Cliente>(`/clientes/${id}`),
+      apiComSessao<EtapaFunil[]>('/funil/etapas'),
+      apiComSessao<Paginado<Orcamento>>(`/orcamentos?clienteId=${id}&porPagina=50`),
+      apiComSessao<Atendimento[]>(`/clientes/${id}/atendimentos`),
+      apiComSessao<Paginado<LembreteFollowUp>>(
+        `/lembretes?clienteId=${id}&status=pendente&porPagina=5`,
+      ),
+      apiComSessao<ConfiguracoesEmpresa>('/configuracoes'),
+    ]);
 
   const etapaAtual = cliente.etapaFunil?.id ?? null;
+  const podeTratarDadosPessoais =
+    usuario !== undefined && possuiPermissao(usuario, 'clientes.dados_pessoais');
 
   const totalAprovado = orcamentos.dados
     .filter((orcamento) => orcamento.status === 'aprovado')
@@ -77,6 +85,14 @@ export default async function PaginaCliente({ params }: Props) {
           Cliente desde {formatarDataLonga(cliente.criadoEm)}.
         </p>
       </div>
+
+      {cliente.anonimizadoEm && (
+        <p role="status" className="bg-superficie rounded-md border px-3 py-2 text-sm">
+          Dados pessoais eliminados a pedido do titular em{' '}
+          {formatarDataLonga(cliente.anonimizadoEm)}. Orçamentos e lançamentos continuam, sem
+          identificar a pessoa.
+        </p>
+      )}
 
       {/* Resumo antes do formulário: quem abre a ficha quase sempre quer saber
           a situação do cliente, não editar o cadastro. */}
@@ -179,14 +195,42 @@ export default async function PaginaCliente({ params }: Props) {
 
       <Atendimentos clienteId={cliente.id} atendimentos={atendimentos} />
 
-      <details className="rounded-lg border p-4">
-        {/* O cadastro fica recolhido: editar dados é a ação menos frequente
-            aqui, e ocupava a maior parte da tela. */}
-        <summary className="cursor-pointer text-sm font-medium">Editar cadastro</summary>
-        <div className="pt-4">
-          <FormularioCliente cliente={cliente} campos={configuracoes.campos} etiquetas={configuracoes.etiquetas} />
-        </div>
-      </details>
+      {!cliente.anonimizadoEm && (
+        <details className="rounded-lg border p-4">
+          {/* O cadastro fica recolhido: editar dados é a ação menos frequente
+              aqui, e ocupava a maior parte da tela. */}
+          <summary className="cursor-pointer text-sm font-medium">Editar cadastro</summary>
+          <div className="pt-4">
+            <FormularioCliente
+              cliente={cliente}
+              campos={configuracoes.campos}
+              etiquetas={configuracoes.etiquetas}
+            />
+          </div>
+        </details>
+      )}
+
+      {podeTratarDadosPessoais && !cliente.anonimizadoEm && (
+        <section className="flex flex-col gap-3 rounded-lg border p-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-sm font-medium">Dados pessoais (LGPD)</h2>
+            <p className="text-muted-foreground text-sm">
+              Use quando o próprio cliente pedir. Baixe a cópia antes de anonimizar: depois não há
+              como recuperar os dados.
+            </p>
+          </div>
+
+          <a
+            href={`/painel/clientes/${cliente.id}/dados-pessoais`}
+            download
+            className={`${estilosBotao({ variante: 'secundario' })} w-fit`}
+          >
+            Baixar dados do cliente
+          </a>
+
+          <BotaoAnonimizar id={cliente.id} nome={cliente.nome} />
+        </section>
+      )}
 
       <section className="border-destructive/30 flex flex-col gap-3 rounded-lg border border-dashed p-4">
         <div className="flex flex-col gap-1">

@@ -7,7 +7,7 @@ import { AuditoriaService } from '../../modules/plataforma/auditoria/auditoria.s
 
 const CONTROLADORES_COM_AUDITORIA_TRANSACIONAL = new Set([
   'ClientesController', 'FunilController', 'FinanceiroController',
-  'EquipeController', 'ConfiguracoesController',
+  'EquipeController', 'ConfiguracoesController', 'LgpdController',
 ]);
 
 /**

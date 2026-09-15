@@ -54,6 +54,9 @@ const ROTULO_ACAO: Record<AcaoAuditoria, string> = {
   movimentou: 'Movimentou',
   convidou: 'Convidou',
   desativou: 'Desativou',
+  anonimizou: 'Anonimizou',
+  exportou: 'Exportou',
+  cancelou: 'Cancelou',
 };
 
 interface Props {

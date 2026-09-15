@@ -8,6 +8,9 @@ export const ACOES_AUDITORIA = [
   'movimentou',
   'convidou',
   'desativou',
+  'anonimizou',
+  'exportou',
+  'cancelou',
 ] as const;
 
 export const ENTIDADES_AUDITORIA = [

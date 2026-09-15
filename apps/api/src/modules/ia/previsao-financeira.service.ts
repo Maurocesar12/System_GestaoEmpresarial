@@ -436,7 +436,7 @@ export class PrevisaoFinanceiraService {
       tx.lancamentoFinanceiro.count({
         where: { natureza: 'empresa', pagoEm: { gte: janela.inicioHistorico } },
       }),
-      tx.cliente.count(),
+      tx.cliente.count({ where: { anonimizadoEm: null } }),
       tx.orcamento.aggregate({
         where: { status: 'aberto' },
         _count: { _all: true },

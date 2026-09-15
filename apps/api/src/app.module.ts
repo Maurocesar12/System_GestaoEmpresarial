@@ -1,6 +1,7 @@
 import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PapeisGuard } from './common/guards/papeis.guard';
@@ -27,6 +28,7 @@ import { EquipeModule } from './modules/plataforma/equipe/equipe.module';
 import { AuditoriaModule } from './modules/plataforma/auditoria/auditoria.module';
 import { ConfiguracoesModule } from './modules/plataforma/configuracoes/configuracoes.module';
 import { PlanosModule } from './modules/plataforma/planos/planos.module';
+import { LgpdModule } from './modules/plataforma/lgpd/lgpd.module';
 import { IaModule } from './modules/ia/ia.module';
 
 /**
@@ -60,6 +62,10 @@ import { IaModule } from './modules/ia/ia.module';
       }),
     }),
 
+    // Liga o `@Cron` para toda a aplicação: a exclusão de contas canceladas
+    // precisa rodar mesmo sem Redis, e o agendador de lembretes também usa.
+    ScheduleModule.forRoot(),
+
     PrismaModule,
     // Registrado desde já para que a escolha entre envio real e envio simulado
     // aconteça na subida da aplicação: um SMTP mal configurado aparece no log
@@ -71,6 +77,7 @@ import { IaModule } from './modules/ia/ia.module';
     AuditoriaModule,
     ConfiguracoesModule,
     PlanosModule,
+    LgpdModule,
     ClientesModule,
     AtendimentosModule,
     FunilModule,

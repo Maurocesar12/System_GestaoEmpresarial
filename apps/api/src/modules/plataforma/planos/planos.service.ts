@@ -43,7 +43,7 @@ export class PlanosService {
       const [tenant, usuarios, clientes, previsoes] = await Promise.all([
         tx.tenant.findUniqueOrThrow({ where: { id: tenantAtual() }, include: { plano: true } }),
         tx.usuario.count({ where: { ativo: true } }),
-        tx.cliente.count(),
+        tx.cliente.count({ where: { anonimizadoEm: null } }),
         tx.previsaoFinanceira.count({
           where: { criadoEm: { gte: inicioDoMes }, modelo: { not: 'processando' } },
         }),

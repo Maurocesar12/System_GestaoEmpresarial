@@ -96,7 +96,7 @@ export class PainelService {
         financeiro,
         atividade,
       ] = await Promise.all([
-        tx.cliente.count(),
+        tx.cliente.count({ where: { anonimizadoEm: null } }),
         pode('clientes.visualizar') ? this.montarLeads(tx, agora) : null,
         pode('funil.visualizar') ? this.montarFunil(tx, momentos) : null,
         pode('orcamentos.visualizar') ? this.montarComercial(tx, momentos) : null,
@@ -176,7 +176,7 @@ export class PainelService {
           cliente: { select: { posicaoFunil: { select: { etapaId: true } } } },
         },
       }),
-      tx.cliente.count({ where: { posicaoFunil: { is: null } } }),
+      tx.cliente.count({ where: { posicaoFunil: { is: null }, anonimizadoEm: null } }),
       tx.clienteFunil.findMany({
         where: { atualizadoEm: { lt: momentos.corteParado } },
         orderBy: { atualizadoEm: 'asc' },

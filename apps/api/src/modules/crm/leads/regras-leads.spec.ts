@@ -12,7 +12,7 @@ const CORTE = new Date('2026-07-16T00:00:00Z');
 
 describe('filtroDeLeads', () => {
   it('limita a janela de chegada e ignora filtros ausentes', () => {
-    expect(filtroDeLeads(DESDE)).toEqual({ criadoEm: { gte: DESDE } });
+    expect(filtroDeLeads(DESDE)).toEqual({ anonimizadoEm: null, criadoEm: { gte: DESDE } });
   });
 
   it('exige ausência de qualquer contato para "aguardando"', () => {
@@ -42,6 +42,7 @@ describe('filtroDeFrios', () => {
   it('exclui quem teve qualquer toque recente ou já tem retorno marcado', () => {
     const filtro = filtroDeFrios(CORTE);
 
+    expect(filtro.anonimizadoEm).toBeNull();
     expect(filtro.criadoEm).toEqual({ lt: CORTE });
     expect(filtro.atendimentos).toEqual({ none: { data: { gte: CORTE } } });
     expect(filtro.agendamentos).toEqual({ none: { dataHora: { gte: CORTE } } });

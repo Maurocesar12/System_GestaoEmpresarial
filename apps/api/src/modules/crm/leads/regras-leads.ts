@@ -24,6 +24,9 @@ export const SEM_NENHUM_CONTATO = {
   orcamentos: { none: {} },
 } satisfies Prisma.ClienteWhereInput;
 
+/** Cliente anonimizado a pedido do titular não entra em fila nem em contagem. */
+export const CLIENTE_ATIVO = { anonimizadoEm: null } satisfies Prisma.ClienteWhereInput;
+
 /**
  * Filtro do que é lead.
  *
@@ -36,7 +39,7 @@ export function filtroDeLeads(
   desde: Date,
   filtros: Pick<LeadsQuery, 'origem' | 'situacao'> = {},
 ): Prisma.ClienteWhereInput {
-  const where: Prisma.ClienteWhereInput = { criadoEm: { gte: desde } };
+  const where: Prisma.ClienteWhereInput = { ...CLIENTE_ATIVO, criadoEm: { gte: desde } };
 
   if (filtros.origem) where.origem = filtros.origem;
 
@@ -71,6 +74,7 @@ export function filtroDeLeads(
  */
 export function filtroDeFrios(corte: Date, origem?: string): Prisma.ClienteWhereInput {
   const where: Prisma.ClienteWhereInput = {
+    ...CLIENTE_ATIVO,
     criadoEm: { lt: corte },
     atendimentos: { none: { data: { gte: corte } } },
     agendamentos: { none: { dataHora: { gte: corte } } },

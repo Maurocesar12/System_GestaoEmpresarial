@@ -77,6 +77,9 @@ Já implementado:
 - Planos Básico (R$ 100) e Premium (R$ 200), com vagas incluídas, cobrança estimada
   por usuário ativo adicional e limites aplicados pela API.
 - Permissões por ação para `admin`, `financeiro`, `atendente`, `tecnico`.
+- LGPD: cópia e anonimização dos dados de um cliente a pedido do titular,
+  exportação completa da empresa, cancelamento de conta com exclusão definitiva
+  após 30 dias e política de privacidade e retenção publicada em `/privacidade`.
 
 Ainda planejado:
 
