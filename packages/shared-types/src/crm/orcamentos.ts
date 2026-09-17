@@ -45,6 +45,9 @@ export const orcamentoFormSchema = z.object({
 
   /** Data limite da proposta, no formato AAAA-MM-DD. */
   validoAte: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')),
+
+  /** Quem vendeu. Vazio usa quem está emitindo. Recebe a comissão de venda. */
+  vendedorId: opcional(z.uuid()),
 });
 
 export type OrcamentoFormInput = z.infer<typeof orcamentoFormSchema>;
@@ -115,6 +118,8 @@ export interface Orcamento {
   status: StatusOrcamento;
   validoAte: string | null;
   respondidoEm: string | null;
+  vendedorId: string | null;
+  vendedorNome: string | null;
   criadoEm: string;
 }
 

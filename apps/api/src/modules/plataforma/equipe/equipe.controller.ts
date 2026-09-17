@@ -19,6 +19,7 @@ import {
   type ConviteEquipeInput,
   type EquipeResponse,
   type Funcionario,
+  type PessoaEquipe,
   type SessaoResponse,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
@@ -34,6 +35,13 @@ export class EquipeController {
   @Permissoes('equipe.gerenciar')
   listar(): Promise<EquipeResponse> {
     return this.equipe.listar();
+  }
+
+  // Sem permissão específica: quem emite orçamento ou agenda serviço precisa
+  // escolher vendedor e técnico, e a lista só traz nome e papel.
+  @Get('pessoas')
+  listarPessoas(): Promise<PessoaEquipe[]> {
+    return this.equipe.listarPessoas();
   }
 
   @Post('convites')

@@ -32,6 +32,8 @@ export const ENTIDADES_AUDITORIA = [
   'auditoria',
   'previsao_financeira',
   'importacao_financeira',
+  'material',
+  'comissao',
 ] as const;
 
 export const auditoriaQuerySchema = paginacaoQuerySchema.extend({

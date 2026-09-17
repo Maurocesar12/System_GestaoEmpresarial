@@ -179,7 +179,9 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
             <TrendingUp aria-hidden className="text-muted-foreground size-4" />
             Margem por serviço
           </CartaoTitulo>
-          <p className="text-muted-foreground shrink-0 text-xs">Receita menos custo direto.</p>
+          <p className="text-muted-foreground shrink-0 text-xs">
+            Receita menos custo direto, materiais usados e comissões.
+          </p>
         </CartaoCabecalho>
 
         {margem.itens.length === 0 ? (
@@ -220,6 +222,12 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
                     <TabelaCelula numerica>{formatarBRL(item.receita)}</TabelaCelula>
                     <TabelaCelula numerica suave>
                       {formatarBRL(item.custo)}
+                      {(Number(item.custoMateriais) > 0 || Number(item.custoComissoes) > 0) && (
+                        <div className="text-xs whitespace-nowrap">
+                          materiais {formatarBRL(item.custoMateriais)} · comissões{' '}
+                          {formatarBRL(item.custoComissoes)}
+                        </div>
+                      )}
                     </TabelaCelula>
                     <TabelaCelula numerica className="font-medium">
                       {formatarBRL(item.margem)}

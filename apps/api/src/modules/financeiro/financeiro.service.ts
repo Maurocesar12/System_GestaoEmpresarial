@@ -307,6 +307,12 @@ export class FinanceiroService {
         where: { id },
         include: INCLUDE_COMPLETO,
       });
+      // Conta a pagar de um fechamento de comissões: apagá-la devolve as
+      // comissões para pendentes, senão ficariam "fechadas" sem conta nenhuma.
+      await tx.comissao.updateMany({
+        where: { lancamentoId: id },
+        data: { status: 'pendente', lancamentoId: null, fechadaEm: null },
+      });
       const resultado = await tx.lancamentoFinanceiro.deleteMany({ where: { id } });
       if (anterior && resultado.count) {
         await this.auditoria.registrar(tx, {
@@ -614,7 +620,15 @@ export class FinanceiroService {
   async margemPorServico(query: PeriodoQuery): Promise<RelatorioMargem> {
     const where = this.filtroDePeriodo(query);
 
-    const [grupos, servicos] = await this.prisma.comTenant((tx) =>
+    // Material e comissão não têm natureza nem categoria: são sempre da empresa
+    // e ficam fora quando o relatório é filtrado por algo que eles não têm.
+    const incluiOperacao = (query.natureza ?? 'empresa') === 'empresa' && !query.categoriaId;
+    const dias = {
+      gte: new Date(`${query.de}T00:00:00Z`),
+      lte: new Date(`${query.ate}T00:00:00Z`),
+    };
+
+    const [grupos, servicos, consumos, comissoes] = await this.prisma.comTenant((tx) =>
       Promise.all([
         // Uma passada só: receita e custo de todos os serviços, agrupados pelo
         // banco. A alternativa — uma consulta por serviço — multiplicaria as
@@ -626,14 +640,42 @@ export class FinanceiroService {
           _count: { _all: true },
         }),
         tx.servico.findMany({ select: { id: true, nome: true } }),
+        incluiOperacao
+          ? tx.movimentacaoEstoque.groupBy({
+              by: ['servicoId'],
+              where: { tipo: 'consumo', servicoId: { not: null }, data: dias },
+              _sum: { valorTotal: true },
+            })
+          : [],
+        incluiOperacao
+          ? tx.comissao.groupBy({
+              by: ['servicoId'],
+              where: { servicoId: { not: null }, competencia: dias },
+              _sum: { valor: true },
+            })
+          : [],
       ]),
     );
 
     const nomePorServico = new Map(servicos.map((servico) => [servico.id, servico.nome]));
     const acumulado = new Map<
       string,
-      { receita: Prisma.Decimal; custo: Prisma.Decimal; quantidade: number }
+      {
+        receita: Prisma.Decimal;
+        custoLancamentos: Prisma.Decimal;
+        custoMateriais: Prisma.Decimal;
+        custoComissoes: Prisma.Decimal;
+        quantidade: number;
+      }
     >();
+    const linha = (servicoId: string) =>
+      acumulado.get(servicoId) ?? {
+        receita: ZERO,
+        custoLancamentos: ZERO,
+        custoMateriais: ZERO,
+        custoComissoes: ZERO,
+        quantidade: 0,
+      };
 
     let receitaSemServico = ZERO;
 
@@ -650,24 +692,36 @@ export class FinanceiroService {
         continue;
       }
 
-      const atual = acumulado.get(grupo.servicoId) ?? {
-        receita: ZERO,
-        custo: ZERO,
-        quantidade: 0,
-      };
+      const atual = linha(grupo.servicoId);
 
       if (grupo.tipo === 'entrada') {
         atual.receita = atual.receita.plus(valor);
         atual.quantidade += grupo._count._all;
       } else {
-        atual.custo = atual.custo.plus(valor);
+        atual.custoLancamentos = atual.custoLancamentos.plus(valor);
       }
 
       acumulado.set(grupo.servicoId, atual);
     }
 
+    for (const grupo of consumos) {
+      if (!grupo.servicoId) continue;
+      const atual = linha(grupo.servicoId);
+      atual.custoMateriais = atual.custoMateriais.plus(grupo._sum.valorTotal ?? ZERO);
+      acumulado.set(grupo.servicoId, atual);
+    }
+
+    for (const grupo of comissoes) {
+      if (!grupo.servicoId) continue;
+      const atual = linha(grupo.servicoId);
+      atual.custoComissoes = atual.custoComissoes.plus(grupo._sum.valor ?? ZERO);
+      acumulado.set(grupo.servicoId, atual);
+    }
+
     const itens: MargemPorServico[] = [...acumulado.entries()]
-      .map(([servicoId, { receita, custo, quantidade }]) => {
+      .map(([servicoId, valores]) => {
+        const { receita, custoLancamentos, custoMateriais, custoComissoes, quantidade } = valores;
+        const custo = custoLancamentos.plus(custoMateriais).plus(custoComissoes);
         const margem = receita.minus(custo);
 
         return {
@@ -675,6 +729,9 @@ export class FinanceiroService {
           servicoNome: nomePorServico.get(servicoId) ?? 'Serviço removido',
           receita: receita.toFixed(2),
           custo: custo.toFixed(2),
+          custoLancamentos: custoLancamentos.toFixed(2),
+          custoMateriais: custoMateriais.toFixed(2),
+          custoComissoes: custoComissoes.toFixed(2),
           margem: margem.toFixed(2),
           // Percentual só faz sentido com receita: dividir por zero não é
           // "margem zero", é pergunta sem resposta.

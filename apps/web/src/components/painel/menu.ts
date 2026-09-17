@@ -15,6 +15,8 @@ import {
   BrainCircuit,
   CreditCard,
   ShieldCheck,
+  Boxes,
+  BadgePercent,
   type LucideIcon,
 } from 'lucide-react';
 import { possuiPermissao, type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
@@ -37,6 +39,8 @@ export interface ItemMenu {
   icone: LucideIcon;
   /** `null` significa visível para qualquer usuário autenticado. */
   permissao: Permissao | null;
+  /** Telas do dono, que não são permissão concedível a funcionário. */
+  somenteAdmin?: boolean;
 }
 
 export interface GrupoMenu {
@@ -48,7 +52,15 @@ export interface GrupoMenu {
 export const MENU: readonly GrupoMenu[] = [
   {
     titulo: null,
-    itens: [{ href: '/painel', rotulo: 'Início', icone: LayoutDashboard, permissao: null }],
+    itens: [
+      { href: '/painel', rotulo: 'Início', icone: LayoutDashboard, permissao: null },
+      {
+        href: '/painel/minhas-comissoes',
+        rotulo: 'Minhas comissões',
+        icone: BadgePercent,
+        permissao: null,
+      },
+    ],
   },
   {
     titulo: 'Relacionamento',
@@ -98,6 +110,12 @@ export const MENU: readonly GrupoMenu[] = [
         icone: Wrench,
         permissao: 'servicos.visualizar',
       },
+      {
+        href: '/painel/estoque',
+        rotulo: 'Estoque',
+        icone: Boxes,
+        permissao: 'estoque.visualizar',
+      },
     ],
   },
   {
@@ -116,6 +134,13 @@ export const MENU: readonly GrupoMenu[] = [
         rotulo: 'Pró-labore',
         icone: HandCoins,
         permissao: 'financeiro.visualizar',
+      },
+      {
+        href: '/painel/comissoes',
+        rotulo: 'Comissões da equipe',
+        icone: BadgePercent,
+        permissao: null,
+        somenteAdmin: true,
       },
       {
         href: '/painel/financeiro/reservas',
@@ -176,7 +201,9 @@ export function menuDoUsuario(
   return MENU.map((grupo) => ({
     ...grupo,
     itens: grupo.itens.filter(
-      (item) => item.permissao === null || possuiPermissao(usuario, item.permissao),
+      (item) =>
+        (!item.somenteAdmin || usuario.papel === 'admin') &&
+        (item.permissao === null || possuiPermissao(usuario, item.permissao)),
     ),
   })).filter((grupo) => grupo.itens.length > 0);
 }

@@ -27,7 +27,15 @@ const ROTULOS: Record<PapelUsuario, string> = {
   tecnico: 'Técnico',
 };
 
-export function GerenciadorEquipe({ funcionarios, convites, capacidade }: EquipeResponse) {
+export function GerenciadorEquipe({
+  funcionarios,
+  convites,
+  capacidade,
+  mostrarComissoes,
+}: EquipeResponse & {
+  /** Percentuais de comissão são só do admin; a API também recusa os demais. */
+  mostrarComissoes: boolean;
+}) {
   const limiteAtingido = capacidade.vagasDisponiveis === 0;
 
   return (
@@ -36,7 +44,11 @@ export function GerenciadorEquipe({ funcionarios, convites, capacidade }: Equipe
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex flex-col gap-3">
           {funcionarios.map((funcionario) => (
-            <FormularioFuncionario key={funcionario.id} funcionario={funcionario} />
+            <FormularioFuncionario
+              key={funcionario.id}
+              funcionario={funcionario}
+              mostrarComissoes={mostrarComissoes}
+            />
           ))}
         </div>
         <div className="flex flex-col gap-6">
@@ -184,7 +196,13 @@ function ItemCobranca({ rotulo, valor }: { rotulo: string; valor: string }) {
   );
 }
 
-function FormularioFuncionario({ funcionario }: { funcionario: Funcionario }) {
+function FormularioFuncionario({
+  funcionario,
+  mostrarComissoes,
+}: {
+  funcionario: Funcionario;
+  mostrarComissoes: boolean;
+}) {
   const [papel, setPapel] = useState<PapelUsuario>(funcionario.papel);
   const [permissoes, setPermissoes] = useState<Permissao[]>(funcionario.permissoes);
   const [falha, setFalha] = useState<string>();
@@ -227,6 +245,12 @@ function FormularioFuncionario({ funcionario }: { funcionario: Funcionario }) {
                   papel,
                   ativo: form.get('ativo') === 'on',
                   permissoes,
+                  ...(mostrarComissoes
+                    ? {
+                        comissaoVendaPercentual: String(form.get('comissaoVenda') ?? ''),
+                        comissaoExecucaoPercentual: String(form.get('comissaoExecucao') ?? ''),
+                      }
+                    : {}),
                 });
                 setFalha(resultado.erro);
                 if (!resultado.erro) avisar('sucesso', 'Acesso do funcionário atualizado.');
@@ -253,6 +277,26 @@ function FormularioFuncionario({ funcionario }: { funcionario: Funcionario }) {
               <input name="ativo" type="checkbox" defaultChecked={funcionario.ativo} /> Funcionário
               ativo
             </label>
+            {mostrarComissoes && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo
+                  name="comissaoVenda"
+                  rotulo="Comissão de venda (%)"
+                  inputMode="decimal"
+                  placeholder="Sem comissão"
+                  ajuda="Sobre orçamentos aprovados em que é vendedor."
+                  defaultValue={funcionario.comissaoVendaPercentual?.replace('.', ',') ?? ''}
+                />
+                <Campo
+                  name="comissaoExecucao"
+                  rotulo="Comissão de execução (%)"
+                  inputMode="decimal"
+                  placeholder="Sem comissão"
+                  ajuda="Sobre serviços executados em que é técnico."
+                  defaultValue={funcionario.comissaoExecucaoPercentual?.replace('.', ',') ?? ''}
+                />
+              </div>
+            )}
             <GradePermissoes selecionadas={permissoes} aoMudar={setPermissoes} />
             <Botao type="submit" carregando={salvando} className="self-start">
               Salvar acesso

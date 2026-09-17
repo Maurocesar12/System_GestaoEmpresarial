@@ -1,7 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { Cliente, Paginado, Servico } from '@gestao/shared-types';
-import { apiComSessao } from '@/lib/api-servidor';
+import {
+  possuiPermissao,
+  type Cliente,
+  type Orcamento,
+  type Paginado,
+  type PessoaEquipe,
+  type Servico,
+} from '@gestao/shared-types';
+import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { FormularioAgendamento } from '../formulario-agendamento';
 
 export const metadata: Metadata = {
@@ -14,10 +21,15 @@ interface Props {
 
 export default async function PaginaNovoAgendamento({ searchParams }: Props) {
   const { cliente: clienteFixo } = await searchParams;
+  const usuario = await usuarioAtual();
 
-  const [clientes, servicos] = await Promise.all([
+  const [clientes, servicos, pessoas, orcamentos] = await Promise.all([
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),
     apiComSessao<Paginado<Servico>>('/servicos?porPagina=100&somenteAtivos=true'),
+    apiComSessao<PessoaEquipe[]>('/equipe/pessoas'),
+    possuiPermissao(usuario, 'orcamentos.visualizar')
+      ? apiComSessao<Paginado<Orcamento>>('/orcamentos?status=aprovado&porPagina=100')
+      : null,
   ]);
 
   if (clientes.dados.length === 0) {
@@ -47,6 +59,8 @@ export default async function PaginaNovoAgendamento({ searchParams }: Props) {
       <FormularioAgendamento
         clientes={clientes.dados}
         servicos={servicos.dados}
+        pessoas={pessoas}
+        orcamentos={orcamentos?.dados ?? []}
         clienteFixo={clienteFixo}
       />
     </div>

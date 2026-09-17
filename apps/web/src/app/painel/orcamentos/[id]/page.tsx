@@ -6,6 +6,7 @@ import {
   type Cliente,
   type Orcamento,
   type Paginado,
+  type PessoaEquipe,
   type Servico,
 } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
@@ -24,10 +25,11 @@ interface Props {
 export default async function PaginaOrcamento({ params }: Props) {
   const { id } = await params;
 
-  const [orcamento, clientes, servicos] = await Promise.all([
+  const [orcamento, clientes, servicos, pessoas] = await Promise.all([
     apiComSessao<Orcamento>(`/orcamentos/${id}`),
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),
     apiComSessao<Paginado<Servico>>('/servicos?porPagina=100&somenteAtivos=true'),
+    apiComSessao<PessoaEquipe[]>('/equipe/pessoas'),
   ]);
 
   const editavel = orcamento.status === 'aberto';
@@ -59,6 +61,7 @@ export default async function PaginaOrcamento({ params }: Props) {
           orcamento={orcamento}
           clientes={clientes.dados}
           servicos={servicos.dados}
+          pessoas={pessoas}
         />
       ) : (
         // Orçamento respondido vira registro histórico: alterar o valor de algo
@@ -73,6 +76,9 @@ export default async function PaginaOrcamento({ params }: Props) {
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Serviço</dt>
             <dd>{orcamento.servicoNome ?? '—'}</dd>
+
+            <dt className="text-muted-foreground">Vendedor</dt>
+            <dd>{orcamento.vendedorNome ?? '—'}</dd>
 
             <dt className="text-muted-foreground">Descrição</dt>
             <dd className="whitespace-pre-wrap">{orcamento.descricao ?? '—'}</dd>

@@ -29,5 +29,7 @@ export * from './crm/servicos';
 export * from './financeiro/lancamentos';
 export * from './financeiro/pro-labore';
 export * from './financeiro/reservas';
+export * from './operacao/estoque';
+export * from './operacao/comissoes';
 export * from './painel/tempo-real';
 export * from './health';

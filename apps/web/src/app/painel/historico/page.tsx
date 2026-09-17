@@ -45,6 +45,8 @@ const ROTULO_ENTIDADE: Record<EntidadeAuditoria, string> = {
   auditoria: 'Histórico',
   previsao_financeira: 'Previsão financeira',
   importacao_financeira: 'Importação financeira',
+  material: 'Material',
+  comissao: 'Comissão',
 };
 
 const ROTULO_ACAO: Record<AcaoAuditoria, string> = {

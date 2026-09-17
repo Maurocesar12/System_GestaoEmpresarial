@@ -15,6 +15,7 @@ import {
   type ConviteEquipeInput,
   type EquipeResponse,
   type Funcionario,
+  type PessoaEquipe,
   type SessaoResponse,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
@@ -78,8 +79,17 @@ export class EquipeService {
       precoUsuarioAdicional: tenant.plano.precoUsuarioAdicional,
     });
 
+    // Percentual de comissão é do admin: quem gerencia a equipe por concessão
+    // não fica sabendo quanto cada colega ganha.
+    const verComissoes = exigirContextoTenant().papel === 'admin';
+
     return {
-      funcionarios: funcionarios.map((item) => this.paraFuncionario(item)),
+      funcionarios: funcionarios.map((item) => {
+        const funcionario = this.paraFuncionario(item);
+        return verComissoes
+          ? funcionario
+          : { ...funcionario, comissaoVendaPercentual: null, comissaoExecucaoPercentual: null };
+      }),
       convites: convites.map((item) => ({
         id: item.id,
         nome: item.nome,
@@ -119,6 +129,17 @@ export class EquipeService {
           : null,
       },
     };
+  }
+
+  /** Só nome e papel: é o que os campos de vendedor e técnico precisam, sem expor e-mails. */
+  async listarPessoas(): Promise<PessoaEquipe[]> {
+    return this.prisma.comTenant((tx) =>
+      tx.usuario.findMany({
+        where: { ativo: true },
+        select: { id: true, nome: true, papel: true },
+        orderBy: { nome: 'asc' },
+      }),
+    );
   }
 
   async convidar(dados: ConviteEquipeInput): Promise<void> {
@@ -169,6 +190,17 @@ export class EquipeService {
 
   async atualizar(id: string, dados: AtualizarFuncionarioInput): Promise<Funcionario> {
     const contexto = exigirContextoTenant();
+
+    if (
+      contexto.papel !== 'admin' &&
+      (dados.comissaoVendaPercentual !== undefined || dados.comissaoExecucaoPercentual !== undefined)
+    ) {
+      throw new ForbiddenException({
+        codigo: CODIGOS_ERRO.SEM_PERMISSAO,
+        mensagem: 'Só o administrador da empresa altera percentuais de comissão.',
+      });
+    }
+
     const usuario = await this.prisma.comTenant(async (tx) => {
       const atual = await tx.usuario.findFirst({ where: { id, tenantId: contexto.tenantId } });
       if (!atual) this.naoEncontrado();
@@ -195,6 +227,12 @@ export class EquipeService {
           ativo: dados.ativo,
           permissoes: dados.permissoes,
           permissoesPersonalizadas: true,
+          ...(dados.comissaoVendaPercentual !== undefined
+            ? { comissaoVendaPercentual: dados.comissaoVendaPercentual }
+            : {}),
+          ...(dados.comissaoExecucaoPercentual !== undefined
+            ? { comissaoExecucaoPercentual: dados.comissaoExecucaoPercentual }
+            : {}),
         },
       });
       if (
@@ -213,17 +251,24 @@ export class EquipeService {
           papel: atual.papel,
           ativo: atual.ativo,
           permissoes: atual.permissoes,
+          comissaoVendaPercentual: atual.comissaoVendaPercentual?.toFixed(2) ?? null,
+          comissaoExecucaoPercentual: atual.comissaoExecucaoPercentual?.toFixed(2) ?? null,
         },
         depois: {
           nome: alterado.nome,
           papel: alterado.papel,
           ativo: alterado.ativo,
           permissoes: alterado.permissoes,
+          comissaoVendaPercentual: alterado.comissaoVendaPercentual?.toFixed(2) ?? null,
+          comissaoExecucaoPercentual: alterado.comissaoExecucaoPercentual?.toFixed(2) ?? null,
         },
       });
       return alterado;
     });
-    return this.paraFuncionario(usuario);
+    const funcionario = this.paraFuncionario(usuario);
+    return contexto.papel === 'admin'
+      ? funcionario
+      : { ...funcionario, comissaoVendaPercentual: null, comissaoExecucaoPercentual: null };
   }
 
   async cancelarConvite(id: string): Promise<void> {
@@ -332,6 +377,8 @@ export class EquipeService {
     ativo: boolean;
     permissoes: string[];
     permissoesPersonalizadas: boolean;
+    comissaoVendaPercentual: { toFixed(casas: number): string } | null;
+    comissaoExecucaoPercentual: { toFixed(casas: number): string } | null;
     ultimoLoginEm: Date | null;
     criadoEm: Date;
   }): Funcionario {
@@ -346,6 +393,8 @@ export class EquipeService {
         usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
       ),
       permissoesPersonalizadas: usuario.permissoesPersonalizadas,
+      comissaoVendaPercentual: usuario.comissaoVendaPercentual?.toFixed(2) ?? null,
+      comissaoExecucaoPercentual: usuario.comissaoExecucaoPercentual?.toFixed(2) ?? null,
       ultimoLoginEm: usuario.ultimoLoginEm?.toISOString() ?? null,
       criadoEm: usuario.criadoEm.toISOString(),
     };

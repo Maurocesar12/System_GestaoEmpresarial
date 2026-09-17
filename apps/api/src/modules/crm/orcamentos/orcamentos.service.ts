@@ -16,7 +16,8 @@ import {
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
-import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { exigirContextoTenant, tenantAtual } from '../../../infra/tenant/tenant-context';
+import { ComissoesService } from '../../operacao/comissoes/comissoes.service';
 import { FunilService } from '../funil/funil.service';
 import { garantirVinculos } from '../../../common/vinculos';
 // Import de valor, e não `import type`: além dos tipos, o `Prisma.Decimal` é
@@ -28,6 +29,7 @@ import { Prisma } from '../../../generated/prisma/client';
 const INCLUDE_PADRAO = {
   cliente: { select: { nome: true } },
   servico: { select: { nome: true } },
+  vendedor: { select: { nome: true } },
 } as const;
 
 /** O registro do banco, derivado do schema em vez de redigitado à mão. */
@@ -54,6 +56,7 @@ export class OrcamentosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly funil: FunilService,
+    private readonly comissoes: ComissoesService,
   ) {}
 
   async listar(query: OrcamentosQuery): Promise<Paginado<Orcamento>> {
@@ -152,6 +155,8 @@ export class OrcamentosService {
           descricao: dados.descricao,
           valor: dados.valor,
           validoAte: dados.validoAte ? new Date(dados.validoAte) : null,
+          // Sem vendedor escolhido, a venda é de quem emitiu.
+          vendedorId: dados.vendedorId ?? exigirContextoTenant().usuarioId,
         },
         include: INCLUDE_PADRAO,
       });
@@ -193,6 +198,7 @@ export class OrcamentosService {
           descricao: dados.descricao,
           valor: dados.valor,
           validoAte: dados.validoAte ? new Date(dados.validoAte) : null,
+          vendedorId: dados.vendedorId ?? atual.vendedorId,
         },
         include: INCLUDE_PADRAO,
       });
@@ -244,6 +250,7 @@ export class OrcamentosService {
       // esconderia justamente o que precisa de atenção.
       if (novoStatus === 'aprovado') {
         await this.funil.moverParaMarco(tx, atualizado.clienteId, 'fechado');
+        await this.comissoes.gerarVenda(tx, atualizado);
       }
 
       return atualizado;
@@ -296,6 +303,8 @@ export class OrcamentosService {
       // caracteres evita que o fuso do servidor a empurre um dia para trás.
       validoAte: registro.validoAte?.toISOString().slice(0, 10) ?? null,
       respondidoEm: registro.respondidoEm?.toISOString() ?? null,
+      vendedorId: registro.vendedorId,
+      vendedorNome: registro.vendedor?.nome ?? null,
       criadoEm: registro.criadoEm.toISOString(),
     };
   }

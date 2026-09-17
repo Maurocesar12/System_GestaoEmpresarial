@@ -323,10 +323,16 @@ export interface FluxoDeCaixa {
  *
  * ```
  *   receita  = soma das entradas vinculadas ao serviço
- *   custo    = soma das saídas vinculadas ao serviço
+ *   custo    = saídas vinculadas ao serviço
+ *            + materiais consumidos nas execuções do serviço
+ *            + comissões geradas pelo serviço
  *   margem   = receita − custo
  *   margem % = margem ÷ receita
  * ```
+ *
+ * Materiais e comissões entram pela data em que aconteceram (consumo e
+ * competência), não por uma baixa no caixa: são custo do serviço no dia em que
+ * o serviço foi feito ou vendido.
  *
  * O custo considerado é o **direto**: apenas o que foi lançado apontando para
  * aquele serviço. Custo indireto — aluguel, internet, contador — não é rateado
@@ -342,7 +348,11 @@ export interface MargemPorServico {
   servicoId: string | null;
   servicoNome: string;
   receita: string;
+  /** Total: `custoLancamentos + custoMateriais + custoComissoes`. */
   custo: string;
+  custoLancamentos: string;
+  custoMateriais: string;
+  custoComissoes: string;
   margem: string;
   /** `null` quando não houve receita — não há como dividir por zero. */
   margemPercentual: number | null;

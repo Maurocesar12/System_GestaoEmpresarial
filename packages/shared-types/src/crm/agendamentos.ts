@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 import { statusAgendamentoSchema, type StatusAgendamento } from '../enums';
+import { listaMateriaisSchema } from '../operacao/estoque';
 
 /**
  * Contrato de agendamentos (arquitetura §7).
@@ -48,6 +49,15 @@ export const agendamentoFormSchema = z.object({
   dataHora: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/, 'Informe data e hora'),
 
   observacoes: textoOpcional(2000),
+
+  /** Quem vai executar. Recebe a comissão de execução. */
+  tecnicoId: opcional(z.uuid()),
+
+  /**
+   * Orçamento de onde veio o serviço. É dele que sai o valor da comissão de
+   * execução — sem orçamento, vale o preço padrão do serviço.
+   */
+  orcamentoId: opcional(z.uuid()),
 });
 
 export type AgendamentoFormInput = z.infer<typeof agendamentoFormSchema>;
@@ -76,6 +86,13 @@ export type AcaoAgendamento = z.infer<typeof acaoAgendamentoSchema>;
 
 export const mudarStatusAgendamentoSchema = z.object({
   acao: acaoAgendamentoSchema,
+  /**
+   * Materiais realmente usados, só na ação `executar`.
+   *
+   * Ausente usa a lista padrão do serviço. Presente substitui a lista inteira —
+   * inclusive vazia, para um serviço que desta vez não gastou nada.
+   */
+  materiais: listaMateriaisSchema.optional(),
 });
 
 export type MudarStatusAgendamentoInput = z.infer<typeof mudarStatusAgendamentoSchema>;
@@ -128,6 +145,10 @@ export interface Agendamento {
   dataHora: string;
   observacoes: string | null;
   status: StatusAgendamento;
+  tecnicoId: string | null;
+  tecnicoNome: string | null;
+  orcamentoId: string | null;
+  orcamentoValor: string | null;
   criadoEm: string;
 }
 

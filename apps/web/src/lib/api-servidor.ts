@@ -1,7 +1,13 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
+import type { UsuarioAutenticado } from '@gestao/shared-types';
 import { apiFetch, ApiRequestError } from './api';
-import { lerAccessToken } from './sessao';
+import { lerAccessToken, lerUsuarioDaSessao, type UsuarioDaSessao } from './sessao';
+
+/** Quem está logado: do cookie quando existe, da API quando o cookie é antigo. */
+export async function usuarioAtual(): Promise<UsuarioDaSessao | UsuarioAutenticado> {
+  return (await lerUsuarioDaSessao()) ?? apiComSessao<UsuarioAutenticado>('/auth/eu');
+}
 
 /**
  * Chama a API em nome do usuário logado.

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import {
   atualizarFuncionarioSchema,
   conviteEquipeSchema,
-  type AtualizarFuncionarioInput,
+  type AtualizarFuncionarioEntrada,
   type ConviteEquipeInput,
 } from '@gestao/shared-types';
 import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
@@ -27,7 +27,7 @@ export async function convidarFuncionario(dados: ConviteEquipeInput): Promise<Re
 
 export async function atualizarFuncionario(
   id: string,
-  dados: AtualizarFuncionarioInput,
+  dados: AtualizarFuncionarioEntrada,
 ): Promise<ResultadoAcao> {
   const validacao = atualizarFuncionarioSchema.safeParse(dados);
   if (!validacao.success) return erroDeValidacao(validacao.error.issues);

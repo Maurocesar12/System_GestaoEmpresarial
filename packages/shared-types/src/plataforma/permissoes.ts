@@ -19,6 +19,8 @@ export const PERMISSOES = [
   'lembretes.gerenciar',
   'servicos.visualizar',
   'servicos.gerenciar',
+  'estoque.visualizar',
+  'estoque.gerenciar',
   'financeiro.visualizar',
   'financeiro.criar',
   'financeiro.editar',
@@ -49,6 +51,7 @@ export const PERMISSOES_PADRAO_POR_PAPEL: Record<PapelUsuario, readonly Permissa
   financeiro: [
     'servicos.visualizar',
     'servicos.gerenciar',
+    'estoque.visualizar',
     'financeiro.visualizar',
     'financeiro.criar',
     'financeiro.editar',
@@ -67,7 +70,13 @@ export const PERMISSOES_PADRAO_POR_PAPEL: Record<PapelUsuario, readonly Permissa
     'agenda.gerenciar',
     'lembretes.gerenciar',
   ],
-  tecnico: [...CRM_LEITURA, 'clientes.editar', 'funil.movimentar', 'agenda.gerenciar'],
+  tecnico: [
+    ...CRM_LEITURA,
+    'clientes.editar',
+    'funil.movimentar',
+    'agenda.gerenciar',
+    'estoque.visualizar',
+  ],
 };
 
 export function permissoesDoUsuario(
@@ -118,6 +127,8 @@ export const GRUPOS_PERMISSOES: ReadonlyArray<{
       { codigo: 'lembretes.gerenciar', rotulo: 'Gerenciar lembretes' },
       { codigo: 'servicos.visualizar', rotulo: 'Visualizar serviços' },
       { codigo: 'servicos.gerenciar', rotulo: 'Gerenciar serviços' },
+      { codigo: 'estoque.visualizar', rotulo: 'Visualizar estoque' },
+      { codigo: 'estoque.gerenciar', rotulo: 'Cadastrar materiais, entradas e ajustes' },
     ],
   },
   {

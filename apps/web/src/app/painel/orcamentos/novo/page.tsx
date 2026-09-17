@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { Cliente, Paginado, Servico } from '@gestao/shared-types';
+import type { Cliente, Paginado, PessoaEquipe, Servico } from '@gestao/shared-types';
 import { apiComSessao } from '@/lib/api-servidor';
 import { FormularioOrcamento } from '../formulario-orcamento';
 
@@ -18,9 +18,10 @@ export default async function PaginaNovoOrcamento({ searchParams }: Props) {
   // Limite alto nos dois: são para preencher um `<select>`. Se uma empresa
   // passar disso, o campo vira uma busca com autocompletar — mas é cedo para
   // construir isso sem saber se acontece.
-  const [clientes, servicos] = await Promise.all([
+  const [clientes, servicos, pessoas] = await Promise.all([
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),
     apiComSessao<Paginado<Servico>>('/servicos?porPagina=100&somenteAtivos=true'),
+    apiComSessao<PessoaEquipe[]>('/equipe/pessoas'),
   ]);
 
   if (clientes.dados.length === 0) {
@@ -52,6 +53,7 @@ export default async function PaginaNovoOrcamento({ searchParams }: Props) {
       <FormularioOrcamento
         clientes={clientes.dados}
         servicos={servicos.dados}
+        pessoas={pessoas}
         clienteFixo={clienteFixo}
       />
     </div>

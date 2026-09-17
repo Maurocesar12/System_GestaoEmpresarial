@@ -8,6 +8,7 @@ import {
   type Orcamento,
   type OrcamentoFormEntrada,
   type OrcamentoFormInput,
+  type PessoaEquipe,
   type Servico,
 } from '@gestao/shared-types';
 import Link from 'next/link';
@@ -19,7 +20,7 @@ import { Campo } from '@/components/ui/campo';
 import type { ResultadoAcao } from '@/lib/acoes';
 import { salvarOrcamento } from './acoes';
 
-const CAMPOS = ['clienteId', 'servicoId', 'descricao', 'valor', 'validoAte'] as const;
+const CAMPOS = ['clienteId', 'servicoId', 'descricao', 'valor', 'validoAte', 'vendedorId'] as const;
 
 /**
  * Formulário de orçamento.
@@ -32,11 +33,13 @@ export function FormularioOrcamento({
   orcamento,
   clientes,
   servicos,
+  pessoas,
   clienteFixo,
 }: {
   orcamento?: Orcamento;
   clientes: Cliente[];
   servicos: Servico[];
+  pessoas: PessoaEquipe[];
   /** Quando vem da ficha de um cliente, o campo já vem preenchido e travado. */
   clienteFixo?: string;
 }) {
@@ -59,6 +62,7 @@ export function FormularioOrcamento({
       // o mesmo formato que a pessoa vai digitar.
       valor: orcamento?.valor.replace('.', ',') ?? '',
       validoAte: orcamento?.validoAte ?? '',
+      vendedorId: orcamento?.vendedorId ?? '',
     },
   });
 
@@ -158,6 +162,28 @@ export function FormularioOrcamento({
           erro={errors.validoAte?.message}
           {...register('validoAte')}
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="vendedorId" className="text-sm font-medium">
+          Vendedor
+        </label>
+        <select
+          id="vendedorId"
+          className="focus-visible:ring-ring focus-visible:border-ring h-10 rounded-md border bg-transparent px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          {...register('vendedorId')}
+        >
+          <option value="">{orcamento ? 'Manter o atual' : 'Quem está emitindo'}</option>
+          {pessoas.map((pessoa) => (
+            <option key={pessoa.id} value={pessoa.id}>
+              {pessoa.nome}
+            </option>
+          ))}
+        </select>
+        <p className="text-muted-foreground text-xs">
+          Recebe a comissão de venda quando o orçamento for aprovado.
+        </p>
+        {errors.vendedorId && <p className="text-destructive text-xs">{errors.vendedorId.message}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">

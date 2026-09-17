@@ -129,6 +129,28 @@ enum ModoExecucaoIa {
   @@map("modo_execucao_ia")
 }
 
+enum TipoMovimentacaoEstoque {
+  entrada
+  consumo
+  ajuste
+
+  @@map("tipo_movimentacao_estoque")
+}
+
+enum TipoComissao {
+  venda
+  execucao
+
+  @@map("tipo_comissao")
+}
+
+enum StatusComissao {
+  pendente
+  fechada
+
+  @@map("status_comissao")
+}
+
 // ============================================================================
 //  Plataforma
 // ============================================================================
@@ -226,6 +248,10 @@ model Tenant {
   etiquetas             Etiqueta[]
   clientesEtiquetas     ClienteEtiqueta[]
   previsoesFinanceiras  PrevisaoFinanceira[]
+  materiais             Material[]
+  servicosMateriais     ServicoMaterial[]
+  movimentacoesEstoque  MovimentacaoEstoque[]
+  comissoes             Comissao[]
 
   @@index([status])
   @@index([ultimoPagamentoEm])
@@ -273,12 +299,19 @@ model Usuario {
   permissoes               String[] @default([])
   permissoesPersonalizadas Boolean  @default(false) @map("permissoes_personalizadas")
 
+  /// Percentuais de comissão. `null` significa que a pessoa não recebe aquele tipo.
+  comissaoVendaPercentual    Decimal? @map("comissao_venda_percentual") @db.Decimal(5, 2)
+  comissaoExecucaoPercentual Decimal? @map("comissao_execucao_percentual") @db.Decimal(5, 2)
+
   ultimoLoginEm DateTime? @map("ultimo_login_em")
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  refreshTokens RefreshToken[]
+  refreshTokens          RefreshToken[]
+  orcamentosVendidos     Orcamento[]    @relation("VendedorOrcamento")
+  agendamentosExecutados Agendamento[]  @relation("TecnicoAgendamento")
+  comissoes              Comissao[]
 
   @@index([tenantId, criadoEm])
   @@index([tenantId, ativo])
@@ -465,9 +498,12 @@ model Servico {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  orcamentos   Orcamento[]
-  agendamentos Agendamento[]
-  lancamentos  LancamentoFinanceiro[]
+  orcamentos    Orcamento[]
+  agendamentos  Agendamento[]
+  lancamentos   LancamentoFinanceiro[]
+  materiais     ServicoMaterial[]
+  movimentacoes MovimentacaoEstoque[]
+  comissoes     Comissao[]
 
   @@unique([tenantId, nome])
   @@index([tenantId, ativo])
@@ -492,8 +528,14 @@ model Orcamento {
   validoAte    DateTime? @map("valido_ate") @db.Date
   respondidoEm DateTime? @map("respondido_em")
 
+  vendedorId String?  @map("vendedor_id") @db.Uuid
+  vendedor   Usuario? @relation("VendedorOrcamento", fields: [vendedorId], references: [id], onDelete: SetNull)
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  agendamentos Agendamento[]
+  comissao     Comissao?
 
   @@index([tenantId, status])
   @@index([tenantId, clienteId])
@@ -515,8 +557,17 @@ model Agendamento {
   observacoes String?           @db.Text
   status      StatusAgendamento @default(agendado)
 
+  tecnicoId String?  @map("tecnico_id") @db.Uuid
+  tecnico   Usuario? @relation("TecnicoAgendamento", fields: [tecnicoId], references: [id], onDelete: SetNull)
+
+  orcamentoId String?    @map("orcamento_id") @db.Uuid
+  orcamento   Orcamento? @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  movimentacoesEstoque MovimentacaoEstoque[]
+  comissao             Comissao?
 
   @@index([tenantId, dataHora])
   @@index([tenantId, status])
@@ -653,7 +704,8 @@ model LancamentoFinanceiro {
   clienteId String?  @map("cliente_id") @db.Uuid
   cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
-  anexos AnexoLancamento[]
+  anexos    AnexoLancamento[]
+  comissoes Comissao[]
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
@@ -750,6 +802,132 @@ model PrevisaoFinanceira {
   @@index([tenantId, criadoEm])
   @@index([tenantId, usuarioId, criadoEm])
   @@map("previsao_financeira")
+}
+
+// ============================================================================
+//  Operação — estoque e comissões
+// ============================================================================
+
+/// Material de consumo. O custo médio ponderado é recalculado a cada entrada.
+model Material {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  nome    String @db.VarChar(120)
+  unidade String @db.VarChar(10)
+
+  /// Pode ficar negativa: o consumo registra o que foi usado mesmo quando a
+  /// contagem está errada, em vez de travar a execução do serviço.
+  quantidade    Decimal  @default(0) @db.Decimal(14, 3)
+  /// Quatro casas: com duas, compras de centavos por unidade arredondariam o
+  /// custo médio para zero.
+  custoMedio    Decimal  @default(0) @map("custo_medio") @db.Decimal(14, 4)
+  estoqueMinimo Decimal? @map("estoque_minimo") @db.Decimal(14, 3)
+  ativo         Boolean  @default(true)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  movimentacoes MovimentacaoEstoque[]
+  servicos      ServicoMaterial[]
+
+  @@unique([tenantId, nome])
+  @@index([tenantId, ativo])
+  @@map("material")
+}
+
+/// Lista padrão de materiais de um serviço.
+model ServicoMaterial {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  servicoId  String   @map("servico_id") @db.Uuid
+  servico    Servico  @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+  materialId String   @map("material_id") @db.Uuid
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  quantidade Decimal @db.Decimal(14, 3)
+
+  @@id([servicoId, materialId])
+  @@index([tenantId, materialId])
+  @@map("servico_material")
+}
+
+/// Histórico do estoque. O saldo do material é a soma disto, mantida em dia a
+/// cada movimentação na mesma transação.
+model MovimentacaoEstoque {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  materialId String   @map("material_id") @db.Uuid
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  tipo          TipoMovimentacaoEstoque
+  /// Positiva em entrada e consumo. Em ajuste, o sinal diz se a contagem
+  /// aumentou ou diminuiu o saldo.
+  quantidade    Decimal                 @db.Decimal(14, 3)
+  custoUnitario Decimal                 @map("custo_unitario") @db.Decimal(14, 4)
+  valorTotal    Decimal                 @map("valor_total") @db.Decimal(14, 2)
+
+  /// Preenchidos no consumo: é por `servicoId` que o custo chega à margem.
+  agendamentoId String?      @map("agendamento_id") @db.Uuid
+  agendamento   Agendamento? @relation(fields: [agendamentoId], references: [id], onDelete: SetNull)
+  servicoId     String?      @map("servico_id") @db.Uuid
+  servico       Servico?     @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+
+  /// Sem FK, como na auditoria: o histórico sobrevive à saída da pessoa.
+  usuarioId  String?  @map("usuario_id") @db.Uuid
+  observacao String?  @db.VarChar(240)
+  data       DateTime @db.Date
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([tenantId, materialId, criadoEm])
+  @@index([tenantId, tipo, data])
+  @@index([tenantId, agendamentoId])
+  @@map("movimentacao_estoque")
+}
+
+/// Comissão gerada por uma venda aprovada ou por uma execução.
+model Comissao {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  usuarioId String  @map("usuario_id") @db.Uuid
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  tipo   TipoComissao
+  status StatusComissao @default(pendente)
+
+  /// Só na comissão de venda. Único: aprovar duas vezes ao mesmo tempo não
+  /// pode gerar duas comissões.
+  orcamentoId   String?      @unique @map("orcamento_id") @db.Uuid
+  orcamento     Orcamento?   @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+  /// Só na comissão de execução. Único pelo mesmo motivo.
+  agendamentoId String?      @unique @map("agendamento_id") @db.Uuid
+  agendamento   Agendamento? @relation(fields: [agendamentoId], references: [id], onDelete: SetNull)
+
+  servicoId String?  @map("servico_id") @db.Uuid
+  servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+
+  base        Decimal  @db.Decimal(14, 2)
+  /// Copiado da pessoa quando a comissão nasce; mudar o cadastro não reescreve.
+  percentual  Decimal  @db.Decimal(5, 2)
+  valor       Decimal  @db.Decimal(14, 2)
+  competencia DateTime @db.Date
+
+  lancamentoId String?               @map("lancamento_id") @db.Uuid
+  lancamento   LancamentoFinanceiro? @relation(fields: [lancamentoId], references: [id], onDelete: SetNull)
+  fechadaEm    DateTime?             @map("fechada_em")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([tenantId, status, competencia])
+  @@index([tenantId, usuarioId, competencia])
+  @@index([tenantId, servicoId, competencia])
+  @@map("comissao")
 }
 
 // ============================================================================

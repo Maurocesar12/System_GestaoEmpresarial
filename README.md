@@ -65,6 +65,12 @@ Já implementado:
 - Envio automático dos lembretes por e-mail: varredura agendada, fila BullMQ e
   worker. Depende de `REDIS_URL`; sem ela os lembretes ficam pendentes.
 - Financeiro com categorias, lançamentos, fluxo de caixa e margem por serviço.
+- Estoque de materiais com custo médio ponderado, entradas, ajuste por contagem e
+  lista padrão de materiais por serviço. Ao executar um agendamento, as
+  quantidades são conferidas, o estoque baixa e o custo entra na margem.
+- Comissão por pessoa: percentual de venda (orçamento aprovado) e de execução
+  (agendamento executado), fechamento por período gerando conta a pagar e
+  comissões somadas ao custo na margem por serviço.
 - Assistente de ajuda sobre o uso do sistema, em todos os planos, sem custo e
   sem ler dados da empresa.
 - Assistente com IA no plano Premium, conversando sobre o mesmo panorama que o

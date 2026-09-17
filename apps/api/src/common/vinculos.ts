@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CODIGOS_ERRO } from '@gestao/shared-types';
 import type { TransacaoComTenant } from '../infra/prisma/prisma.service';
 
@@ -26,9 +26,17 @@ export async function garantirVinculos(
     clienteId?: string | null;
     servicoId?: string | null;
     categoriaId?: string | null;
+    /** Vendedor ou técnico: precisa ser alguém ativo da equipe. */
+    vendedorId?: string | null;
+    tecnicoId?: string | null;
+    orcamentoId?: string | null;
   },
 ): Promise<void> {
-  const [cliente, servico, categoria] = await Promise.all([
+  const pessoas = [vinculos.vendedorId, vinculos.tecnicoId].filter(
+    (id): id is string => typeof id === 'string',
+  );
+
+  const [cliente, servico, categoria, ativos, orcamento] = await Promise.all([
     vinculos.clienteId
       ? tx.cliente.findUnique({ where: { id: vinculos.clienteId }, select: { id: true } })
       : null,
@@ -39,6 +47,15 @@ export async function garantirVinculos(
       ? tx.categoriaFinanceira.findUnique({
           where: { id: vinculos.categoriaId },
           select: { id: true },
+        })
+      : null,
+    pessoas.length
+      ? tx.usuario.count({ where: { id: { in: [...new Set(pessoas)] }, ativo: true } })
+      : 0,
+    vinculos.orcamentoId
+      ? tx.orcamento.findUnique({
+          where: { id: vinculos.orcamentoId },
+          select: { clienteId: true },
         })
       : null,
   ]);
@@ -61,6 +78,29 @@ export async function garantirVinculos(
     throw new NotFoundException({
       codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
       mensagem: 'Categoria não encontrada.',
+    });
+  }
+
+  if (ativos !== new Set(pessoas).size) {
+    throw new NotFoundException({
+      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+      mensagem: 'Pessoa da equipe não encontrada ou desativada.',
+    });
+  }
+
+  if (vinculos.orcamentoId && !orcamento) {
+    throw new NotFoundException({
+      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+      mensagem: 'Orçamento não encontrado.',
+    });
+  }
+
+  // O orçamento é a base da comissão de execução: ligar o de outro cliente
+  // pagaria comissão sobre um valor que não tem nada a ver com este serviço.
+  if (orcamento && vinculos.clienteId && orcamento.clienteId !== vinculos.clienteId) {
+    throw new BadRequestException({
+      codigo: CODIGOS_ERRO.VALIDACAO,
+      mensagem: 'O orçamento escolhido é de outro cliente.',
     });
   }
 }

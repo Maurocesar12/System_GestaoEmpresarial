@@ -10,6 +10,7 @@ import {
   type Agendamento,
   type AgendamentoFormInput,
   type AgendamentosQuery,
+  type ItemMaterialInput,
   type Paginado,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
@@ -17,11 +18,15 @@ import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/pr
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
 import { garantirVinculos } from '../../../common/vinculos';
+import { ComissoesService } from '../../operacao/comissoes/comissoes.service';
+import { EstoqueService } from '../../operacao/estoque/estoque.service';
 
 /** Relações que toda resposta de agendamento precisa. */
 const INCLUDE_PADRAO = {
   cliente: { select: { nome: true, telefone: true } },
   servico: { select: { nome: true } },
+  tecnico: { select: { nome: true } },
+  orcamento: { select: { valor: true } },
 } as const;
 
 /** O registro do banco, derivado do schema em vez de redigitado à mão. */
@@ -29,7 +34,11 @@ type AgendamentoBanco = Prisma.AgendamentoGetPayload<{ include: typeof INCLUDE_P
 
 @Injectable()
 export class AgendamentosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly estoque: EstoqueService,
+    private readonly comissoes: ComissoesService,
+  ) {}
 
   async listar(query: AgendamentosQuery): Promise<Paginado<Agendamento>> {
     const { pagina, porPagina, status, clienteId, de, ate } = query;
@@ -96,6 +105,8 @@ export class AgendamentosService {
           servicoId: dados.servicoId,
           dataHora: new Date(dados.dataHora),
           observacoes: dados.observacoes,
+          tecnicoId: dados.tecnicoId,
+          orcamentoId: dados.orcamentoId,
         },
         include: INCLUDE_PADRAO,
       });
@@ -132,6 +143,8 @@ export class AgendamentosService {
           servicoId: dados.servicoId,
           dataHora: new Date(dados.dataHora),
           observacoes: dados.observacoes,
+          tecnicoId: dados.tecnicoId,
+          orcamentoId: dados.orcamentoId,
         },
         include: INCLUDE_PADRAO,
       });
@@ -143,11 +156,17 @@ export class AgendamentosService {
   /**
    * Aplica uma transição da máquina de estados.
    *
-   * Marcar como executado **registra um atendimento no histórico do cliente**,
-   * na mesma transação. É o fecho do ciclo: o compromisso cumprido vira o
-   * registro do que foi feito, sem exigir que alguém digite duas vezes.
+   * Marcar como executado fecha o ciclo na mesma transação: registra o
+   * atendimento no histórico do cliente, dá baixa nos materiais usados e gera a
+   * comissão do técnico. Se qualquer um falhar, o agendamento continua pendente.
+   *
+   * @param materiais Só vale na execução. Ausente usa a lista padrão do serviço.
    */
-  async mudarStatus(id: string, acao: AcaoAgendamento): Promise<Agendamento> {
+  async mudarStatus(
+    id: string,
+    acao: AcaoAgendamento,
+    materiais?: ItemMaterialInput[],
+  ): Promise<Agendamento> {
     const agendamento = await this.prisma.comTenant(async (tx) => {
       const atual = await this.exigir(tx, id);
       const novoStatus = TRANSICOES_AGENDAMENTO[atual.status][acao];
@@ -178,6 +197,8 @@ export class AgendamentosService {
 
       if (novoStatus === 'executado') {
         await this.registrarAtendimento(tx, atualizado);
+        await this.estoque.consumirNaExecucao(tx, atualizado, materiais);
+        await this.comissoes.gerarExecucao(tx, atualizado);
       }
 
       return atualizado;
@@ -264,6 +285,10 @@ export class AgendamentosService {
       dataHora: registro.dataHora.toISOString(),
       observacoes: registro.observacoes,
       status: registro.status,
+      tecnicoId: registro.tecnicoId,
+      tecnicoNome: registro.tecnico?.nome ?? null,
+      orcamentoId: registro.orcamentoId,
+      orcamentoValor: registro.orcamento?.valor.toFixed(2) ?? null,
       criadoEm: registro.criadoEm.toISOString(),
     };
   }

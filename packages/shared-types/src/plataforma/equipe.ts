@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { papelUsuarioSchema, type PapelUsuario } from '../enums';
+import { percentualComissaoOpcionalSchema } from '../operacao/comissoes';
 import { PERMISSOES, type Permissao } from './permissoes';
 
 const emailEquipeSchema = z.string().trim().toLowerCase().pipe(z.email('E-mail inválido'));
@@ -25,8 +26,19 @@ export const atualizarFuncionarioSchema = z.object({
   papel: papelUsuarioSchema,
   ativo: z.boolean(),
   permissoes: z.array(permissaoSchema),
+  /** Ausente mantém o que está gravado; vazio remove a comissão. */
+  comissaoVendaPercentual: percentualComissaoOpcionalSchema.optional(),
+  comissaoExecucaoPercentual: percentualComissaoOpcionalSchema.optional(),
 });
 export type AtualizarFuncionarioInput = z.infer<typeof atualizarFuncionarioSchema>;
+export type AtualizarFuncionarioEntrada = z.input<typeof atualizarFuncionarioSchema>;
+
+/** Pessoa ativa da equipe, para escolher vendedor e técnico. */
+export interface PessoaEquipe {
+  id: string;
+  nome: string;
+  papel: PapelUsuario;
+}
 
 export interface Funcionario {
   id: string;
@@ -36,6 +48,8 @@ export interface Funcionario {
   ativo: boolean;
   permissoes: Permissao[];
   permissoesPersonalizadas: boolean;
+  comissaoVendaPercentual: string | null;
+  comissaoExecucaoPercentual: string | null;
   ultimoLoginEm: string | null;
   criadoEm: string;
 }

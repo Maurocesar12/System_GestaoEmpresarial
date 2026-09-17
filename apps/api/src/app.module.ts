@@ -29,6 +29,8 @@ import { AuditoriaModule } from './modules/plataforma/auditoria/auditoria.module
 import { ConfiguracoesModule } from './modules/plataforma/configuracoes/configuracoes.module';
 import { PlanosModule } from './modules/plataforma/planos/planos.module';
 import { LgpdModule } from './modules/plataforma/lgpd/lgpd.module';
+import { ComissoesModule } from './modules/operacao/comissoes/comissoes.module';
+import { EstoqueModule } from './modules/operacao/estoque/estoque.module';
 import { IaModule } from './modules/ia/ia.module';
 
 /**
@@ -85,6 +87,8 @@ import { IaModule } from './modules/ia/ia.module';
     ServicosModule,
     OrcamentosModule,
     AgendamentosModule,
+    EstoqueModule,
+    ComissoesModule,
     LembretesModule,
     FinanceiroModule,
     IaModule,
