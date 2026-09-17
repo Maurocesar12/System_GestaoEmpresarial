@@ -1,11 +1,33 @@
+/**
+ * A moldura é o que sobra visível do frame cinza da página em volta da
+ * "tela" (`.cena`). Existe por causa das placas flutuantes: elas são
+ * posicionadas com deslocamento negativo *dentro* deste padding, nunca
+ * além dele — assim o efeito de profundidade não depende de nenhum
+ * ancestral deixar o overflow aberto, e não há risco de corte em nenhuma
+ * largura de tela.
+ */
+.moldura {
+  position: relative;
+  padding: 34px 30px 26px;
+}
 .cena {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border-radius: var(--radius-xl);
   color: var(--foreground);
   background:
-    radial-gradient(ellipse at 90% 50%, var(--sucesso-suave), transparent 65%), var(--superficie);
+    radial-gradient(ellipse at 90% 50%, var(--sucesso-suave), transparent 65%), var(--card);
+  /* A tela fica com uma leve inclinação em 3D o tempo todo — o formato
+     "produto flutuando" que dá o tom mais avançado pedido — e se endireita
+     um pouco ao passar o mouse, como se reagisse à atenção. */
+  transform: perspective(1600px) rotateY(-4deg) rotateX(1.2deg);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 28px 36px 60px -32px color-mix(in oklch, var(--foreground) 45%, transparent);
+}
+.moldura:hover .cena,
+.moldura:focus-within .cena {
+  transform: perspective(1600px) rotateY(-1.5deg) rotateX(0.4deg);
 }
 .cena svg {
   width: 18px;
@@ -482,6 +504,105 @@
 @keyframes pulsar {
   50% {
     opacity: 0.45;
+  }
+}
+/* ----------------------------------------------------------------------
+   Placas flutuantes — "saindo" das bordas da tela
+   ------------------------------------------------------------------- */
+.flutuante {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+.flutuanteTopo {
+  top: 0;
+  right: 4%;
+  transform: translateY(-50%) rotate(-4deg);
+}
+.flutuanteBase {
+  bottom: 0;
+  left: 6%;
+  transform: translateY(50%) rotate(3deg);
+}
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px 9px 9px;
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 36px -18px color-mix(in oklch, var(--foreground) 45%, transparent);
+  white-space: nowrap;
+  animation: flutuar 5s ease-in-out infinite;
+}
+.flutuanteBase .chip {
+  animation-delay: 1.6s;
+}
+.chipIcone {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--sucesso);
+  background: var(--sucesso-suave);
+}
+.chipIcone svg {
+  width: 15px;
+  height: 15px;
+}
+.chipTexto {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.chipTexto > span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.chipTexto strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+@keyframes flutuar {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -9px;
+  }
+}
+/* Telas estreitas não têm folga ao lado do mockup para o efeito de
+   profundidade — a tela deita reta e as placas somem, em vez de arriscar
+   corte ou disputar espaço com o dedo de quem está tocando os botões. */
+@media (max-width: 1023px) {
+  .cena {
+    /* Sem moldura ao redor, a tela volta a encostar nas bordas do cartão —
+       arredondada só em cima, para não sobrar um triângulo do fundo cinza
+       entre o canto de baixo e a legenda que vem logo em seguida. */
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    transform: none;
+    box-shadow: none;
+  }
+  .moldura {
+    padding: 0;
+  }
+  .flutuante {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cena {
+    transition: none;
+  }
+  .chip {
+    animation: none;
   }
 }
 @media (max-width: 480px) {
