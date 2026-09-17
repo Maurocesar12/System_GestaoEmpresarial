@@ -46,6 +46,7 @@ export default async function PaginaEstoque({ searchParams }: Props) {
 
   const podeGerenciar = possuiPermissao(usuario, 'estoque.gerenciar');
   const valorTotal = somarDinheiro(materiais.dados.map((material) => material.valorEmEstoque));
+  const filtroAtivo = Boolean(busca || repor);
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,7 +77,7 @@ export default async function PaginaEstoque({ searchParams }: Props) {
         />
       </FaixaDeIndicadores>
 
-      <BarraFiltros>
+      <BarraFiltros ativo={filtroAtivo}>
         <CampoFiltro
           rotulo="Buscar"
           name="busca"
@@ -91,7 +92,7 @@ export default async function PaginaEstoque({ searchParams }: Props) {
         <button type="submit" className={estilosBotao({ tamanho: 'sm', variante: 'secundario' })}>
           Filtrar
         </button>
-        <LinkLimparFiltros href="/painel/estoque" ativo={Boolean(busca || repor)} />
+        <LinkLimparFiltros href="/painel/estoque" ativo={filtroAtivo} />
       </BarraFiltros>
 
       <Cartao>

@@ -191,7 +191,7 @@ function Filtros({ filtros }: { filtros: Awaited<Props['searchParams']> }) {
   );
 
   return (
-    <BarraFiltros>
+    <BarraFiltros ativo={ativo}>
       <CampoFiltro
         rotulo="Buscar"
         name="busca"

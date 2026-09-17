@@ -1,27 +1,72 @@
+'use client';
+
 import Link from 'next/link';
-import { X } from 'lucide-react';
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
+import { ChevronDown, Filter, X } from 'lucide-react';
+import {
+  useState,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react';
 import { cn } from '@/lib/utils';
 
 /**
  * Filtro do sistema, num padrão só.
  *
- * A ideia é uma linha, sem card em volta e sem rótulo escrito acima de cada
- * campo: o rótulo vira `aria-label` (para leitor de tela) e placeholder (para
- * quem vê a tela). Um rótulo visível faz sentido num cadastro, onde a pessoa
- * ainda não sabe o que preencher; num filtro, o valor já selecionado — ou o
- * placeholder — já diz do que se trata, e repetir "De" acima de um campo de
- * data é peso que a tela carrega para nada.
+ * Fica recolhido atrás de um botão "Filtros": a tela some por padrão e só
+ * ocupa espaço quando a pessoa escolhe abrir. Quando já existe filtro
+ * aplicado — a página foi aberta por um link com `?busca=...`, por exemplo —
+ * a barra já nasce aberta, para não esconder o que a pessoa já escolheu.
+ *
+ * Dentro, cada campo não tem rótulo escrito acima: o rótulo vira `aria-label`
+ * (leitor de tela) e placeholder (quem vê a tela). Um rótulo visível faz
+ * sentido num cadastro, onde a pessoa ainda não sabe o que preencher; num
+ * filtro, o valor já selecionado — ou o placeholder — já diz do que se trata.
  *
  * Continua sendo `<form method="get">`: o filtro é a URL, não estado do React.
  * Assim ele é compartilhável por link, sobrevive ao recarregar e funciona com
- * o botão voltar do navegador.
+ * o botão voltar do navegador. Trocar de página é navegação de verdade — o
+ * componente remonta e `aberto` volta a refletir o `ativo` da URL nova.
  */
-export function BarraFiltros({ children, className }: { children: ReactNode; className?: string }) {
+export function BarraFiltros({
+  children,
+  ativo = false,
+  className,
+}: {
+  children: ReactNode;
+  /** Já existe filtro aplicado nesta URL. */
+  ativo?: boolean;
+  className?: string;
+}) {
+  const [aberto, setAberto] = useState(ativo);
+
   return (
-    <form method="get" className={cn('flex flex-wrap items-center gap-2', className)}>
-      {children}
-    </form>
+    <div className={className}>
+      <button
+        type="button"
+        onClick={() => setAberto((valor) => !valor)}
+        aria-expanded={aberto}
+        className={cn(
+          'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors',
+          'text-muted-foreground hover:bg-accent hover:text-foreground',
+          ativo && 'text-foreground',
+        )}
+      >
+        <Filter aria-hidden className="size-3.5" />
+        Filtros
+        {ativo && <span aria-hidden className="bg-primary inline-block size-1.5 rounded-full" />}
+        <ChevronDown
+          aria-hidden
+          className={cn('size-3.5 transition-transform', aberto && 'rotate-180')}
+        />
+      </button>
+
+      {aberto && (
+        <form method="get" className="mt-2 flex flex-wrap items-center gap-2">
+          {children}
+        </form>
+      )}
+    </div>
   );
 }
 

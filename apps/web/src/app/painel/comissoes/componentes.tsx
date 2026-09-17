@@ -61,7 +61,7 @@ export function FiltrosComissoes({
   const rotaBase = pessoas ? '/painel/comissoes' : '/painel/minhas-comissoes';
 
   return (
-    <BarraFiltros>
+    <BarraFiltros ativo={ativo}>
       <CampoFiltro rotulo="De" type="date" name="de" defaultValue={de} />
       <CampoFiltro rotulo="Até" type="date" name="ate" defaultValue={ate} />
 

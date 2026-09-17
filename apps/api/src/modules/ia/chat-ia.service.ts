@@ -70,11 +70,11 @@ export class ChatIaService {
       titulo: 'Ajuda do sistema',
       descricao: 'Tire dúvidas sobre como usar',
       saudacao:
-        'Olá! Sou o assistente de ajuda. Explico como usar cada tela do sistema: clientes, leads, funil, ' +
-        'orçamentos, agenda, lembretes, financeiro, equipe e plano. Pergunte à vontade.',
+        'Oi! Sou o assistente de ajuda. Pergunte sobre qualquer tela — clientes, funil, orçamentos, ' +
+        'agenda, financeiro, equipe — que eu explico como usar, do jeito mais simples possível.',
       sugestoes: [...SUGESTOES_DE_AJUDA],
       planoNome: empresa.planoNome,
-      convite: `Quer conversar sobre os seus números? O assistente com IA faz parte do Premium, por R$ ${PACOTE_IA_PRECO_MENSAL_BRL}/mês.`,
+      convite: `Quer conversar sobre os seus números de verdade? O assistente com IA é do plano Premium, por R$ ${PACOTE_IA_PRECO_MENSAL_BRL}/mês.`,
     };
   }
 

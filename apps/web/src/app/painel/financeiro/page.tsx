@@ -369,7 +369,7 @@ function FiltrosFinanceiros({
   const ativo = de !== padrao.de || ate !== padrao.ate || Boolean(categoriaId);
 
   return (
-    <BarraFiltros>
+    <BarraFiltros ativo={ativo}>
       <CampoFiltro rotulo="De" type="date" name="de" defaultValue={de} />
       <CampoFiltro rotulo="Até" type="date" name="ate" defaultValue={ate} />
 

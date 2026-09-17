@@ -135,9 +135,9 @@ export class AssistenteAjuda {
     if (!topico) {
       return {
         resposta:
-          'Não consegui identificar o assunto da sua pergunta. Posso ajudar com:\n\n' +
+          'Não consegui identificar o assunto — mas posso ajudar com:\n\n' +
           ASSUNTOS_PRINCIPAIS.map((assunto) => `• ${assunto}`).join('\n') +
-          '\n\nTente de novo citando a tela ou a palavra que aparece nela — por exemplo "orçamento", "baixa" ou "etapa do funil".',
+          '\n\nTenta citar a tela ou uma palavra que aparece nela, tipo "orçamento" ou "baixa", que eu acho rapidinho.',
         referencias: [],
         sugestoes: [...SUGESTOES_DE_AJUDA],
         topico: null,
@@ -173,10 +173,10 @@ export class AssistenteAjuda {
     if (contemAlgum(texto, capacidades)) {
       return {
         resposta:
-          'Sou o assistente de ajuda do sistema. Explico como usar cada tela: onde fica cada coisa, o que cada campo significa e por que um número aparece daquele jeito.\n\n' +
+          'Sou o assistente de ajuda do sistema. Explico como usar cada tela — onde fica, o que cada campo significa, por que um número aparece daquele jeito.\n\n' +
           'Posso falar sobre:\n\n' +
           ASSUNTOS_PRINCIPAIS.map((assunto) => `• ${assunto}`).join('\n') +
-          '\n\nNão consulto os dados da sua empresa nem altero registros. Para conversar sobre os seus números — caixa, funil, propostas —, o assistente com IA do plano Premium faz exatamente isso.',
+          '\n\nNão consulto os dados da sua empresa nem altero nada. Se quiser conversar sobre os seus números — caixa, funil, propostas —, isso é o assistente com IA do plano Premium.',
         referencias: [{ titulo: 'Planos e assinatura', href: '/painel/plano' }],
         sugestoes: [...SUGESTOES_DE_AJUDA],
         topico: null,
@@ -185,7 +185,7 @@ export class AssistenteAjuda {
 
     if (contemAlgum(texto, agradecimentos) && texto.length <= 30) {
       return {
-        resposta: 'Por nada. Se aparecer outra dúvida sobre o sistema, é só perguntar.',
+        resposta: 'Por nada! Se aparecer outra dúvida, é só chamar.',
         referencias: [],
         sugestoes: [...SUGESTOES_DE_AJUDA],
         topico: null,
@@ -195,7 +195,7 @@ export class AssistenteAjuda {
     if (contemAlgum(texto, cumprimentos) && texto.length <= 20) {
       return {
         resposta:
-          'Olá! Sou o assistente de ajuda do sistema. Pergunte sobre qualquer tela — clientes, leads, funil, orçamentos, agenda, financeiro, equipe — que eu explico como usar.',
+          'Oi! Sou o assistente de ajuda do sistema. Pergunte sobre qualquer tela — clientes, funil, orçamentos, agenda, financeiro, equipe — que eu explico como usar.',
         referencias: [],
         sugestoes: [...SUGESTOES_DE_AJUDA],
         topico: null,
