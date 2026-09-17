@@ -10,9 +10,9 @@ import {
 } from '@gestao/shared-types';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
-import { estilosControle } from '@/components/ui/campo';
 import { Cartao } from '@/components/ui/cartao';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
+import { BarraFiltros, CampoFiltro, LinkLimparFiltros } from '@/components/ui/filtros';
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
 import { Selo } from '@/components/ui/selo';
 import {
@@ -76,26 +76,23 @@ export default async function PaginaEstoque({ searchParams }: Props) {
         />
       </FaixaDeIndicadores>
 
-      <Cartao>
-        <form method="get" className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-sm font-medium">Buscar</span>
-            <input
-              name="busca"
-              defaultValue={busca}
-              placeholder="Nome do material"
-              className={`${estilosControle} h-10`}
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm sm:h-10">
-            <input name="repor" type="checkbox" value="1" defaultChecked={Boolean(repor)} />
-            Só os para repor
-          </label>
-          <button type="submit" className={estilosBotao({ variante: 'secundario' })}>
-            Filtrar
-          </button>
-        </form>
-      </Cartao>
+      <BarraFiltros>
+        <CampoFiltro
+          rotulo="Buscar"
+          name="busca"
+          defaultValue={busca}
+          placeholder="Nome do material"
+          className="min-w-0 flex-1 sm:w-64 sm:flex-none"
+        />
+        <label className="text-muted-foreground flex h-9 items-center gap-2 px-1 text-sm">
+          <input name="repor" type="checkbox" value="1" defaultChecked={Boolean(repor)} />
+          Para repor
+        </label>
+        <button type="submit" className={estilosBotao({ tamanho: 'sm', variante: 'secundario' })}>
+          Filtrar
+        </button>
+        <LinkLimparFiltros href="/painel/estoque" ativo={Boolean(busca || repor)} />
+      </BarraFiltros>
 
       <Cartao>
         {materiais.dados.length === 0 ? (
@@ -130,7 +127,9 @@ export default async function PaginaEstoque({ searchParams }: Props) {
                       ) : (
                         material.abaixoDoMinimo && <Selo tom="atencao">Repor</Selo>
                       )}
-                      {!material.ativo && <span className="text-muted-foreground text-xs">Desativado</span>}
+                      {!material.ativo && (
+                        <span className="text-muted-foreground text-xs">Desativado</span>
+                      )}
                     </div>
                   </TabelaCelula>
                   <TabelaCelula numerica>

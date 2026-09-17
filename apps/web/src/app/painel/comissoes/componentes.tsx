@@ -9,9 +9,14 @@ import {
   type PessoaEquipe,
 } from '@gestao/shared-types';
 import { estilosBotao } from '@/components/ui/botao';
-import { estilosControle } from '@/components/ui/campo';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
+import {
+  BarraFiltros,
+  CampoFiltro,
+  LinkLimparFiltros,
+  SelecaoFiltro,
+} from '@/components/ui/filtros';
 import { Selo } from '@/components/ui/selo';
 import {
   TabelaCabecalho,
@@ -51,51 +56,38 @@ export function FiltrosComissoes({
   /** Presente só na visão da equipe. */
   pessoas?: PessoaEquipe[];
 }) {
+  const padrao = mesCorrente();
+  const ativo = de !== padrao.de || ate !== padrao.ate || Boolean(status) || Boolean(usuarioId);
+  const rotaBase = pessoas ? '/painel/comissoes' : '/painel/minhas-comissoes';
+
   return (
-    <Cartao>
-      <form method="get" className="flex flex-col gap-3 p-4 lg:flex-row lg:items-end">
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className="text-sm font-medium">De</span>
-          <input name="de" type="date" defaultValue={de} className={`${estilosControle} h-10`} />
-        </label>
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className="text-sm font-medium">Até</span>
-          <input name="ate" type="date" defaultValue={ate} className={`${estilosControle} h-10`} />
-        </label>
-        {pessoas && (
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-sm font-medium">Pessoa</span>
-            <select
-              name="usuarioId"
-              defaultValue={usuarioId}
-              className={`${estilosControle} h-10 cursor-pointer`}
-            >
-              <option value="">Toda a equipe</option>
-              {pessoas.map((pessoa) => (
-                <option key={pessoa.id} value={pessoa.id}>
-                  {pessoa.nome}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className="text-sm font-medium">Situação</span>
-          <select
-            name="status"
-            defaultValue={status}
-            className={`${estilosControle} h-10 cursor-pointer`}
-          >
-            <option value="">Todas</option>
-            <option value="pendente">Pendentes</option>
-            <option value="fechada">Fechadas</option>
-          </select>
-        </label>
-        <button type="submit" className={estilosBotao()}>
-          Aplicar
-        </button>
-      </form>
-    </Cartao>
+    <BarraFiltros>
+      <CampoFiltro rotulo="De" type="date" name="de" defaultValue={de} />
+      <CampoFiltro rotulo="Até" type="date" name="ate" defaultValue={ate} />
+
+      {pessoas && (
+        <SelecaoFiltro rotulo="Pessoa" name="usuarioId" defaultValue={usuarioId}>
+          <option value="">Toda a equipe</option>
+          {pessoas.map((pessoa) => (
+            <option key={pessoa.id} value={pessoa.id}>
+              {pessoa.nome}
+            </option>
+          ))}
+        </SelecaoFiltro>
+      )}
+
+      <SelecaoFiltro rotulo="Situação" name="status" defaultValue={status}>
+        <option value="">Toda situação</option>
+        <option value="pendente">Pendentes</option>
+        <option value="fechada">Fechadas</option>
+      </SelecaoFiltro>
+
+      <button type="submit" className={estilosBotao({ tamanho: 'sm' })}>
+        Aplicar
+      </button>
+
+      <LinkLimparFiltros href={rotaBase} ativo={ativo} />
+    </BarraFiltros>
   );
 }
 

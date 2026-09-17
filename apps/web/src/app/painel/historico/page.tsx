@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { Search, ScrollText } from 'lucide-react';
 import {
   ACOES_AUDITORIA,
@@ -13,10 +12,14 @@ import { unstable_rethrow } from 'next/navigation';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
-import { Campo } from '@/components/ui/campo';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
+import {
+  BarraFiltros,
+  CampoFiltro,
+  LinkLimparFiltros,
+  SelecaoFiltro,
+} from '@/components/ui/filtros';
 import { Paginacao } from '@/components/ui/paginacao';
-import { Selecao } from '@/components/ui/selecao';
 import { ApiRequestError } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 import { lerUsuarioDaSessao } from '@/lib/sessao';
@@ -183,47 +186,48 @@ function mapearLinhaHistorico(registro: RegistroAuditoria) {
 }
 
 function Filtros({ filtros }: { filtros: Awaited<Props['searchParams']> }) {
+  const ativo = Boolean(
+    filtros.busca || filtros.entidade || filtros.acao || filtros.de || filtros.ate,
+  );
+
   return (
-    <form className="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_12rem_12rem_10rem_10rem_auto]">
-      <Campo
+    <BarraFiltros>
+      <CampoFiltro
         rotulo="Buscar"
         name="busca"
         defaultValue={filtros.busca}
-        placeholder="cliente, salário, valor, descrição..."
+        placeholder="Nome, valor, descrição…"
+        className="min-w-0 flex-1 sm:min-w-64"
       />
 
-      <Selecao rotulo="Registro" name="entidade" defaultValue={filtros.entidade ?? ''}>
-        <option value="">Todos</option>
+      <SelecaoFiltro rotulo="Registro" name="entidade" defaultValue={filtros.entidade ?? ''}>
+        <option value="">Todo registro</option>
         {ENTIDADES_AUDITORIA.map((entidade) => (
           <option key={entidade} value={entidade}>
             {ROTULO_ENTIDADE[entidade]}
           </option>
         ))}
-      </Selecao>
+      </SelecaoFiltro>
 
-      <Selecao rotulo="Ação" name="acao" defaultValue={filtros.acao ?? ''}>
-        <option value="">Todas</option>
+      <SelecaoFiltro rotulo="Ação" name="acao" defaultValue={filtros.acao ?? ''}>
+        <option value="">Toda ação</option>
         {ACOES_AUDITORIA.map((acao) => (
           <option key={acao} value={acao}>
             {ROTULO_ACAO[acao]}
           </option>
         ))}
-      </Selecao>
+      </SelecaoFiltro>
 
-      <Campo rotulo="De" type="date" name="de" defaultValue={filtros.de} />
-      <Campo rotulo="Até" type="date" name="ate" defaultValue={filtros.ate} />
+      <CampoFiltro rotulo="De" type="date" name="de" defaultValue={filtros.de} />
+      <CampoFiltro rotulo="Até" type="date" name="ate" defaultValue={filtros.ate} />
 
-      <div className="flex items-end gap-2">
-        <button type="submit" className={estilosBotao()}>
-          <Search aria-hidden />
-          Buscar
-        </button>
+      <button type="submit" className={estilosBotao({ tamanho: 'sm' })}>
+        <Search aria-hidden className="size-4" />
+        Buscar
+      </button>
 
-        <Link href={ROTA_HISTORICO} className={estilosBotao({ variante: 'secundario' })}>
-          Limpar
-        </Link>
-      </div>
-    </form>
+      <LinkLimparFiltros href={ROTA_HISTORICO} ativo={ativo} />
+    </BarraFiltros>
   );
 }
 

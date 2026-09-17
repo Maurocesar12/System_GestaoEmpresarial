@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Filter, Landmark, Paperclip, Receipt, TrendingUp } from 'lucide-react';
+import { Paperclip, Receipt, TrendingUp } from 'lucide-react';
 import {
   ROTULO_NATUREZA,
   ROTULO_STATUS_LANCAMENTO,
@@ -17,9 +17,14 @@ import {
 import { BarraMagnitude, BarraProporcao } from '@/components/ui/barra-proporcao';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
-import { estilosControle } from '@/components/ui/campo';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
+import {
+  BarraFiltros,
+  CampoFiltro,
+  LinkLimparFiltros,
+  SelecaoFiltro,
+} from '@/components/ui/filtros';
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
 import { PercentualMargem } from '@/components/ui/percentual-margem';
 import { Selo } from '@/components/ui/selo';
@@ -360,62 +365,29 @@ function FiltrosFinanceiros({
   categoriaId: string;
   categorias: CategoriaFinanceira[];
 }) {
+  const padrao = mesCorrente();
+  const ativo = de !== padrao.de || ate !== padrao.ate || Boolean(categoriaId);
+
   return (
-    <Cartao>
-      <form method="get" className="flex flex-col gap-3 p-4 lg:flex-row lg:items-end">
-        <div className="flex items-center gap-2 lg:w-48">
-          <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted">
-            <Filter aria-hidden className="size-4 text-muted-foreground" />
-          </span>
-          <div>
-            <p className="text-sm font-medium">Filtros</p>
-            <p className="text-muted-foreground text-xs">Período e categoria.</p>
-          </div>
-        </div>
+    <BarraFiltros>
+      <CampoFiltro rotulo="De" type="date" name="de" defaultValue={de} />
+      <CampoFiltro rotulo="Até" type="date" name="ate" defaultValue={ate} />
 
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className="text-sm font-medium">De</span>
-          <input name="de" type="date" defaultValue={de} className={`${estilosControle} h-10`} />
-        </label>
+      <SelecaoFiltro rotulo="Categoria" name="categoriaId" defaultValue={categoriaId}>
+        <option value="">Toda categoria</option>
+        {categorias.map((categoria) => (
+          <option key={categoria.id} value={categoria.id}>
+            {categoria.nome}
+          </option>
+        ))}
+      </SelecaoFiltro>
 
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className="text-sm font-medium">Até</span>
-          <input name="ate" type="date" defaultValue={ate} className={`${estilosControle} h-10`} />
-        </label>
+      <button type="submit" className={estilosBotao({ tamanho: 'sm' })}>
+        Aplicar
+      </button>
 
-        <label className="flex flex-[1.4] flex-col gap-1.5">
-          <span className="text-sm font-medium">Categoria</span>
-          <select
-            name="categoriaId"
-            defaultValue={categoriaId}
-            className={`${estilosControle} h-10 cursor-pointer`}
-          >
-            <option value="">Todas as categorias</option>
-            {categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="flex gap-2">
-          <button type="submit" className={estilosBotao()}>
-            Aplicar
-          </button>
-          <Link href="/painel/financeiro" className={estilosBotao({ variante: 'secundario' })}>
-            Limpar
-          </Link>
-          <Link
-            href="/painel/financeiro/conciliacao"
-            className={estilosBotao({ variante: 'secundario' })}
-          >
-            <Landmark aria-hidden className="size-4" />
-            Conciliar
-          </Link>
-        </div>
-      </form>
-    </Cartao>
+      <LinkLimparFiltros href="/painel/financeiro" ativo={ativo} />
+    </BarraFiltros>
   );
 }
 

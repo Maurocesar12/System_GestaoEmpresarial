@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Calculator, PiggyBank, TrendingUp } from 'lucide-react';
+import { Calculator, PiggyBank, X } from 'lucide-react';
 import {
   ROTULO_MOVIMENTO_RESERVA,
   formatarBRL,
@@ -214,8 +214,20 @@ function PrevisaoReserva({
   reserva: Reserva;
   custoFixoMensal: string;
 }) {
+  const [aberto, setAberto] = useState(false);
   const [aporteMensal, setAporteMensal] = useState(() => aporteInicial(reserva));
   const [meses, setMeses] = useState('12');
+
+  // Fica fechada por padrão: é uma simulação, não um dado da reserva, e um
+  // cartão de resumo não devia abrir com uma calculadora inteira já exposta.
+  if (!aberto) {
+    return (
+      <Botao variante="secundario" tamanho="sm" className="w-fit" onClick={() => setAberto(true)}>
+        <Calculator className="size-4" />
+        Simular previsão
+      </Botao>
+    );
+  }
 
   const mesesProjetados = Number(meses);
   const saldoAtual = paraCentavos(reserva.valorAtual) ?? 0;
@@ -244,7 +256,14 @@ function PrevisaoReserva({
             <p className="text-muted-foreground text-xs">Simule sem alterar o saldo.</p>
           </div>
         </div>
-        <TrendingUp className="text-muted-foreground size-4" />
+        <button
+          type="button"
+          onClick={() => setAberto(false)}
+          aria-label="Fechar simulação"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
       </div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
