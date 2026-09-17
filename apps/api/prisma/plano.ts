@@ -155,8 +155,10 @@ async function main(): Promise<void> {
     if (empresa) {
       empresas.push(empresa);
       console.log(
-        `  ${empresa.nome.padEnd(22)} ${email.padEnd(30)} plano: ${empresa.plano.slug.padEnd(14)}` +
-          ` status: ${String(empresa.status).padEnd(10)} clientes: ${empresa.clientes}`,
+        `\n  ${empresa.nome}  ·  ${email}\n` +
+          `    plano: ${empresa.plano.slug.padEnd(14)} status: ${String(empresa.status).padEnd(10)}` +
+          ` clientes: ${empresa.clientes}\n` +
+          `    tenant_id: ${empresa.id}`,
       );
     }
   }
