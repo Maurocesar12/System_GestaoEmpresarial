@@ -136,7 +136,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log('\nEmpresas neste banco:');
+  // Empresas sem nenhum usuário não aparecem, porque a descoberta parte da
+  // tabela `usuario` — o único caminho que respeita a RLS. Não é perda: sem
+  // usuário, ninguém consegue entrar naquela empresa.
+  console.log('\nEmpresas com acesso (descobertas pelos usuários):');
 
   const empresas = [];
   for (const [tenantId, email] of porEmpresa) {
