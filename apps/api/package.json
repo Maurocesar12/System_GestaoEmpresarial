@@ -17,7 +17,8 @@
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "db:seed": "ts-node prisma/seed.ts",
-    "plano": "ts-node prisma/plano.ts"
+    "plano": "ts-node prisma/plano.ts",
+    "check:isolamento": "ts-node prisma/checar-isolamento.ts"
   },
   "dependencies": {
     "@gestao/shared-types": "workspace:*",
