@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  DIAS_DO_MES_REFERENCIA,
+  type CustoOperacional,
+  type PeriodoQuery,
   type ProLabore,
   type ProLaboreFormInput,
   type SugestaoProLabore,
@@ -11,6 +14,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { ZERO } from './decimal';
 import {
+  diasEntre,
   hojeEmDia,
   mesesEntre,
   paraData,
@@ -167,6 +171,43 @@ export class ProLaboreService {
     );
 
     return registro ? this.paraResposta(registro) : null;
+  }
+
+  /**
+   * Quanto o negócio custa por dia só para existir.
+   *
+   * Mora neste serviço porque é aqui que os dois insumos já vivem: o fluxo de
+   * caixa, que separa o custo fixo, e o pró-labore vigente. A rota fica em
+   * `/financeiro/custo-operacional`, montada pelo controller do financeiro —
+   * o contrário criaria dependência circular entre os dois serviços.
+   *
+   * A fórmula e o motivo de cada parcela estão em `CustoOperacional`.
+   */
+  async custoOperacional(query: PeriodoQuery): Promise<CustoOperacional> {
+    const [fluxo, vigente] = await Promise.all([
+      this.financeiro.fluxoDeCaixa(query),
+      this.vigente(),
+    ]);
+
+    // Piso em 1 para nunca dividir por zero: um período invertido já é entrada
+    // inválida, e o custo fixo do período seria zero de qualquer forma.
+    const diasDoPeriodo = Math.max(1, diasEntre(query.de, query.ate));
+
+    const custoFixoPeriodo = new Prisma.Decimal(fluxo.custoFixo);
+    const custoFixoDiario = custoFixoPeriodo.dividedBy(diasDoPeriodo);
+
+    const proLaboreMensal = vigente ? new Prisma.Decimal(vigente.valor) : ZERO;
+    const proLaboreDiario = proLaboreMensal.dividedBy(DIAS_DO_MES_REFERENCIA);
+
+    return {
+      custoFixoPeriodo: custoFixoPeriodo.toFixed(2),
+      diasDoPeriodo,
+      custoFixoDiario: custoFixoDiario.toFixed(2),
+      proLaboreMensal: vigente?.valor ?? null,
+      proLaboreDiario: proLaboreDiario.toFixed(2),
+      custoOperacionalDiario: custoFixoDiario.plus(proLaboreDiario).toFixed(2),
+      periodo: fluxo.periodo,
+    };
   }
 
   /**

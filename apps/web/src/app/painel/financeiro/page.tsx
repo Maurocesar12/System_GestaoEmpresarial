@@ -8,6 +8,7 @@ import {
   formatarBRL,
   mesCorrente,
   type CategoriaFinanceira,
+  type CustoOperacional,
   type FluxoDeCaixa,
   type Lancamento,
   type Paginado,
@@ -89,19 +90,21 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
   // `natureza=empresa` nas duas não é detalhe: o cartão de resumo é calculado
   // só sobre a empresa, e sem este filtro a lista trazia também as contas
   // pessoais — uma conta aparecia na lista e não entrava no total logo acima.
-  const [fluxo, margem, lancamentos, resumo, atrasadas, aVencer, categorias] = await Promise.all([
-    apiComSessao<FluxoDeCaixa>(`/financeiro/fluxo-de-caixa?${periodo}`),
-    apiComSessao<RelatorioMargem>(`/financeiro/margem?${periodo}`),
-    apiComSessao<Paginado<Lancamento>>(`/financeiro/lancamentos?${periodo}&porPagina=20`),
-    apiComSessao<ResumoContas>('/financeiro/contas/resumo'),
-    apiComSessao<Paginado<Lancamento>>(
-      '/financeiro/lancamentos?status=atrasado&natureza=empresa&porPagina=10',
-    ),
-    apiComSessao<Paginado<Lancamento>>(
-      '/financeiro/lancamentos?status=a_vencer&natureza=empresa&porPagina=10',
-    ),
-    apiComSessao<CategoriaFinanceira[]>('/financeiro/categorias'),
-  ]);
+  const [fluxo, custo, margem, lancamentos, resumo, atrasadas, aVencer, categorias] =
+    await Promise.all([
+      apiComSessao<FluxoDeCaixa>(`/financeiro/fluxo-de-caixa?${periodo}`),
+      apiComSessao<CustoOperacional>(`/financeiro/custo-operacional?${periodo}`),
+      apiComSessao<RelatorioMargem>(`/financeiro/margem?${periodo}`),
+      apiComSessao<Paginado<Lancamento>>(`/financeiro/lancamentos?${periodo}&porPagina=20`),
+      apiComSessao<ResumoContas>('/financeiro/contas/resumo'),
+      apiComSessao<Paginado<Lancamento>>(
+        '/financeiro/lancamentos?status=atrasado&natureza=empresa&porPagina=10',
+      ),
+      apiComSessao<Paginado<Lancamento>>(
+        '/financeiro/lancamentos?status=a_vencer&natureza=empresa&porPagina=10',
+      ),
+      apiComSessao<CategoriaFinanceira[]>('/financeiro/categorias'),
+    ]);
 
   const contasEmAberto = [...atrasadas.dados, ...aVencer.dados];
   const saldoNegativo = Number(fluxo.saldo) < 0;
@@ -171,6 +174,15 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
           titulo="Custo fixo"
           valor={formatarBRL(fluxo.custoFixo)}
           detalhe="o que custa igual todo mês"
+        />
+        <Indicador
+          titulo="Custo por dia"
+          valor={formatarBRL(custo.custoOperacionalDiario)}
+          detalhe={
+            custo.proLaboreMensal
+              ? 'custo fixo + pró-labore, por dia'
+              : 'só custo fixo — sem pró-labore registrado'
+          }
         />
       </FaixaDeIndicadores>
 

@@ -18,6 +18,7 @@ import {
   type BaixaFormInput,
   type CategoriaFinanceira,
   type CategoriaFormInput,
+  type CustoOperacional,
   type FluxoDeCaixa,
   type Lancamento,
   type LancamentoFormInput,
@@ -34,6 +35,7 @@ import {
 import { Permissoes } from '../../common/decorators/permissoes.decorator';
 import { CorpoValidado, QueryValidada } from '../../common/decorators/validado.decorator';
 import { FinanceiroService } from './financeiro.service';
+import { ProLaboreService } from './pro-labore.service';
 
 /**
  * Rotas do financeiro.
@@ -46,7 +48,13 @@ import { FinanceiroService } from './financeiro.service';
 @Controller('financeiro')
 @Permissoes('financeiro.visualizar')
 export class FinanceiroController {
-  constructor(private readonly financeiro: FinanceiroService) {}
+  // O `ProLaboreService` entra aqui, e não no `FinanceiroService`, porque ele já
+  // depende deste último: injetar o contrário fecharia um ciclo. Compor os dois
+  // serviços no controller é o que mantém a rota onde o usuário a procura.
+  constructor(
+    private readonly financeiro: FinanceiroService,
+    private readonly proLabore: ProLaboreService,
+  ) {}
 
   // --- Categorias ----------------------------------------------------------
 
@@ -82,6 +90,14 @@ export class FinanceiroController {
   @Get('margem')
   margem(@QueryValidada(periodoQuerySchema) query: PeriodoQuery): Promise<RelatorioMargem> {
     return this.financeiro.margemPorServico(query);
+  }
+
+  /** Quanto o negócio custa por dia só para existir: custo fixo + pró-labore. */
+  @Get('custo-operacional')
+  custoOperacional(
+    @QueryValidada(periodoQuerySchema) query: PeriodoQuery,
+  ): Promise<CustoOperacional> {
+    return this.proLabore.custoOperacional(query);
   }
 
   /** Quanto há a receber e a pagar em aberto, e quanto disso já venceu. */

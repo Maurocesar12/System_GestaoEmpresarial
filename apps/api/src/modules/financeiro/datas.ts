@@ -62,6 +62,28 @@ export function mesesEntre(de: string, ate: string): number {
   return Math.max(0, meses);
 }
 
+/**
+ * Quantos dias a janela `de`–`ate` cobre, contando as duas pontas.
+ *
+ * De 01/01 a 31/01 são 31 dias, não 30. O `+1` é o que impede todo custo
+ * diário de sair inflado por dividir por um dia a menos.
+ *
+ * Devolve zero quando `ate` é anterior a `de`, para que quem divide por este
+ * número trate o caso em vez de receber um negativo silencioso.
+ */
+export function diasEntre(de: string, ate: string): number {
+  const inicio = paraData(de);
+  const fim = paraData(ate);
+
+  if (!inicio || !fim) {
+    return 0;
+  }
+
+  const dias = Math.round((fim.getTime() - inicio.getTime()) / 86_400_000) + 1;
+
+  return Math.max(0, dias);
+}
+
 /** O último dia do mês anterior ao corrente — o fim da janela de médias. */
 export function ultimoDiaDoMesPassado(hoje = hojeEmDia()): string {
   const [ano, mes] = hoje.split('-').map(Number);

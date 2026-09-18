@@ -1,4 +1,34 @@
-import { mesesEntre, primeiroDiaDeMesesAtras, ultimoDiaDoMesPassado } from './datas';
+import { diasEntre, mesesEntre, primeiroDiaDeMesesAtras, ultimoDiaDoMesPassado } from './datas';
+
+describe('dias de um período', () => {
+  // É o divisor do custo operacional diário: um dia a menos aqui infla todo
+  // custo por dia, e o número é usado para formar preço.
+  it('conta as duas pontas', () => {
+    expect(diasEntre('2026-01-01', '2026-01-31')).toBe(31);
+  });
+
+  it('devolve 1 quando começa e termina no mesmo dia', () => {
+    expect(diasEntre('2026-09-18', '2026-09-18')).toBe(1);
+  });
+
+  it('acerta fevereiro em ano bissexto', () => {
+    expect(diasEntre('2028-02-01', '2028-02-29')).toBe(29);
+  });
+
+  it('atravessa a virada do ano', () => {
+    expect(diasEntre('2025-12-30', '2026-01-02')).toBe(4);
+  });
+
+  // O horário de verão muda o tamanho do dia em fusos locais; as datas são
+  // fixadas em meia-noite UTC justamente para a contagem não variar.
+  it('não perde nem ganha dia na virada de outubro', () => {
+    expect(diasEntre('2026-10-01', '2026-10-31')).toBe(31);
+  });
+
+  it('devolve zero quando o fim é anterior ao início', () => {
+    expect(diasEntre('2026-09-18', '2026-09-17')).toBe(0);
+  });
+});
 
 describe('janela das médias mensais', () => {
   it('começa no dia 1 do mês indicado', () => {
