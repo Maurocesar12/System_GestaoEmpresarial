@@ -3,8 +3,9 @@
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
   KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
   useDroppable,
   useSensor,
   useSensors,
@@ -24,6 +25,8 @@ import {
   type QuadroFunil,
 } from '@gestao/shared-types';
 import {
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   Clock,
   ExternalLink,
@@ -37,7 +40,7 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useOptimistic, useState, useTransition } from 'react';
+import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { estilosControle } from '@/components/ui/campo';
 import { linkEmail, linkTelefone, linkWhatsApp } from '@/lib/contato';
@@ -63,12 +66,22 @@ import { NovoCartao } from './novo-cartao';
  * objeto. Se a chamada falhar, o `useOptimistic` desfaz sozinho e a mensagem
  * de erro aparece.
  *
- * ## Acessibilidade
+ * ## Três formas de mover um cartão
  *
- * Arrastar e soltar exclui quem usa teclado ou leitor de tela. O `KeyboardSensor`
- * do dnd-kit resolve metade — Espaço pega o cartão, setas movem, Espaço solta.
- * A outra metade é o `<select>` em cada cartão, que muda a etapa sem gesto
- * nenhum e funciona igual no celular, onde arrastar entre colunas é penoso.
+ * Arrastar é o gesto que todo mundo espera de um quadro, mas é o pior caminho
+ * para o uso diário: exige mira, atravessa um quadro que rola na horizontal e,
+ * no celular, disputa com a rolagem. Por isso ele é uma das formas, não a
+ * única:
+ *
+ * 1. **Setas no rodapé do cartão** — um clique move uma etapa. É o movimento
+ *    que mais se repete no dia (avançar a negociação) e agora é o mais barato.
+ * 2. **Seletor de etapa** — para o pulo longo, de qualquer etapa para qualquer
+ *    outra.
+ * 3. **Arrastar** — mouse, toque (segurando) ou teclado, via `KeyboardSensor`:
+ *    Espaço pega o cartão, setas movem, Espaço solta.
+ *
+ * As três chamam o mesmo `mover()`, então todas ganham a atualização otimista
+ * e o desfazer automático em caso de erro.
  */
 export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: Etiqueta[] }) {
   const [erro, setErro] = useState<string>();
@@ -110,14 +123,55 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
   );
 
   const sensores = useSensors(
-    // 8px de tolerância antes de considerar arrasto: sem isso, um clique com
-    // tremida no mouse viraria movimentação acidental.
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    // Mouse e toque são separados de propósito.
+    //
+    // Antes havia um `PointerSensor` só, que atende os dois — e por isso
+    // atendia mal o toque: qualquer deslize de 8px no celular virava arrasto,
+    // e o dedo que tentava **rolar** a coluna acabava carregando um cartão. Na
+    // prática, rolar o quadro no celular era uma loteria.
+    //
+    // Com sensores separados, cada gesto tem a regra certa: no mouse, 8px de
+    // tolerância evita que uma tremida no clique mova o cartão; no toque, o
+    // arrasto só começa após segurar o dedo parado por um instante, o que
+    // devolve a rolagem normal ao quadro.
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
     useSensor(KeyboardSensor),
   );
 
-  const mover = (clienteId: string, etapaId: string) => {
+  /**
+   * Para onde devolver o foco depois que o cartão trocar de coluna.
+   *
+   * Mover remonta o cartão na coluna de destino, e o botão que acabou de ser
+   * clicado deixa de existir — o foco cairia no corpo da página. Quem usa
+   * teclado teria de percorrer o quadro inteiro de novo a cada etapa avançada,
+   * o que anularia justamente a facilidade que as setas trazem.
+   *
+   * Guarda `clienteId:sentido` e é consumido pelo efeito abaixo.
+   */
+  const focoAposMover = useRef<string | null>(null);
+
+  useEffect(() => {
+    const chave = focoAposMover.current;
+    if (!chave) return;
+    focoAposMover.current = null;
+
+    const botao = document.querySelector<HTMLButtonElement>(`[data-mover="${chave}"]`);
+    if (botao && !botao.disabled) {
+      botao.focus();
+      return;
+    }
+
+    // Na ponta do funil a seta do mesmo sentido fica desabilitada e não aceita
+    // foco. Cai no seletor de etapa do próprio cartão: continua sendo um
+    // controle útil e mantém a pessoa no cartão que ela estava movendo.
+    const clienteId = chave.split(':')[0];
+    document.getElementById(`etapa-${clienteId}`)?.focus();
+  });
+
+  const mover = (clienteId: string, etapaId: string, chaveDeFoco?: string) => {
     setErro(undefined);
+    focoAposMover.current = chaveDeFoco ?? null;
 
     iniciarMovimento(async () => {
       atualizarFunilOtimista({ tipo: 'mover', clienteId, etapaId });
@@ -460,7 +514,7 @@ function Coluna({
   clientes: ClienteNoFunil[];
   etapas: { id: string; nome: string }[];
   etiquetas: Etiqueta[];
-  aoTrocarEtapa: (clienteId: string, etapaId: string) => void;
+  aoTrocarEtapa: (clienteId: string, etapaId: string, chaveDeFoco?: string) => void;
   aoAbrir: (clienteId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
@@ -515,7 +569,9 @@ function Coluna({
             etapaAtual={id}
             corEtapa={COR_DA_ETAPA[indice % COR_DA_ETAPA.length]!}
             etapas={etapas}
-            aoTrocarEtapa={(etapaId) => aoTrocarEtapa(cliente.id, etapaId)}
+            aoTrocarEtapa={(etapaId, chaveDeFoco) =>
+              aoTrocarEtapa(cliente.id, etapaId, chaveDeFoco)
+            }
             aoAbrir={() => aoAbrir(cliente.id)}
           />
         ))}
@@ -527,7 +583,7 @@ function Coluna({
               isOver ? 'border-primary text-primary' : 'text-muted-foreground',
             )}
           >
-            {isOver ? 'Solte aqui' : 'Arraste um cliente para cá'}
+            {isOver ? 'Solte aqui' : 'Nenhum cliente nesta etapa'}
           </p>
         )}
       </div>
@@ -551,7 +607,7 @@ function CartaoDoFunil({
   etapaAtual: string;
   corEtapa: (typeof COR_DA_ETAPA)[number];
   etapas: { id: string; nome: string }[];
-  aoTrocarEtapa: (etapaId: string) => void;
+  aoTrocarEtapa: (etapaId: string, chaveDeFoco?: string) => void;
   aoAbrir: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -563,6 +619,15 @@ function CartaoDoFunil({
   // Uma semana sem sair do lugar é o sinal de negociação esquecida — o mesmo
   // corte que o painel inicial usa para listar "paradas".
   const parado = dias >= DIAS_PARA_ALERTA;
+
+  // As etapas vizinhas alimentam as setas do rodapé. `undefined` nas pontas do
+  // funil: na primeira etapa não há para onde voltar, na última não há para
+  // onde avançar — e aí o botão aparece desabilitado, em vez de sumir. Um botão
+  // que desaparece muda o cartão de lugar a cada movimento; um desabilitado
+  // ensina onde é o fim da linha.
+  const posicao = etapas.findIndex((etapa) => etapa.id === etapaAtual);
+  const etapaAnterior = posicao > 0 ? etapas[posicao - 1] : undefined;
+  const etapaSeguinte = posicao >= 0 ? etapas[posicao + 1] : undefined;
 
   const whatsapp = linkWhatsApp(cliente.telefone);
   const telefone = linkTelefone(cliente.telefone);
@@ -734,9 +799,29 @@ function CartaoDoFunil({
         </div>
       )}
 
-      {/* Alternativa ao arrasto: funciona por teclado, leitor de tela e no
-          celular, onde arrastar entre colunas é desconfortável. */}
-      <div className="flex items-center gap-2 border-t pt-2">
+      {/*
+        Mover sem arrastar.
+
+        Arrastar é o gesto bonito, mas é o pior caminho para o trabalho do dia:
+        no celular quase não funciona, e mesmo no computador levar um cartão da
+        primeira até a última etapa obriga a arrastar por cima de um quadro que
+        rola na horizontal.
+
+        Então as setas fazem o movimento que realmente se repete — avançar uma
+        etapa — em **um clique**. O seletor no meio continua ali para o pulo
+        longo ("de Novo direto para Fechado"), que é raro mas existe.
+
+        Os três funcionam por teclado e leitor de tela, sem depender de gesto.
+      */}
+      <div className="flex items-center gap-1 border-t pt-2">
+        <BotaoMoverEtapa
+          clienteId={cliente.id}
+          destino={etapaAnterior}
+          nomeCliente={cliente.nome}
+          sentido="anterior"
+          aoAcionar={aoTrocarEtapa}
+        />
+
         <label className="sr-only" htmlFor={`etapa-${cliente.id}`}>
           Etapa de {cliente.nome}
         </label>
@@ -744,7 +829,7 @@ function CartaoDoFunil({
           id={`etapa-${cliente.id}`}
           value={etapaAtual}
           onChange={(evento) => aoTrocarEtapa(evento.target.value)}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring h-7 min-w-0 flex-1 cursor-pointer rounded border-0 bg-transparent px-1 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring bg-background/60 h-7 min-w-0 flex-1 cursor-pointer rounded border-0 px-1.5 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
           {etapas.map((etapa) => (
             <option key={etapa.id} value={etapa.id}>
@@ -753,15 +838,76 @@ function CartaoDoFunil({
           ))}
         </select>
 
+        <BotaoMoverEtapa
+          clienteId={cliente.id}
+          destino={etapaSeguinte}
+          nomeCliente={cliente.nome}
+          sentido="seguinte"
+          aoAcionar={aoTrocarEtapa}
+        />
+
         <Link
           href={`/painel/clientes/${cliente.id}`}
-          className="text-muted-foreground hover:text-foreground shrink-0 rounded p-1 transition-colors"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground ml-0.5 flex size-7 shrink-0 items-center justify-center rounded transition-colors"
           aria-label={`Abrir ficha de ${cliente.nome}`}
         >
           <ExternalLink aria-hidden className="size-3.5" />
         </Link>
       </div>
     </article>
+  );
+}
+
+/**
+ * Move o cartão uma etapa, para trás ou para frente.
+ *
+ * O rótulo diz o destino por extenso — "Avançar para Proposta enviada", e não
+ * "Avançar" —, porque no leitor de tela um botão chamado "Avançar" repetido em
+ * trinta cartões não informa nada. O `title` faz o mesmo pelo mouse: o destino
+ * aparece antes do clique, e ninguém precisa descobrir para onde o cartão foi
+ * depois que ele já se mexeu.
+ *
+ * Sem destino, o botão fica desabilitado em vez de sumir — ver a seta apagada
+ * na última etapa é o que comunica que ali é o fim do funil.
+ */
+function BotaoMoverEtapa({
+  clienteId,
+  destino,
+  nomeCliente,
+  sentido,
+  aoAcionar,
+}: {
+  clienteId: string;
+  destino: { id: string; nome: string } | undefined;
+  nomeCliente: string;
+  sentido: 'anterior' | 'seguinte';
+  aoAcionar: (etapaId: string, chaveDeFoco?: string) => void;
+}) {
+  const Icone = sentido === 'anterior' ? ChevronLeft : ChevronRight;
+  const verbo = sentido === 'anterior' ? 'Voltar' : 'Avançar';
+
+  const rotulo = destino
+    ? `${verbo} ${nomeCliente} para ${destino.nome}`
+    : sentido === 'anterior'
+      ? `${nomeCliente} já está na primeira etapa`
+      : `${nomeCliente} já está na última etapa`;
+
+  // Como o cartão é remontado na coluna de destino, é por este atributo que o
+  // quadro reencontra "o mesmo botão, no lugar novo" para devolver o foco.
+  const chave = `${clienteId}:${sentido}`;
+
+  return (
+    <button
+      type="button"
+      data-mover={chave}
+      disabled={!destino}
+      onClick={() => destino && aoAcionar(destino.id, chave)}
+      aria-label={rotulo}
+      title={rotulo}
+      className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring flex size-7 shrink-0 items-center justify-center rounded transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
+    >
+      <Icone aria-hidden className="size-4" />
+    </button>
   );
 }
 
