@@ -28,6 +28,7 @@ export * from './crm/orcamentos';
 export * from './crm/servicos';
 export * from './financeiro/custo-operacional';
 export * from './financeiro/lancamentos';
+export * from './financeiro/painel';
 export * from './financeiro/pro-labore';
 export * from './financeiro/reservas';
 export * from './operacao/estoque';

@@ -24,6 +24,7 @@ import {
   type LancamentoFormInput,
   type LancamentosQuery,
   type Paginado,
+  type PainelFinanceiro,
   type PeriodoQuery,
   type RelatorioMargem,
   type ResumoContas,
@@ -81,6 +82,50 @@ export class FinanceiroController {
   // --- Relatórios ----------------------------------------------------------
   // Declarados antes de `:id` de propósito: na ordem inversa, "fluxo-de-caixa"
   // seria interpretado como um id e o ParseUUIDPipe recusaria a requisição.
+
+  /**
+   * Tudo que a tela do financeiro mostra, numa resposta só.
+   *
+   * A tela fazia oito chamadas para montar o painel. Em paralelo, mas cada uma
+   * atravessando Vercel → Render → Neon por conta própria. Aqui as mesmas oito
+   * consultas rodam igualmente em paralelo, só que dentro da API, ao lado do
+   * banco: o que era caro (a viagem entre regiões) acontece uma vez.
+   *
+   * A composição fica no controller, e não num service, pelo mesmo motivo
+   * explicado no construtor: `ProLaboreService` já depende de
+   * `FinanceiroService`, e juntá-los do outro lado fecharia um ciclo.
+   */
+  @Get('painel')
+  async painel(@QueryValidada(periodoQuerySchema) query: PeriodoQuery): Promise<PainelFinanceiro> {
+    // As contas em aberto saem em duas consultas porque o filtro aceita uma
+    // situação por vez. `natureza: 'empresa'` nas duas não é detalhe: o resumo
+    // é calculado só sobre a empresa, e sem o filtro uma conta pessoal
+    // apareceria na lista sem entrar no total logo acima.
+    const contasEmAberto = { natureza: 'empresa', porPagina: 10, pagina: 1 } as const;
+
+    const [fluxo, custo, margem, lancamentos, resumoContas, atrasadas, aVencer, categorias] =
+      await Promise.all([
+        this.financeiro.fluxoDeCaixa(query),
+        this.proLabore.custoOperacional(query),
+        this.financeiro.margemPorServico(query),
+        this.financeiro.listar({ ...query, porPagina: 20, pagina: 1 }),
+        this.financeiro.resumoContas(),
+        this.financeiro.listar({ ...contasEmAberto, status: 'atrasado' }),
+        this.financeiro.listar({ ...contasEmAberto, status: 'a_vencer' }),
+        this.financeiro.listarCategorias(),
+      ]);
+
+    return {
+      fluxo,
+      custo,
+      margem,
+      lancamentos,
+      resumoContas,
+      // Atrasadas primeiro: é a ordem em que o dono precisa resolver.
+      contasEmAberto: [...atrasadas.dados, ...aVencer.dados],
+      categorias,
+    };
+  }
 
   @Get('fluxo-de-caixa')
   fluxoDeCaixa(@QueryValidada(periodoQuerySchema) query: PeriodoQuery): Promise<FluxoDeCaixa> {

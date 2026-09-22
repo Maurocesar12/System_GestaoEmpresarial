@@ -8,9 +8,12 @@ import {
 /**
  * Carregamento do financeiro.
  *
- * É a tela que mais espera: seis chamadas em paralelo (fluxo de caixa, margem,
- * lançamentos, resumo de contas e as duas listas de contas em aberto). Sem
- * esqueleto, é também a que mais parece travada.
+ * Aparece só na navegação para a rota, enquanto o Next busca o conteúdo. Depois
+ * que a página entra, quem espera a API é o `<Suspense>` de dentro dela — e aí
+ * o cabeçalho real já está na tela, com os botões clicáveis.
+ *
+ * Por isso este esqueleto inclui o cabeçalho e o de lá não: são dois momentos
+ * diferentes da mesma espera.
  */
 export default function CarregandoFinanceiro() {
   return (

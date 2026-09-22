@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Paperclip, Receipt, TrendingUp } from 'lucide-react';
@@ -8,18 +9,15 @@ import {
   formatarBRL,
   mesCorrente,
   type CategoriaFinanceira,
-  type CustoOperacional,
   type FluxoDeCaixa,
-  type Lancamento,
-  type Paginado,
-  type RelatorioMargem,
-  type ResumoContas,
+  type PainelFinanceiro,
 } from '@gestao/shared-types';
 import { BarraMagnitude, BarraProporcao } from '@/components/ui/barra-proporcao';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
+import { AreaCarregando, EsqueletoIndicadores, EsqueletoTabela } from '@/components/ui/esqueleto';
 import {
   BarraFiltros,
   CampoFiltro,
@@ -84,36 +82,6 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
   }
   const periodo = queryPeriodo.toString();
 
-  // As contas em aberto são buscadas em duas chamadas porque o filtro da API
-  // aceita uma situação por vez.
-  //
-  // `natureza=empresa` nas duas não é detalhe: o cartão de resumo é calculado
-  // só sobre a empresa, e sem este filtro a lista trazia também as contas
-  // pessoais — uma conta aparecia na lista e não entrava no total logo acima.
-  const [fluxo, custo, margem, lancamentos, resumo, atrasadas, aVencer, categorias] =
-    await Promise.all([
-      apiComSessao<FluxoDeCaixa>(`/financeiro/fluxo-de-caixa?${periodo}`),
-      apiComSessao<CustoOperacional>(`/financeiro/custo-operacional?${periodo}`),
-      apiComSessao<RelatorioMargem>(`/financeiro/margem?${periodo}`),
-      apiComSessao<Paginado<Lancamento>>(`/financeiro/lancamentos?${periodo}&porPagina=20`),
-      apiComSessao<ResumoContas>('/financeiro/contas/resumo'),
-      apiComSessao<Paginado<Lancamento>>(
-        '/financeiro/lancamentos?status=atrasado&natureza=empresa&porPagina=10',
-      ),
-      apiComSessao<Paginado<Lancamento>>(
-        '/financeiro/lancamentos?status=a_vencer&natureza=empresa&porPagina=10',
-      ),
-      apiComSessao<CategoriaFinanceira[]>('/financeiro/categorias'),
-    ]);
-
-  const contasEmAberto = [...atrasadas.dados, ...aVencer.dados];
-  const saldoNegativo = Number(fluxo.saldo) < 0;
-
-  // A maior receita da lista dá a escala das barras da tabela de margem. Sem um
-  // teto comum, cada linha se compararia consigo mesma e a coluna deixaria de
-  // ser comparável de cima a baixo.
-  const maiorReceita = Math.max(...margem.itens.map((item) => Number(item.receita)), 0);
-
   return (
     <div className="flex flex-col gap-8">
       <CabecalhoPagina
@@ -158,6 +126,66 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
         }
       />
 
+      {/*
+        O cabeçalho acima não depende de dado nenhum, então aparece na hora — com
+        os botões já clicáveis. Só o corpo espera a API.
+
+        A `key` é o período: sem ela, trocar o filtro deixaria o conteúdo antigo
+        na tela enquanto o novo carrega, e o usuário leria números do recorte
+        anterior achando que já eram os do novo. Com ela, o esqueleto volta e
+        fica claro que aquilo ainda está sendo calculado.
+      */}
+      <Suspense key={periodo} fallback={<CorpoCarregando />}>
+        <CorpoDoPainel de={de} ate={ate} categoriaId={categoriaId} periodo={periodo} />
+      </Suspense>
+    </div>
+  );
+}
+
+/** O esqueleto do corpo — o cabeçalho real já está na tela acima dele. */
+function CorpoCarregando() {
+  return (
+    <AreaCarregando rotulo="Carregando o financeiro">
+      <div className="flex flex-col gap-8">
+        <EsqueletoIndicadores quantidade={5} />
+        <EsqueletoTabela linhas={5} colunas={5} />
+        <EsqueletoTabela linhas={6} colunas={5} />
+      </div>
+    </AreaCarregando>
+  );
+}
+
+/**
+ * O painel em si.
+ *
+ * Uma chamada só. Antes eram oito, e cada uma atravessava Vercel → Render →
+ * Neon por conta própria: em hospedagem gratuita, com frontend e API em regiões
+ * diferentes, a viagem custava mais que as consultas. A API continua fazendo o
+ * mesmo trabalho em paralelo, só que ao lado do banco.
+ */
+async function CorpoDoPainel({
+  de,
+  ate,
+  categoriaId,
+  periodo,
+}: {
+  de: string;
+  ate: string;
+  categoriaId: string;
+  periodo: string;
+}) {
+  const { fluxo, custo, margem, lancamentos, resumoContas, contasEmAberto, categorias } =
+    await apiComSessao<PainelFinanceiro>(`/financeiro/painel?${periodo}`);
+
+  const saldoNegativo = Number(fluxo.saldo) < 0;
+
+  // A maior receita da lista dá a escala das barras da tabela de margem. Sem um
+  // teto comum, cada linha se compararia consigo mesma e a coluna deixaria de
+  // ser comparável de cima a baixo.
+  const maiorReceita = Math.max(...margem.itens.map((item) => Number(item.receita)), 0);
+
+  return (
+    <div className="flex flex-col gap-8">
       <FiltrosFinanceiros de={de} ate={ate} categoriaId={categoriaId} categorias={categorias} />
 
       <FaixaDeIndicadores>
@@ -188,7 +216,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
 
       <ComposicaoDasSaidas fluxo={fluxo} />
 
-      <SecaoContas resumo={resumo} contas={contasEmAberto} />
+      <SecaoContas resumo={resumoContas} contas={contasEmAberto} />
 
       <Cartao>
         <CartaoCabecalho>
