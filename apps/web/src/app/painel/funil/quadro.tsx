@@ -43,6 +43,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { estilosControle } from '@/components/ui/campo';
+import { useArrastarParaRolar } from '@/lib/arrastar-para-rolar';
 import { linkEmail, linkTelefone, linkWhatsApp } from '@/lib/contato';
 import {
   estilosAvatarEtiqueta,
@@ -226,6 +227,8 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
         .find((item) => item.cliente.id === abertoId)
     : undefined;
 
+  const rolagem = useArrastarParaRolar<HTMLDivElement>();
+
   const metricas = useMemo(() => calcularMetricas(colunas), [colunas]);
   const colunasVisiveis = useMemo(
     () => filtrarColunas(colunas, busca, filtro),
@@ -318,7 +321,15 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
       <DndContext id="funil" sensors={sensores} onDragStart={aoPegar} onDragEnd={aoSoltar}>
         {/* O quadro rola na horizontal; a página, não. */}
         <div className="bg-card/70 rounded-2xl border p-3 shadow-[var(--sombra-sutil)]">
-          <div className="flex items-start gap-3 overflow-x-auto pb-4">
+          {/*
+            Além da barra de rolagem, o fundo do quadro é uma alça: pegar um
+            espaço vazio ou o cabeçalho de uma coluna e puxar move o quadro para
+            o lado. A barra ficou discreta de propósito no tema, e sem isso as
+            colunas da direita simplesmente não eram encontradas.
+
+            Cartões e controles são exceção — ver `SELETOR_INTERATIVO`.
+          */}
+          <div {...rolagem} className="flex cursor-grab items-start gap-3 overflow-x-auto pb-4">
             {colunasVisiveis.map((coluna, indice) => (
               <Coluna
                 key={coluna.etapa.id}
@@ -637,6 +648,10 @@ function CartaoDoFunil({
   return (
     <article
       ref={setNodeRef}
+      // Marca o cartão como território do dnd-kit: o arrasto-para-rolar do
+      // quadro ignora tudo que estiver aqui dentro, então pegar um cartão pela
+      // borda move o cartão, e não o quadro atrás dele.
+      data-cartao
       style={{
         ...estilosCartaoComEtiqueta(corPrincipal),
         transform: CSS.Translate.toString(transform),
