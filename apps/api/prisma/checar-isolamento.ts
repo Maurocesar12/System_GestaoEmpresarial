@@ -97,6 +97,42 @@ async function contar(
   return linhas[0]?.total ?? 0;
 }
 
+/**
+ * Diz qual das duas metades da correção está faltando.
+ *
+ * Criar o papel restrito e apontar a aplicação para ele são passos separados, e
+ * parar no primeiro é o engano fácil: o papel existe, o `papel-aplicacao.sql`
+ * rodou sem erro, e mesmo assim nada mudou — porque o `DATABASE_URL` continua
+ * sendo o do dono.
+ */
+async function explicarComoCorrigir(): Promise<void> {
+  const candidatos = await prisma.$queryRaw<Array<{ rolname: string }>>`
+    SELECT rolname FROM pg_roles
+     WHERE rolcanlogin AND NOT rolbypassrls AND NOT rolsuper
+       AND rolname NOT LIKE 'pg\\_%'
+     ORDER BY rolname
+  `;
+
+  console.log('\n  Como corrigir:');
+
+  if (candidatos.length === 0) {
+    console.log(
+      '    Não existe nenhum papel sem BYPASSRLS neste banco — falta o primeiro passo.\n' +
+        '    Rode `apps/api/prisma/papel-aplicacao.sql` no SQL editor, como o papel dono,\n' +
+        '    trocando a senha antes de executar.',
+    );
+    return;
+  }
+
+  console.log(
+    `    O papel restrito já existe: ${candidatos.map((item) => item.rolname).join(', ')}.\n` +
+      '    Falta o segundo passo: apontar o DATABASE_URL da aplicação para ele.\n' +
+      '      DATABASE_URL        -> conexão desse papel\n' +
+      '      ADMIN_DATABASE_URL  -> conexão do dono (migrations e seed)\n' +
+      '    No Render: gestao-api > Environment. Localmente: apps/api/.env.',
+  );
+}
+
 async function main(): Promise<void> {
   const { host, pathname, username } = new URL(conexao);
   console.log(`\nConexão: ${username}@${host}${pathname}\n`);
@@ -119,6 +155,13 @@ async function main(): Promise<void> {
     'o papel NÃO é superusuário',
     papel?.rolsuper ? `${papel.rolname} é superusuário e ignora RLS` : '',
   );
+
+  // Reprovar aqui é o caso comum, e o próximo passo depende de qual metade da
+  // correção falta: criar o papel restrito, ou apontar a aplicação para ele.
+  // Distinguir as duas custa uma consulta e evita a dedução.
+  if (papel?.rolbypassrls || papel?.rolsuper) {
+    await explicarComoCorrigir();
+  }
 
   console.log('\n2. Cobertura de RLS nas tabelas com tenant_id');
 

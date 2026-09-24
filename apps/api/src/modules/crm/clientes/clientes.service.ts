@@ -367,6 +367,34 @@ export class ClientesService {
    */
   async criarPeloFormulario(tenantId: string, dados: ClienteFormInput): Promise<void> {
     await this.prisma.comTenantExplicito(tenantId, async (tx) => {
+      // Reenvio do mesmo contato não vira cliente novo.
+      //
+      // Isto é proteção, não só higiene de dados: sem ela, o formulário público
+      // é um caminho para **esgotar a cota de clientes do plano**. Quinhentas
+      // submissões enchem o limite do Básico, e a partir daí o assinante não
+      // consegue mais cadastrar ninguém — uma negação de serviço barata, que o
+      // limite por IP sozinho não impede.
+      //
+      // O critério é o mesmo da importação de planilha: repetido é quem tem o
+      // mesmo e-mail ou telefone. Quem não informa nenhum dos dois nunca conta
+      // como repetido — dois homônimos são duas pessoas.
+      if (dados.email || dados.telefone) {
+        const existente = await tx.cliente.findFirst({
+          where: {
+            anonimizadoEm: null,
+            OR: [
+              ...(dados.email ? [{ email: dados.email }] : []),
+              ...(dados.telefone ? [{ telefone: dados.telefone }] : []),
+            ],
+          },
+          select: { id: true },
+        });
+
+        if (existente) {
+          return;
+        }
+      }
+
       await this.garantirLimiteClientes(tx, tenantId);
 
       const criado = await tx.cliente.create({

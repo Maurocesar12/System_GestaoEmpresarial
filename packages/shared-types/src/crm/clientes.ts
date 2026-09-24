@@ -17,7 +17,7 @@ import { paginacaoQuerySchema } from '../common/paginacao';
  * recusar o cadastro de quem digitou "(11) 91234-5678" em vez de "11912345678".
  * A normalização acontece antes, tirando tudo que não é dígito.
  */
-const telefoneSchema = z
+export const telefoneSchema = z
   .string()
   .trim()
   .transform((valor) => valor.replace(/\D/g, ''))

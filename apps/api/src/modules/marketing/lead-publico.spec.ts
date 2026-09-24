@@ -23,9 +23,9 @@ describe('formulário público de leads', () => {
   // Sem base legal registrada não há por que guardar o dado (LGPD, §9.4).
   it('recusa envio sem consentimento', () => {
     expect(leadPublicoSchema.safeParse({ ...valido, consentimento: false }).success).toBe(false);
-    expect(
-      leadPublicoSchema.safeParse({ chave: valido.chave, nome: valido.nome }).success,
-    ).toBe(false);
+    expect(leadPublicoSchema.safeParse({ chave: valido.chave, nome: valido.nome }).success).toBe(
+      false,
+    );
   });
 
   it('recusa nome ausente ou curto demais', () => {
@@ -71,6 +71,24 @@ describe('formulário público de leads', () => {
 
   it('recusa e-mail malformado em vez de gravar lixo', () => {
     expect(leadPublicoSchema.safeParse({ ...valido, email: 'não-é-email' }).success).toBe(false);
+  });
+
+  /*
+   * O telefone passa pelo mesmo schema do cadastro normal, que guarda só os
+   * dígitos. Se o formulário público gravasse a máscara, o mesmo contato
+   * entraria como "(11) 91234-5678" aqui e "11912345678" na tela de clientes —
+   * e a checagem de repetido, que é o que impede o formulário de encher a cota
+   * do plano, nunca reconheceria os dois como a mesma pessoa.
+   */
+  it('guarda o telefone só com os dígitos, como o cadastro normal', () => {
+    const resultado = leadPublicoSchema.safeParse({ ...valido, telefone: '(11) 91234-5678' });
+
+    expect(resultado.success).toBe(true);
+    expect(resultado.success && resultado.data.telefone).toBe('11912345678');
+  });
+
+  it('recusa telefone sem DDD', () => {
+    expect(leadPublicoSchema.safeParse({ ...valido, telefone: '91234' }).success).toBe(false);
   });
 
   // Zod descarta chave desconhecida por padrão: é o que impede alguém de

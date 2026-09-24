@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { opcional, textoOpcional } from '../common/opcional';
+import { telefoneSchema } from '../crm/clientes';
 
 /**
  * Marketing — módulo beta (arquitetura §8.3).
@@ -77,7 +78,11 @@ export const leadPublicoSchema = z.object({
   chave: z.string().trim().min(10).max(120),
   nome: z.string().trim().min(2, 'Informe seu nome').max(120),
   email: opcional(z.string().trim().toLowerCase().pipe(z.email('E-mail inválido'))),
-  telefone: opcional(z.string().trim().max(20)),
+  // O mesmo schema do cadastro normal, que descarta a máscara e guarda só os
+  // dígitos. Um telefone gravado como "(11) 91234-5678" aqui e como
+  // "11912345678" ali nunca seria reconhecido como o mesmo contato — e é
+  // justamente por telefone que o servidor evita cadastrar o lead duas vezes.
+  telefone: opcional(telefoneSchema),
   mensagem: textoOpcional(1000),
 
   origem: textoOpcional(60),
