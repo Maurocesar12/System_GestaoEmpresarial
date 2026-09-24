@@ -20,7 +20,8 @@
     "plano": "ts-node prisma/plano.ts",
     "acesso": "ts-node prisma/acesso.ts",
     "criar:papel": "ts-node prisma/criar-papel-aplicacao.ts",
-    "check:isolamento": "ts-node prisma/checar-isolamento.ts"
+    "check:isolamento": "ts-node prisma/checar-isolamento.ts",
+    "diagnostico": "ts-node prisma/diagnostico-dados.ts"
   },
   "dependencies": {
     "@gestao/shared-types": "workspace:*",
