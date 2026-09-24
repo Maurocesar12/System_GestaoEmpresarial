@@ -131,8 +131,15 @@ services:
       # continuam sendo criados e ficam pendentes.
       # Sem SMTP_URL o e-mail é apenas registrado no log, não enviado.
       # Os dois avisam no boot, então dá para conferir no log do Render.
+      #
+      # `sync: false`, e não `value: ''`, de propósito: com a string vazia
+      # fixada aqui, o Render nunca pergunta o valor e o envio de lembretes fica
+      # desligado em produção sem que ninguém perceba — foi o que aconteceu. Com
+      # `sync: false` o painel pede a URL do Upstash na próxima publicação, e
+      # deixar em branco passa a ser uma escolha consciente, não um padrão
+      # herdado.
       - key: REDIS_URL
-        value: ''
+        sync: false
       - key: SMTP_URL
         sync: false
       - key: EMAIL_REMETENTE

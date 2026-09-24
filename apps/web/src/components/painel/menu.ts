@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Boxes,
   BadgePercent,
+  Megaphone,
   type LucideIcon,
 } from 'lucide-react';
 import { possuiPermissao, type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
@@ -86,6 +87,12 @@ export const MENU: readonly GrupoMenu[] = [
         rotulo: 'Lembretes',
         icone: Bell,
         permissao: 'lembretes.visualizar',
+      },
+      {
+        href: '/painel/marketing',
+        rotulo: 'Marketing',
+        icone: Megaphone,
+        permissao: 'marketing.visualizar',
       },
     ],
   },

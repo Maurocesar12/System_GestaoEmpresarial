@@ -220,6 +220,18 @@ model Tenant {
   /// registro de gateway existir.
   ultimoPagamentoEm DateTime? @map("ultimo_pagamento_em") @db.Date
 
+  /// Chave do formulário embedável (arquitetura §8.3), no formato
+  /// `<tenantId>.<segredo>`.
+  ///
+  /// Ela vai colada no HTML do site do assinante, à vista de qualquer um — e
+  /// isso é esperado: a chave **só permite criar lead**, nunca ler nada. O
+  /// prefixo com o id da empresa segue o mesmo desenho do refresh token: o
+  /// servidor descobre a empresa pelo próprio valor e estabelece o contexto,
+  /// sem precisar de exceção na RLS para encontrá-la.
+  ///
+  /// Nula enquanto o assinante não gerar a dele — o formulário é opcional.
+  chaveMarketing String? @unique @map("chave_marketing") @db.VarChar(120)
+
   criadoEm     DateTime  @default(now()) @map("criado_em")
   atualizadoEm DateTime  @updatedAt @map("atualizado_em")
   /// Cancelamento é registrado, não apagado — a exclusão definitiva dos dados

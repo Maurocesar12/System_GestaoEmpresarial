@@ -23,6 +23,23 @@ async function bootstrap(): Promise<void> {
 
   aplicarLeitorDeCorpo(app);
 
+  /*
+   * Confia em **um** salto de proxy — o balanceador do Render.
+   *
+   * Sem isto, `req.ip` é o endereço do balanceador, e não o de quem fez a
+   * requisição: o rate limit de 5 logins por minuto passaria a ser um balde
+   * único compartilhado por todos os usuários. O primeiro a errar a senha
+   * cinco vezes trancaria a tela de entrada para o resto do mundo, e uma
+   * tentativa de força bruta ficaria indistinguível de tráfego normal.
+   *
+   * O número `1` importa: `true` confiaria na cadeia inteira de
+   * `X-Forwarded-For`, e como qualquer um pode enviar esse cabeçalho, bastaria
+   * forjá-lo para trocar de identidade a cada tentativa e escapar do limite.
+   * Um salto significa "leia o último endereço que o meu próprio proxy
+   * escreveu, e ignore o resto".
+   */
+  app.set('trust proxy', 1);
+
   // Cabeçalhos de segurança (arquitetura §9.2).
   app.use(helmet());
 

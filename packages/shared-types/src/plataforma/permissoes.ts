@@ -29,6 +29,8 @@ export const PERMISSOES = [
   'financeiro.exportar',
   'ia.previsao_financeira',
   'ia.visualizar_consumo',
+  'marketing.visualizar',
+  'marketing.gerenciar',
   'equipe.gerenciar',
   'auditoria.visualizar',
   'empresa.configurar',
@@ -69,6 +71,9 @@ export const PERMISSOES_PADRAO_POR_PAPEL: Record<PapelUsuario, readonly Permissa
     'orcamentos.gerenciar',
     'agenda.gerenciar',
     'lembretes.gerenciar',
+    // Quem atende o lead é quem melhor aproveita saber de onde ele veio.
+    // Gerar a chave do site fica com o administrador.
+    'marketing.visualizar',
   ],
   tecnico: [
     ...CRM_LEITURA,
@@ -147,6 +152,13 @@ export const GRUPOS_PERMISSOES: ReadonlyArray<{
     itens: [
       { codigo: 'ia.previsao_financeira', rotulo: 'Gerar previsão financeira' },
       { codigo: 'ia.visualizar_consumo', rotulo: 'Visualizar consumo de IA' },
+    ],
+  },
+  {
+    titulo: 'Marketing (beta)',
+    itens: [
+      { codigo: 'marketing.visualizar', rotulo: 'Visualizar origem dos leads e conversão' },
+      { codigo: 'marketing.gerenciar', rotulo: 'Gerar a chave do formulário do site' },
     ],
   },
   {

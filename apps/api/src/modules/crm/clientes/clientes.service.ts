@@ -104,7 +104,7 @@ export class ClientesService {
 
   async criar(dados: ClienteFormInput): Promise<Cliente> {
     const { cliente, etapa } = await this.prisma.comTenant(async (tx) => {
-      await this.garantirLimiteClientes(tx);
+      await this.garantirLimiteClientes(tx, tenantAtual());
 
       await this.garantirPersonalizacao(tx, dados);
       const criado = await tx.cliente.create({
@@ -167,7 +167,7 @@ export class ClientesService {
    */
   async importar(clientes: ClienteFormInput[]): Promise<ResultadoImportacao> {
     return this.prisma.comTenant(async (tx) => {
-      await this.garantirLimiteClientes(tx, clientes.length);
+      await this.garantirLimiteClientes(tx, tenantAtual(), clientes.length);
 
       const ignorados: ClienteIgnorado[] = [];
       const aCriar: { indice: number; dados: ClienteFormInput }[] = [];
@@ -349,9 +349,51 @@ export class ClientesService {
    * quantas vagas restam, porque "limite excedido" sem número deixa o usuário
    * adivinhando quantas linhas apagar da planilha.
    */
-  private async garantirLimiteClientes(tx: TransacaoComTenant, quantidade = 1): Promise<void> {
-    const tenantId = tenantAtual();
+  /**
+   * Grava um lead vindo do formulário público do site (arquitetura §8.3).
+   *
+   * Mora aqui, e não no módulo de marketing, porque criar cliente é desta
+   * casa: o limite do plano, a entrada no funil e o registro de auditoria são
+   * as mesmas regras do cadastro normal, e duplicá-las lá seria garantir que
+   * um dia divergissem.
+   *
+   * Roda com `comTenantExplicito` porque não há ninguém logado — a empresa vem
+   * da chave do formulário, já conferida pelo `MarketingService`.
+   *
+   * O log de auditoria é escrito direto, sem passar pelo `AuditoriaService`:
+   * aquele serviço lê o autor do contexto da requisição, e aqui não existe
+   * autor. `usuarioId` nulo é a informação correta — quem criou este registro
+   * foi um visitante do site, não um usuário do sistema.
+   */
+  async criarPeloFormulario(tenantId: string, dados: ClienteFormInput): Promise<void> {
+    await this.prisma.comTenantExplicito(tenantId, async (tx) => {
+      await this.garantirLimiteClientes(tx, tenantId);
 
+      const criado = await tx.cliente.create({
+        data: { id: uuidv7(), tenantId, ...this.paraBancoCliente(dados) },
+      });
+
+      await this.funil.colocarNaPrimeiraEtapa(tx, criado.id);
+
+      await tx.logAuditoria.create({
+        data: {
+          id: uuidv7(),
+          tenantId,
+          usuarioId: null,
+          entidade: 'cliente',
+          entidadeId: criado.id,
+          acao: 'criou',
+          resumo: `Lead recebido pelo formulário do site: ${criado.nome}`,
+        },
+      });
+    });
+  }
+
+  private async garantirLimiteClientes(
+    tx: TransacaoComTenant,
+    tenantId: string,
+    quantidade = 1,
+  ): Promise<void> {
     // Serializa criações concorrentes do mesmo tenant: sem o lock, duas
     // requisições simultâneas poderiam contar "499" e ambas criar o cliente
     // número 500/501.
