@@ -160,7 +160,7 @@ function OQueVemJunto() {
           {MODULOS.map((modulo) => (
             <article
               key={modulo.nome}
-              className="cartao-elevavel bg-card flex flex-col gap-4 rounded-lg  p-6 shadow-[var(--sombra-sutil)]"
+              className="cartao-elevavel bg-card flex flex-col gap-4 rounded-lg  p-6 "
             >
               <span className="bg-muted text-foreground flex size-9 items-center justify-center rounded-md border border-current/10">
                 <modulo.icone aria-hidden className="size-5" />
@@ -283,7 +283,7 @@ function InteligenciaArtificial() {
             {proximosRecursos.map((recurso) => (
               <article
                 key={recurso.titulo}
-                className="cartao-elevavel bg-card flex flex-col gap-3 rounded-lg p-5 shadow-[var(--sombra-sutil)]"
+                className="cartao-elevavel bg-card flex flex-col gap-3 rounded-lg p-5"
               >
                 <span className="flex items-center justify-between gap-3">
                   <recurso.icone aria-hidden className="text-info size-5" />
@@ -423,7 +423,7 @@ function CartaoPlano({
 }) {
   return (
     <article
-      className={`cartao-elevavel bg-card flex flex-col gap-6 rounded-lg p-8 shadow-[var(--sombra-sutil)] ${destaque ? 'border-info/25 ring-info/20 ring-1' : ''}`}
+      className={`cartao-elevavel bg-card flex flex-col gap-6 rounded-lg p-8  ${destaque ? 'border-info/25 ring-info/20 ring-1' : ''}`}
     >
       <div>
         <h3 className="text-xl font-semibold">{nome}</h3>
