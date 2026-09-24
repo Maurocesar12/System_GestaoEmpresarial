@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { calcularAcesso, mensagemDeAcesso } from '@gestao/shared-types';
-import { urlAdministrativa } from '../src/config/url-banco';
 import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 
 /**
@@ -23,13 +22,18 @@ import { Prisma, PrismaClient } from '../src/generated/prisma/client';
  *   pnpm --filter @gestao/api acesso mauro@exemplo.com pago
  */
 
+/**
+ * A conexão **da aplicação**, e não a administrativa.
+ *
+ * A administrativa tem `BYPASSRLS`, e com ela este comando enxergaria empresa
+ * que a aplicação não enxerga — o oposto do que se quer de uma ferramenta que
+ * existe para conferir o que o usuário vê.
+ */
 function exigirConexao(): string {
-  const url = urlAdministrativa();
+  const url = process.env.DATABASE_URL?.trim();
 
   if (!url) {
-    throw new Error(
-      'Nenhuma conexão configurada: defina DATABASE_URL (ou ADMIN_DATABASE_URL) em apps/api/.env.',
-    );
+    throw new Error('Defina DATABASE_URL em apps/api/.env (a conexão da aplicação).');
   }
 
   return url;

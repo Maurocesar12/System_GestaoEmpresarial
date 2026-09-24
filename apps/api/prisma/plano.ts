@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { urlAdministrativa } from '../src/config/url-banco';
 import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 
 /**
@@ -27,8 +26,16 @@ import { Prisma, PrismaClient } from '../src/generated/prisma/client';
  *   pnpm --filter @gestao/api plano profissional mauro@exemplo.com
  */
 
+/**
+ * A conexão **da aplicação**, e não a administrativa.
+ *
+ * As duas chegariam ao mesmo lugar, mas a administrativa tem `BYPASSRLS` — e
+ * com ela as contagens por empresa sairiam somando todas as empresas, porque
+ * nenhuma política filtraria. Menor privilégio aqui não é só princípio: é o
+ * que faz os números impressos estarem certos.
+ */
 function exigirConexao(): string {
-  const url = urlAdministrativa();
+  const url = process.env.DATABASE_URL?.trim();
 
   if (!url) {
     throw new Error(

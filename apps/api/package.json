@@ -19,6 +19,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "plano": "ts-node prisma/plano.ts",
     "acesso": "ts-node prisma/acesso.ts",
+    "criar:papel": "ts-node prisma/criar-papel-aplicacao.ts",
     "check:isolamento": "ts-node prisma/checar-isolamento.ts"
   },
   "dependencies": {
