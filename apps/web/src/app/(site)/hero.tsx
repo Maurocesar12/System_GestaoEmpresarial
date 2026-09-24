@@ -8,7 +8,6 @@ import {
   Check,
   UsersRound,
 } from 'lucide-react';
-import { PainelDeExemplo } from './painel-de-exemplo';
 import { VideoHeader } from './video-header';
 
 const ATALHOS = [
@@ -42,16 +41,6 @@ export function Hero() {
 
       <div className={styles['hero-container']}>
         <div className={styles['hero-main']}>
-          {/*
-            Só em telas largas: abaixo de 1280px o espaço à direita do texto
-            já não sobra, e o hero volta ao texto sozinho sobre o vídeo — o
-            mesmo comportamento de sempre. `aria-hidden` porque é a mesma
-            informação que o `PainelDeExemplo` já marca como decorativa.
-          */}
-          <div className={styles['hero-preview']} aria-hidden="true">
-            <PainelDeExemplo />
-          </div>
-
           <div className={styles['hero-copy']}>
             <p className={styles['hero-eyebrow']}>
               <span aria-hidden /> CHEGA DE PLANILHA. CHEGA DE ACHISMO.

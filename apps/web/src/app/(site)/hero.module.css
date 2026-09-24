@@ -91,43 +91,11 @@
  * próprio fundo do hero.
  */
 .hero-main {
-  position: relative;
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, min(560px, 100%));
   align-items: center;
   padding-block: clamp(24px, 4svh, 72px);
-}
-
-/*
- * O quadro do painel, flutuando no espaço vazio à direita do texto.
- *
- * Até aqui esse espaço só mostrava o vídeo de fundo — abstrato, sem nenhuma
- * tela reconhecível como "isto é um sistema de verdade". O cartão inclinado é
- * o mesmo vocabulário visual do `Grafico3D` na seção de resultado: leve
- * `perspective` + `rotate`, sombra funda, decorativo e fora do fluxo de
- * leitura. Repetir o vocabulário em vez de inventar um terceiro é o que
- * mantém a página parecendo um produto só, e não uma colagem de seções.
- *
- * `pointer-events: none` porque é imagem, não interface: nada aqui deveria
- * competir com o clique em "Testar grátis" logo ao lado.
- */
-.hero-preview {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  width: min(380px, 30vw);
-  pointer-events: none;
-  transform: translateY(-50%) perspective(1600px) rotateY(-10deg) rotateX(3deg);
-  filter: drop-shadow(0 30px 50px rgb(0 0 0 / 0.22));
-}
-
-/* Some antes de disputar espaço com o texto — ver o breakpoint de 1023px mais
-   abaixo, onde o hero já vira texto sozinho sobre o vídeo. */
-@media (max-width: 1279px) {
-  .hero-preview {
-    display: none;
-  }
 }
 
 .hero-copy {
@@ -159,20 +127,8 @@
   text-wrap: balance;
 }
 .hero-copy h1 > span {
-  position: relative;
-  display: inline-block;
   color: var(--foreground);
   text-shadow: 0 16px 34px rgb(0 0 0 / 0.16);
-}
-.hero-copy h1 > span::after {
-  position: absolute;
-  right: 0;
-  bottom: -8px;
-  width: 34%;
-  height: 3px;
-  content: '';
-  background: var(--foreground);
-  box-shadow: 0 8px 18px rgb(0 0 0 / 0.26);
 }
 .hero-description {
   max-width: 440px;
