@@ -1,28 +1,38 @@
 import styles from './hero.module.css';
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, CalendarDays, ChartNoAxesCombined, UsersRound } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowRight,
+  CalendarDays,
+  ChartNoAxesCombined,
+  Check,
+  UsersRound,
+} from 'lucide-react';
 import { VideoHeader } from './video-header';
 
 const ATALHOS = [
   {
     icone: UsersRound,
     titulo: 'Clientes e orçamentos',
-    descricao: 'Cada oportunidade no lugar certo.',
+    descricao: 'Nenhuma negociação escapa.',
     href: '#recursos',
   },
   {
     icone: CalendarDays,
     titulo: 'Uma rotina conectada',
-    descricao: 'Do serviço vendido à agenda.',
+    descricao: 'Venda virou agenda sozinha.',
     href: '#como-funciona',
   },
   {
     icone: ChartNoAxesCombined,
     titulo: 'Clareza sobre o caixa',
-    descricao: 'Veja os próximos meses com IA.',
+    descricao: 'O próximo mês, sem adivinhar.',
     href: '#ia',
   },
 ];
+
+/** Assurances que abaixam a barreira de clicar: prazo, custo, saída. */
+const GARANTIAS_HERO = ['14 dias grátis', 'Sem cartão de crédito', 'Cancele quando quiser'];
 
 export function Hero() {
   return (
@@ -33,27 +43,34 @@ export function Hero() {
         <div className={styles['hero-main']}>
           <div className={styles['hero-copy']}>
             <p className={styles['hero-eyebrow']}>
-              <span aria-hidden /> MENOS PLANILHAS. MAIS CLAREZA.
+              <span aria-hidden /> CHEGA DE PLANILHA. CHEGA DE ACHISMO.
             </p>
             <h1 id="titulo-hero">
-              Seu negócio organizado.
+              Você sabe quanto lucrou.
               <br />
-              <span>Seu lucro à vista.</span>
+              <span>Sem esperar o fim do mês.</span>
             </h1>
             <p className={styles['hero-description']}>
-              Clientes, orçamentos e agenda conectados ao financeiro. Saiba o que precisa da sua
-              atenção e quanto cada serviço deixa de lucro.
+              Orçamento, agenda e financeiro na mesma linha. Você não fecha planilha: o sistema já
+              sabe quanto cada serviço deixou de lucro.
             </p>
             <div className={styles['hero-actions']}>
               <Link href="/cadastro" className={styles['hero-primary']}>
-                Criar minha conta <ArrowRight aria-hidden />
+                Testar grátis por 14 dias <ArrowRight aria-hidden />
               </Link>
               <a href="#como-funciona" className={styles['hero-secondary']}>
                 <ArrowDown aria-hidden /> Ver como funciona
               </a>
             </div>
+            <ul className={styles['hero-assurances']}>
+              {GARANTIAS_HERO.map((item) => (
+                <li key={item}>
+                  <Check aria-hidden /> {item}
+                </li>
+              ))}
+            </ul>
             <a href="#planos" className={styles['hero-plans']}>
-              Conheça os planos <ArrowRight aria-hidden />
+              Ver preço e planos <ArrowRight aria-hidden />
             </a>
           </div>
         </div>

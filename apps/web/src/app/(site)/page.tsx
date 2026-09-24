@@ -12,7 +12,7 @@ import { Revelar } from './revelar';
 export const metadata: Metadata = {
   title: 'CRM e financeiro para empresas de serviço',
   description:
-    'Clientes, orçamentos e agenda ligados ao caixa. Descubra quanto cada serviço realmente deixa de lucro, sem manter planilha do lado.',
+    'Orçamento, agenda e financeiro na mesma linha. Saiba quanto cada serviço deixou de lucro, sem fechar planilha no fim do mês. 14 dias grátis.',
 };
 
 export default function PaginaInicial() {
@@ -71,7 +71,10 @@ function Recursos() {
   return (
     <section id="recursos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao rotulo="O que o sistema faz" titulo="Tudo o que o dia a dia pede, junto.">
+        <CabecalhoSecao
+          rotulo="O que o sistema faz"
+          titulo="Tudo o que o seu dia a dia pede — no mesmo lugar."
+        >
           Hoje é o WhatsApp para falar com cliente, o caderno para anotar serviço e a planilha para
           as contas. Aqui é um lugar só — e as três coisas conversam entre si.
         </CabecalhoSecao>
@@ -108,7 +111,7 @@ function Resultado() {
         <div className="flex flex-col gap-5">
           <CabecalhoSecao
             rotulo="O resultado"
-            titulo="No fim do mês, a pergunta é uma só: sobrou quanto?"
+            titulo="Você sabe quanto sobrou, sem esperar o mês fechar."
           >
             O sistema já sabe responder, porque cada recebimento nasceu ligado ao serviço que o
             gerou e cada custo, ao trabalho que o consumiu. Não é relatório que alguém monta no fim
@@ -151,7 +154,10 @@ function OQueVemJunto() {
   return (
     <section id="incluso" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao rotulo="O que vem junto" titulo="Tudo isto já está no sistema hoje.">
+        <CabecalhoSecao
+          rotulo="O que vem junto"
+          titulo="Nada disso é promessa. Está no sistema hoje."
+        >
           Sem módulo vendido à parte e sem “fale com o comercial”. O que está listado aqui funciona
           desde o primeiro dia da sua conta.
         </CabecalhoSecao>
@@ -203,10 +209,7 @@ function ComoFunciona() {
 
         <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {PASSOS.map((passo, indice) => (
-            <li
-              key={passo.titulo}
-              className="cartao-elevavel flex flex-col gap-3 p-3 pt-6"
-            >
+            <li key={passo.titulo} className="cartao-elevavel flex flex-col gap-3 p-3 pt-6">
               <span className="text-muted-foreground text-sm font-semibold tabular-nums">
                 {String(indice + 1).padStart(2, '0')}
               </span>
@@ -236,7 +239,7 @@ function InteligenciaArtificial() {
             </span>
 
             <h2 className="text-3xl font-semibold tracking-tight text-balance">
-              Veja o caixa dos próximos meses antes de tomar a decisão.
+              Saiba se o caixa aguenta os próximos meses, antes de decidir.
             </h2>
 
             <p className="text-muted-foreground leading-relaxed">
@@ -345,10 +348,10 @@ function Seguranca() {
       <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:py-24">
         <CabecalhoSecao
           rotulo="Segurança"
-          titulo="Dado de cliente e dinheiro no mesmo lugar pedem mais cuidado."
+          titulo="Seus dados são só seus. E isso é testado, não prometido."
         >
-          Por isso a separação entre empresas foi construída antes de tudo, e é testada de propósito
-          — com testes que tentam invadir o dado de outra empresa e precisam falhar.
+          A separação entre empresas foi construída antes de qualquer tela, e é verificada de
+          propósito — com testes que tentam invadir o dado de outra empresa e precisam falhar.
         </CabecalhoSecao>
 
         <ul className="flex flex-col gap-8">
@@ -375,9 +378,9 @@ function Planos() {
   return (
     <section id="planos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao rotulo="Preço" titulo="Escolha o plano certo para organizar sua operação.">
+        <CabecalhoSecao rotulo="Preço" titulo="Dois planos. Sem letra miúda, sem pegadinha.">
           O Básico organiza a rotina comercial e financeira; o Pro amplia a equipe, a carteira e
-          acrescenta previsão financeira com IA.
+          acrescenta previsão financeira com IA. Os 14 dias de teste valem para os dois.
         </CabecalhoSecao>
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           <CartaoPlano
@@ -456,17 +459,22 @@ function ChamadaFinal() {
     <section className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
       <div className="flex flex-col items-start gap-6">
         <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-balance">
-          Comece cadastrando sua empresa. O resto já vem pronto.
+          Cadastre sua empresa. O resto já vem pronto.
         </h2>
         <p className="text-muted-foreground max-w-xl leading-relaxed">
           O acompanhamento de negociações já nasce montado, com as etapas que a maioria das empresas
           de serviço usa. Dá para ajustar depois — mas você pode cadastrar o primeiro cliente agora
           mesmo.
         </p>
-        <Link href="/cadastro" className={estilosBotao({ tamanho: 'lg' })}>
-          Criar minha empresa
-          <ArrowRight aria-hidden />
-        </Link>
+        <div className="flex flex-col items-start gap-2">
+          <Link href="/cadastro" className={estilosBotao({ tamanho: 'lg' })}>
+            Testar grátis por 14 dias
+            <ArrowRight aria-hidden />
+          </Link>
+          <p className="text-muted-foreground text-xs">
+            Sem cartão de crédito · cancele quando quiser
+          </p>
+        </div>
       </div>
     </section>
   );
