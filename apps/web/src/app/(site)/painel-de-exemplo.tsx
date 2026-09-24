@@ -7,6 +7,18 @@
  * colado numa landing page.
  *
  * Os números são ilustrativos e existem só para dar forma ao componente.
+ *
+ * ## Por que as barras crescem e nenhum número conta para cima
+ *
+ * `.grafico-barra-animada` já existe em `globals.css` e roda no painel de
+ * verdade — reaproveitá-la aqui é o mesmo visual, sem inventar uma segunda
+ * animação para manter igual. É CSS puro, disparado uma vez na pintura da
+ * página: zero JavaScript.
+ *
+ * Um contador que sobe (0 → R$ 21.900) pediria estado e um efeito no cliente
+ * — JavaScript rodando numa página que, fora isso, é só HTML — para um efeito
+ * que o usuário vê uma vez e nunca mais. O ponto pulsando no cabeçalho entrega
+ * a mesma sensação de "isto está rodando agora" a um custo bem menor.
  */
 
 const INDICADORES = [
@@ -36,6 +48,13 @@ export function PainelDeExemplo() {
         <span className="bg-muted-foreground/30 size-2 rounded-full" />
         <span className="bg-muted-foreground/30 size-2 rounded-full" />
         <span className="text-muted-foreground ml-2 text-xs">Painel · Oficina do João</span>
+        <span className="ml-auto flex items-center gap-1.5">
+          <span className="relative flex size-1.5">
+            <span className="bg-sucesso absolute inline-flex size-full animate-ping rounded-full opacity-75" />
+            <span className="bg-sucesso relative inline-flex size-1.5 rounded-full" />
+          </span>
+          <span className="text-sucesso text-[0.625rem] font-medium">ao vivo</span>
+        </span>
       </div>
 
       <div className="flex flex-col gap-4 p-4 sm:p-5">
@@ -63,11 +82,15 @@ export function PainelDeExemplo() {
             {BARRAS.map((altura, indice) => (
               <div
                 key={indice}
-                style={{ height: `${altura}%` }}
+                style={{
+                  height: `${altura}%`,
+                  transformOrigin: 'bottom',
+                  animationDelay: `${indice * 70}ms`,
+                }}
                 className={
                   indice === BARRAS.length - 1
-                    ? 'bg-primary flex-1 rounded-sm'
-                    : 'bg-primary/25 flex-1 rounded-sm'
+                    ? 'bg-primary grafico-barra-animada flex-1 rounded-sm'
+                    : 'bg-primary/25 grafico-barra-animada flex-1 rounded-sm'
                 }
               />
             ))}
