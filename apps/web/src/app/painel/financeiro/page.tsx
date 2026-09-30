@@ -25,6 +25,7 @@ import {
   SelecaoFiltro,
 } from '@/components/ui/filtros';
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
+import { Paginacao } from '@/components/ui/paginacao';
 import { PercentualMargem } from '@/components/ui/percentual-margem';
 import { Selo } from '@/components/ui/selo';
 import {
@@ -57,7 +58,7 @@ const TOM_DO_STATUS = {
 } as const;
 
 interface Props {
-  searchParams: Promise<{ de?: string; ate?: string; categoriaId?: string }>;
+  searchParams: Promise<{ de?: string; ate?: string; categoriaId?: string; pagina?: string }>;
 }
 
 /**
@@ -79,6 +80,9 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
   const queryPeriodo = new URLSearchParams({ de, ate });
   if (categoriaId) {
     queryPeriodo.set('categoriaId', categoriaId);
+  }
+  if (parametros.pagina) {
+    queryPeriodo.set('pagina', parametros.pagina);
   }
   const periodo = queryPeriodo.toString();
 
@@ -189,8 +193,22 @@ async function CorpoDoPainel({
       <FiltrosFinanceiros de={de} ate={ate} categoriaId={categoriaId} categorias={categorias} />
 
       <FaixaDeIndicadores>
-        <Indicador titulo="Entradas" valor={formatarBRL(fluxo.entradas)} tom="positivo" />
-        <Indicador titulo="Saídas" valor={formatarBRL(fluxo.saidas)} tom="negativo" />
+        {/* O detalhe "recebido/pago no período" é o par da legenda da tabela de
+            lançamentos: aqui conta o dinheiro que se moveu, lá o que foi
+            registrado. Dizer nos dois lugares é o que impede a conclusão de que
+            um dos números está errado. */}
+        <Indicador
+          titulo="Entradas"
+          valor={formatarBRL(fluxo.entradas)}
+          detalhe="recebido no período"
+          tom="positivo"
+        />
+        <Indicador
+          titulo="Saídas"
+          valor={formatarBRL(fluxo.saidas)}
+          detalhe="pago no período"
+          tom="negativo"
+        />
         <Indicador
           titulo="Saldo"
           valor={formatarBRL(fluxo.saldo)}
@@ -303,6 +321,18 @@ async function CorpoDoPainel({
             <Receipt aria-hidden className="text-muted-foreground size-4" />
             Lançamentos do período
           </CartaoTitulo>
+          {/*
+            Esta legenda evita a leitura errada mais fácil da tela.
+
+            Os indicadores lá em cima somam por data de **pagamento**; esta
+            lista filtra por data do **lançamento**. São recortes diferentes de
+            propósito — um mostra o dinheiro que se moveu, o outro o que foi
+            registrado —, mas sem dizer isso a pessoa via um serviço de R$ 5.000
+            na lista e "Entradas: R$ 0" acima, e concluía que o sistema errou.
+          */}
+          <p className="text-muted-foreground shrink-0 text-xs">
+            Pela data do lançamento — inclui o que ainda não foi pago.
+          </p>
         </CartaoCabecalho>
 
         {lancamentos.dados.length === 0 ? (
@@ -389,7 +419,27 @@ async function CorpoDoPainel({
             </TabelaCorpo>
           </TabelaRolavel>
         )}
+
       </Cartao>
+
+      {/*
+        Sem isto, a tela mostrava as 20 primeiras linhas e o resto do mês era
+        inalcançável — a única saída era exportar a planilha.
+
+        Fica fora do cartão, como nas outras listagens do sistema: o componente
+        devolve `null` quando há uma página só, e dentro do cartão isso deixaria
+        uma faixa com borda e nada dentro.
+
+        Os filtros vão no `parametros` para sobreviverem à troca de página. O
+        caminho inverso se resolve sozinho: a barra de filtros é um
+        `<form method="get">`, que não carrega `pagina`, então aplicar um filtro
+        novo volta para a primeira página, como deve.
+      */}
+      <Paginacao
+        meta={lancamentos.meta}
+        base="/painel/financeiro"
+        parametros={{ de, ate, categoriaId: categoriaId || undefined }}
+      />
     </div>
   );
 }

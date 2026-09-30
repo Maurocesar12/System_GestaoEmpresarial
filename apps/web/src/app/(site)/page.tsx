@@ -5,7 +5,7 @@ import { estilosBotao } from '@/components/ui/botao';
 import { cn } from '@/lib/utils';
 import { MODULOS, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { ComoAIAFunciona, DemonstracaoPrevisao } from './demonstracao-previsao';
-import { Grafico3D } from './grafico-3d';
+import { PainelResultado } from './painel-resultado';
 import { Hero } from './hero';
 import { Revelar } from './revelar';
 
@@ -132,12 +132,7 @@ function Resultado() {
           </ul>
         </div>
 
-        <div className="bg-superficie rounded-xl border">
-          <Grafico3D />
-          <p className="text-muted-foreground border-t px-6 py-3 text-center text-xs">
-            Funil, agenda e financeiro no mesmo sistema · dados ilustrativos
-          </p>
-        </div>
+        <PainelResultado />
       </div>
     </section>
   );

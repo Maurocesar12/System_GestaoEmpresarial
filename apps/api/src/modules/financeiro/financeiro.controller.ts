@@ -23,8 +23,11 @@ import {
   type Lancamento,
   type LancamentoFormInput,
   type LancamentosQuery,
+  LANCAMENTOS_POR_PAGINA,
+  painelFinanceiroQuerySchema,
   type Paginado,
   type PainelFinanceiro,
+  type PainelFinanceiroQuery,
   type PeriodoQuery,
   type RelatorioMargem,
   type ResumoContas,
@@ -96,7 +99,13 @@ export class FinanceiroController {
    * `FinanceiroService`, e juntá-los do outro lado fecharia um ciclo.
    */
   @Get('painel')
-  async painel(@QueryValidada(periodoQuerySchema) query: PeriodoQuery): Promise<PainelFinanceiro> {
+  async painel(
+    @QueryValidada(painelFinanceiroQuerySchema) query: PainelFinanceiroQuery,
+  ): Promise<PainelFinanceiro> {
+    // A página é só da lista de lançamentos. Os relatórios acima dela somam o
+    // período inteiro, então recebem o filtro sem ela.
+    const { pagina, ...periodo } = query;
+
     // As contas em aberto saem em duas consultas porque o filtro aceita uma
     // situação por vez. `natureza: 'empresa'` nas duas não é detalhe: o resumo
     // é calculado só sobre a empresa, e sem o filtro uma conta pessoal
@@ -105,10 +114,10 @@ export class FinanceiroController {
 
     const [fluxo, custo, margem, lancamentos, resumoContas, atrasadas, aVencer, categorias] =
       await Promise.all([
-        this.financeiro.fluxoDeCaixa(query),
-        this.proLabore.custoOperacional(query),
-        this.financeiro.margemPorServico(query),
-        this.financeiro.listar({ ...query, porPagina: 20, pagina: 1 }),
+        this.financeiro.fluxoDeCaixa(periodo),
+        this.proLabore.custoOperacional(periodo),
+        this.financeiro.margemPorServico(periodo),
+        this.financeiro.listar({ ...periodo, porPagina: LANCAMENTOS_POR_PAGINA, pagina }),
         this.financeiro.resumoContas(),
         this.financeiro.listar({ ...contasEmAberto, status: 'atrasado' }),
         this.financeiro.listar({ ...contasEmAberto, status: 'a_vencer' }),

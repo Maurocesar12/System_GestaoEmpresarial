@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import type { CustoOperacional } from './custo-operacional';
+import { periodoQuerySchema } from './lancamentos';
 import type {
   CategoriaFinanceira,
   FluxoDeCaixa,
@@ -7,6 +9,28 @@ import type {
   ResumoContas,
 } from './lancamentos';
 import type { Paginado } from '../common/paginacao';
+
+/**
+ * Quantos lançamentos a tela mostra por página.
+ *
+ * Fica aqui, e não solto no controller, para a API e a tela concordarem sobre o
+ * tamanho da página — é o número que o paginador usa para calcular quantas
+ * páginas existem.
+ */
+export const LANCAMENTOS_POR_PAGINA = 20;
+
+/**
+ * O que a tela do financeiro precisa informar para montar o painel.
+ *
+ * É o período dos relatórios mais a página da lista de lançamentos. As duas
+ * coisas viajam juntas porque uma requisição só atende a tela inteira.
+ */
+export const painelFinanceiroQuerySchema = periodoQuerySchema.extend({
+  /** Página da lista de lançamentos. Os relatórios acima dela não paginam. */
+  pagina: z.coerce.number().int().positive().default(1),
+});
+
+export type PainelFinanceiroQuery = z.infer<typeof painelFinanceiroQuerySchema>;
 
 /**
  * Tudo que a tela do financeiro precisa, numa resposta só.
