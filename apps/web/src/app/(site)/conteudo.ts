@@ -257,7 +257,7 @@ export const MODULOS: readonly Modulo[] = [
       'Margem por tipo de serviço, já calculada',
       'Fluxo de caixa do período com entradas e saídas',
       'Teto de retirada sugerido a partir do que entrou de fato',
-      'Previsão do caixa com IA, no plano Pro',
+      'Previsão do caixa com IA, no plano Premium',
     ],
   },
   {

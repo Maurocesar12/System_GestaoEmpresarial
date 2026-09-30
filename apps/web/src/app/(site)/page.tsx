@@ -60,14 +60,6 @@ function CabecalhoSecao({
 }
 
 function Recursos() {
-  const tons = [
-    'bg-info-suave text-info',
-    'bg-sucesso-suave text-sucesso',
-    'bg-atencao-suave text-atencao',
-    'bg-destrutivo-suave text-destructive',
-    'bg-muted text-foreground',
-  ];
-
   return (
     <section id="recursos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
@@ -79,18 +71,25 @@ function Recursos() {
           as contas. Aqui é um lugar só — e as três coisas conversam entre si.
         </CabecalhoSecao>
 
+        {/*
+          Um acento só para os seis ícones, e não seis cores diferentes.
+
+          Antes cada cartão pegava um tom da paleta semântica, incluindo
+          `destrutivo` — o vermelho de erro. No resto do sistema verde é
+          sucesso, âmbar é alerta e vermelho é problema; usar esse vocabulário
+          como enfeite aqui ensina o oposto, e "o retorno acontece no dia certo"
+          pintado de vermelho de erro diz a coisa errada. Como eram cinco tons
+          para seis cartões, o último ainda repetia a cor do primeiro e parecia
+          descuido.
+
+          A diferenciação que importa já está no ícone e no título. Uma cor só —
+          a da marca — deixa a seção mais calma e não promete significado que a
+          cor não tem.
+        */}
         <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-          {RECURSOS.map((recurso, indice) => (
-            <article
-              key={recurso.titulo}
-              className="cartao-elevavel flex flex-col gap-3 rounded-lg p-3"
-            >
-              <span
-                className={cn(
-                  'flex size-9 items-center justify-center rounded-md border border-current/10',
-                  tons[indice % tons.length] ?? 'bg-muted text-foreground',
-                )}
-              >
+          {RECURSOS.map((recurso) => (
+            <article key={recurso.titulo} className="flex flex-col gap-3">
+              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-md border border-current/10">
                 <recurso.icone aria-hidden className="size-5" />
               </span>
               <h3 className="font-semibold tracking-tight">{recurso.titulo}</h3>
@@ -161,7 +160,7 @@ function OQueVemJunto() {
           {MODULOS.map((modulo) => (
             <article
               key={modulo.nome}
-              className="cartao-elevavel bg-card flex flex-col gap-4 rounded-lg  p-6 "
+              className="cartao-elevavel bg-card flex flex-col gap-4 rounded-lg p-6"
             >
               <span className="bg-muted text-foreground flex size-9 items-center justify-center rounded-md border border-current/10">
                 <modulo.icone aria-hidden className="size-5" />
@@ -203,8 +202,14 @@ function ComoFunciona() {
         </CabecalhoSecao>
 
         <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          {/*
+            Sem `cartao-elevavel` aqui: a classe anima borda e sombra, e estes
+            blocos não têm nem uma nem outra — o hover levantava uma sombra sem
+            superfície embaixo. Pior que o efeito quebrado, ele prometia que o
+            passo era clicável, e não é.
+          */}
           {PASSOS.map((passo, indice) => (
-            <li key={passo.titulo} className="cartao-elevavel flex flex-col gap-3 p-3 pt-6">
+            <li key={passo.titulo} className="flex flex-col gap-3 pt-6">
               <span className="text-muted-foreground text-sm font-semibold tabular-nums">
                 {String(indice + 1).padStart(2, '0')}
               </span>
@@ -229,7 +234,7 @@ function InteligenciaArtificial() {
             <span className="flex flex-wrap items-center gap-2">
               <RotuloSecao>Previsão financeira com IA</RotuloSecao>
               <span className="bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-xs font-medium">
-                Disponível no Pro
+                Disponível no Premium
               </span>
             </span>
 
@@ -338,8 +343,12 @@ const GARANTIAS = [
  * empresa?" — e aqui a resposta é verificável.
  */
 function Seguranca() {
+  // Fundo neutro, e não `bg-superficie`: a seção de IA logo acima já é tingida,
+  // e com as duas no mesmo tom elas viravam uma faixa contínua de meia página.
+  // A troca de assunto — de "o que a IA faz" para "como seus dados ficam
+  // guardados" — perdia o corte visual que separa uma seção da outra.
   return (
-    <section id="seguranca" className="bg-superficie scroll-mt-16 border-b">
+    <section id="seguranca" className="scroll-mt-16 border-b">
       <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:py-24">
         <CabecalhoSecao
           rotulo="Segurança"
@@ -374,8 +383,9 @@ function Planos() {
     <section id="planos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <CabecalhoSecao rotulo="Preço" titulo="Dois planos. Sem letra miúda, sem pegadinha.">
-          O Básico organiza a rotina comercial e financeira; o Pro amplia a equipe, a carteira e
-          acrescenta previsão financeira com IA. Os 14 dias de teste valem para os dois.
+          O Básico organiza a rotina comercial e financeira; o Premium amplia a equipe e a carteira
+          e acrescenta a inteligência artificial sobre os seus números. Os 14 dias de teste valem
+          para os dois.
         </CabecalhoSecao>
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           <CartaoPlano
@@ -389,8 +399,19 @@ function Planos() {
               'Importação e exportação de dados',
             ]}
           />
+          {/*
+            "Premium", e não "Pro".
+
+            É o nome que o sistema usa de verdade (`seed.ts`, slug
+            `profissional`). Vender "Pro" aqui e mostrar "Premium" na conta faz
+            a pessoa duvidar de que assinou o que escolheu — e é o tipo de
+            divergência que só aparece depois do pagamento.
+
+            O assistente com IA estava faltando na lista: é um diferencial real
+            do plano (`iaHabilitada`), e a página cobrava por ele sem citá-lo.
+          */}
           <CartaoPlano
-            nome="Pro"
+            nome="Premium"
             preco="200"
             destaque
             itens={[
@@ -398,6 +419,7 @@ function Planos() {
               'Até 20 usuários · R$ 15 por adicional',
               '3.000 clientes',
               'Tudo do Básico',
+              'Assistente com IA sobre os seus números',
               'Previsão financeira com IA',
               '200 previsões por mês',
             ]}
@@ -421,7 +443,10 @@ function CartaoPlano({
 }) {
   return (
     <article
-      className={`cartao-elevavel bg-card flex flex-col gap-6 rounded-lg p-8  ${destaque ? 'border-info/25 ring-info/20 ring-1' : ''}`}
+      className={cn(
+        'cartao-elevavel bg-card flex flex-col gap-6 rounded-lg p-8',
+        destaque && 'border-info/25 ring-info/20 ring-1',
+      )}
     >
       <div>
         <h3 className="text-xl font-semibold">{nome}</h3>
