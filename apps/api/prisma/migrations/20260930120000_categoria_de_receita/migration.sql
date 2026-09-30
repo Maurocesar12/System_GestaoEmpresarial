@@ -1,0 +1,25 @@
+-- ============================================================================
+--  Categoria de receita
+-- ============================================================================
+--
+--  `tipo_custo` só tinha 'fixo' e 'variavel'. Isso obrigava toda categoria de
+--  ENTRADA a se declarar custo fixo ou variável — "Venda de serviço: custo
+--  fixo" —, o que não quer dizer nada e ainda punha receita ao lado de despesa
+--  nos seletores.
+--
+--  O valor novo separa os dois mundos sem mexer em nenhum relatório: fluxo de
+--  caixa e custo operacional filtram por `tipo = 'saida'` E `tipo_custo IN
+--  ('fixo','variavel')`, então uma categoria de receita simplesmente não entra
+--  nas somas de custo — que é exatamente o correto.
+--
+--  Sobre a transação: o PostgreSQL 12+ aceita ALTER TYPE ... ADD VALUE dentro
+--  de uma transação (que é como o Prisma roda migrations), desde que o valor
+--  novo não seja USADO na mesma transação. Aqui só adicionamos, sem inserir
+--  nem comparar linha nenhuma — por isso não há um UPDATE abaixo.
+--
+--  Nada a retroalimentar: as categorias existentes continuam válidas como
+--  fixo/variavel, e quem quiser reclassificar uma delas como receita faz pela
+--  tela.
+-- ============================================================================
+
+ALTER TYPE "tipo_custo" ADD VALUE IF NOT EXISTS 'receita';

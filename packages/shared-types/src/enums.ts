@@ -53,7 +53,26 @@ export const NATUREZAS_LANCAMENTO = ['pessoal', 'empresa'] as const;
 export const naturezaLancamentoSchema = z.enum(NATUREZAS_LANCAMENTO);
 export type NaturezaLancamento = z.infer<typeof naturezaLancamentoSchema>;
 
-/** Classificação usada no cálculo de custo operacional e margem. */
-export const TIPOS_CUSTO = ['fixo', 'variavel'] as const;
+/**
+ * Para que serve uma categoria financeira.
+ *
+ * `fixo` e `variavel` classificam despesa e alimentam o custo operacional e a
+ * margem. `receita` é para as categorias de entrada — sem ela, "Venda de
+ * serviço" tinha de se declarar custo fixo ou variável, o que não significa
+ * nada e punha receita ao lado de despesa nos seletores.
+ */
+export const TIPOS_CUSTO = ['fixo', 'variavel', 'receita'] as const;
 export const tipoCustoSchema = z.enum(TIPOS_CUSTO);
 export type TipoCusto = z.infer<typeof tipoCustoSchema>;
+
+/**
+ * Quais classificações servem a cada tipo de lançamento.
+ *
+ * Fica no contrato, e não na tela, porque a API valida a mesma regra: o
+ * seletor de categoria de uma entrada não deveria oferecer "custo fixo", e uma
+ * saída não deveria aceitar categoria de receita.
+ */
+export const TIPOS_CUSTO_POR_LANCAMENTO = {
+  entrada: ['receita'],
+  saida: ['fixo', 'variavel'],
+} as const satisfies Record<string, readonly TipoCusto[]>;

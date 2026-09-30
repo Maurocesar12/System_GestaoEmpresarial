@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ROTULO_NATUREZA,
   ROTULO_TIPO_LANCAMENTO,
+  TIPOS_CUSTO_POR_LANCAMENTO,
   hojeISO,
   lancamentoFormSchema,
   type AnexoLancamentoInput,
@@ -18,7 +19,7 @@ import {
 } from '@gestao/shared-types';
 import { ArrowDownCircle, ArrowUpCircle, Building2, Clock, User, Wallet } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useController, useForm, useWatch } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao, estilosBotao } from '@/components/ui/botao';
@@ -146,6 +147,47 @@ export function FormularioLancamento({
   const tipo = tipoCampo.field.value;
   const entrada = tipo === 'entrada';
 
+  const categoriaEscolhida = useWatch({ control, name: 'categoriaId' });
+
+  /**
+   * Só as categorias que servem ao tipo escolhido.
+   *
+   * Uma entrada não deveria oferecer "Aluguel — custo fixo", e era exatamente
+   * isso que acontecia: a lista vinha inteira, e classificar receita como custo
+   * distorce o custo por dia e a margem sem nenhum sinal de erro.
+   *
+   * A categoria já selecionada entra na lista mesmo quando não serve ao tipo.
+   * Lançamentos criados antes desta separação têm entrada apontando para
+   * categoria de custo, e escondê-la das opções faria o próximo salvamento
+   * apagar o vínculo — perda de dado silenciosa ao abrir a tela para mexer em
+   * outra coisa.
+   */
+  const categoriasDoTipo = useMemo(() => {
+    const servem: readonly string[] = TIPOS_CUSTO_POR_LANCAMENTO[tipo];
+
+    return categorias.filter(
+      (categoria) => servem.includes(categoria.tipoCusto) || categoria.id === categoriaEscolhida,
+    );
+  }, [categorias, tipo, categoriaEscolhida]);
+
+  /**
+   * Troca o tipo e descarta a categoria que deixou de fazer sentido.
+   *
+   * Sem isto, mudar de entrada para saída manteria uma categoria de receita
+   * selecionada — e salvaria uma despesa classificada como receita. Só limpa
+   * quando a categoria realmente não serve ao tipo novo; se serve, fica.
+   */
+  const trocarTipo = (proximo: TipoLancamento) => {
+    tipoCampo.field.onChange(proximo);
+
+    const servem: readonly string[] = TIPOS_CUSTO_POR_LANCAMENTO[proximo];
+    const atual = categorias.find((categoria) => categoria.id === categoriaEscolhida);
+
+    if (atual && !servem.includes(atual.tipoCusto)) {
+      setValue('categoriaId', '', { shouldValidate: true });
+    }
+  };
+
   const trocarSituacao = (proxima: Situacao) => {
     // Preenche e limpa a data no lugar da pessoa: a situação é a pergunta, a
     // data é consequência. Quem precisar de outro dia edita o campo, que
@@ -190,7 +232,7 @@ export function FormularioLancamento({
           name="tipo"
           opcoes={OPCOES_TIPO}
           valor={tipo}
-          aoMudar={tipoCampo.field.onChange}
+          aoMudar={trocarTipo}
         />
 
         <SeletorSegmentado
@@ -320,7 +362,7 @@ export function FormularioLancamento({
               {...register('categoriaId')}
             >
               <option value="">Sem categoria</option>
-              {categorias.map((categoria) => (
+              {categoriasDoTipo.map((categoria) => (
                 <option key={categoria.id} value={categoria.id}>
                   {categoria.nome}
                 </option>

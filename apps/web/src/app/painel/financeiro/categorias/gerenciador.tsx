@@ -1,6 +1,12 @@
 'use client';
 
-import { ROTULO_TIPO_CUSTO, type CategoriaFinanceira, type TipoCusto } from '@gestao/shared-types';
+import {
+  EXPLICACAO_TIPO_CUSTO,
+  ROTULO_TIPO_CUSTO,
+  TIPOS_CUSTO,
+  type CategoriaFinanceira,
+  type TipoCusto,
+} from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
@@ -9,6 +15,19 @@ import { Cartao, CartaoItem, CartaoLista } from '@/components/ui/cartao';
 import { Selecao } from '@/components/ui/selecao';
 import { Selo } from '@/components/ui/selo';
 import { criarCategoria, removerCategoria } from '../acoes';
+
+/**
+ * Cor de cada classificação.
+ *
+ * Verde para receita porque é dinheiro entrando, e é o mesmo verde que o resto
+ * do sistema usa para entrada. Azul e âmbar separam despesa previsível de
+ * despesa que acompanha o movimento — a distinção que muda o custo por dia.
+ */
+const TOM_DO_TIPO_CUSTO = {
+  receita: 'sucesso',
+  fixo: 'info',
+  variavel: 'atencao',
+} as const satisfies Record<TipoCusto, string>;
 
 export function GerenciadorCategorias({ categorias }: { categorias: CategoriaFinanceira[] }) {
   const [erro, setErro] = useState<string>();
@@ -25,9 +44,7 @@ export function GerenciadorCategorias({ categorias }: { categorias: CategoriaFin
                 <span className="flex items-center gap-3">
                   <span className="text-sm font-medium">{categoria.nome}</span>
 
-                  {/* Azul para fixo, âmbar para variável — os mesmos tons de
-                    significado dos selos do resto do sistema. */}
-                  <Selo tom={categoria.tipoCusto === 'fixo' ? 'info' : 'atencao'}>
+                  <Selo tom={TOM_DO_TIPO_CUSTO[categoria.tipoCusto]}>
                     {ROTULO_TIPO_CUSTO[categoria.tipoCusto]}
                   </Selo>
                 </span>
@@ -132,16 +149,30 @@ function NovaCategoria({ onErro }: { onErro: (erro?: string) => void }) {
         className="w-56"
       />
 
-      <Selecao
-        id="tipoCusto"
-        rotulo="Tipo de custo"
-        value={tipoCusto}
-        onChange={(evento) => setTipoCusto(evento.target.value as TipoCusto)}
-        className="w-44"
-      >
-        <option value="variavel">{ROTULO_TIPO_CUSTO.variavel}</option>
-        <option value="fixo">{ROTULO_TIPO_CUSTO.fixo}</option>
-      </Selecao>
+      <div className="flex flex-col gap-1">
+        <Selecao
+          id="tipoCusto"
+          rotulo="Serve para"
+          value={tipoCusto}
+          onChange={(evento) => setTipoCusto(evento.target.value as TipoCusto)}
+          className="w-52"
+        >
+          {TIPOS_CUSTO.map((tipo) => (
+            <option key={tipo} value={tipo}>
+              {ROTULO_TIPO_CUSTO[tipo]}
+            </option>
+          ))}
+        </Selecao>
+
+        {/*
+          A explicação acompanha a escolha porque "fixo" e "variável" são termos
+          de contabilidade que o dono de PME não usa — e escolher errado aqui
+          distorce o custo por dia e a margem sem nenhum sinal de que houve erro.
+        */}
+        <p className="text-muted-foreground max-w-52 text-xs">
+          {EXPLICACAO_TIPO_CUSTO[tipoCusto]}
+        </p>
+      </div>
 
       <Botao type="submit" variante="secundario" carregando={criando}>
         Adicionar

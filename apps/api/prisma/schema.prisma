@@ -100,9 +100,19 @@ enum NaturezaLancamento {
   @@map("natureza_lancamento")
 }
 
+/// Para que serve uma categoria financeira.
+///
+/// `fixo` e `variavel` classificam despesa e alimentam o custo operacional e a
+/// margem. `receita` existe para as categorias de entrada: sem ela, "Venda de
+/// serviço" era obrigada a se declarar custo fixo ou variável, o que não
+/// significa nada e misturava receita com despesa nos seletores.
+///
+/// Os relatórios de custo filtram por `tipo = 'saida'` junto com `fixo`/
+/// `variavel`, então categoria de receita nunca entra numa soma de custo.
 enum TipoCusto {
   fixo
   variavel
+  receita
 
   @@map("tipo_custo")
 }

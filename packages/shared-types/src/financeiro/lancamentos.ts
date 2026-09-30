@@ -403,6 +403,20 @@ export const ROTULO_NATUREZA: Record<NaturezaLancamento, string> = {
 };
 
 export const ROTULO_TIPO_CUSTO: Record<TipoCusto, string> = {
-  fixo: 'Fixo',
-  variavel: 'Variável',
+  fixo: 'Custo fixo',
+  variavel: 'Custo variável',
+  receita: 'Receita',
+};
+
+/**
+ * O que cada classificação significa, em uma linha.
+ *
+ * Fica ao lado do rótulo porque "fixo" e "variável" são termos de contabilidade
+ * que o dono de PME não usa no dia a dia — e escolher errado aqui distorce o
+ * custo operacional e a margem, sem nenhum aviso de que houve erro.
+ */
+export const EXPLICACAO_TIPO_CUSTO: Record<TipoCusto, string> = {
+  fixo: 'Sai todo mês no mesmo valor, independente do movimento — aluguel, internet, contador.',
+  variavel: 'Acompanha o movimento: quanto mais serviço, maior a conta — material, combustível.',
+  receita: 'Dinheiro entrando — venda de serviço, mensalidade, produto.',
 };
