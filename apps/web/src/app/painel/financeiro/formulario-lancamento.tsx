@@ -2,11 +2,15 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  MAX_PARCELAS,
   ROTULO_NATUREZA,
   ROTULO_TIPO_LANCAMENTO,
   TIPOS_CUSTO_POR_LANCAMENTO,
+  dividirEmParcelas,
+  formatarBRL,
   hojeISO,
   lancamentoFormSchema,
+  normalizarDinheiro,
   type AnexoLancamentoInput,
   type CategoriaFinanceira,
   type Cliente,
@@ -42,6 +46,7 @@ const CAMPOS = [
   'servicoId',
   'clienteId',
   'anexos',
+  'parcelas',
 ] as const;
 
 const OPCOES_TIPO = [
@@ -132,6 +137,9 @@ export function FormularioLancamento({
       servicoId: lancamento?.servicoId ?? '',
       clienteId: lancamento?.clienteId ?? '',
       anexos: anexosIniciais,
+      // Um significa avulso. O campo só aparece na criação, e o padrão tem de
+      // ser o caso comum: a maioria dos lançamentos não é parcelada.
+      parcelas: 1,
     },
   });
 
@@ -148,6 +156,42 @@ export function FormularioLancamento({
   const entrada = tipo === 'entrada';
 
   const categoriaEscolhida = useWatch({ control, name: 'categoriaId' });
+
+  const valorDigitado = useWatch({ control, name: 'valor' });
+  const parcelasDigitadas = useWatch({ control, name: 'parcelas' });
+
+  /**
+   * A prévia da divisão, com a mesma função que a API usa para dividir.
+   *
+   * Compartilhar `dividirEmParcelas` não é economia de código: é o que garante
+   * que o valor prometido na tela seja o valor gravado. Reimplementar a divisão
+   * aqui daria "3x de R$ 333,34" na prévia e R$ 333,33 no banco — e a diferença
+   * apareceria como um centavo teimoso na conciliação.
+   */
+  const previaParcelas = useMemo(() => {
+    const quantidade = Number(parcelasDigitadas);
+
+    // `normalizarDinheiro` é a mesma função por onde o valor passa no envio
+    // (via `dinheiroDigitadoSchema`). Assim "1.500,00" vira "1500.00" aqui
+    // exatamente como vira lá, e a prévia não pode discordar do que será salvo.
+    const total = valorDigitado ? normalizarDinheiro(valorDigitado) : '';
+
+    if (!Number.isInteger(quantidade) || quantidade < 2 || !Number(total)) {
+      return null;
+    }
+
+    const partes = dividirEmParcelas(total, quantidade);
+    const primeira = partes[0]!;
+    const ultima = partes[partes.length - 1]!;
+
+    return {
+      quantidade,
+      valor: formatarBRL(primeira),
+      // Só mostra a última quando ela difere — dizer "3x de R$ 100, a última de
+      // R$ 100" seria ruído que faz duvidar de um número que está certo.
+      ultima: ultima === primeira ? null : formatarBRL(ultima),
+    };
+  }, [parcelasDigitadas, valorDigitado]);
 
   /**
    * Só as categorias que servem ao tipo escolhido.
@@ -324,6 +368,53 @@ export function FormularioLancamento({
           </>
         )}
       </fieldset>
+
+      {/*
+        Parcelamento só na criação.
+
+        Dividir um lançamento que já existe significaria apagá-lo e criar N no
+        lugar — e ele pode já ter baixa, anexo e vínculo com comissão. Quem
+        precisa disso exclui e lança de novo, conscientemente.
+      */}
+      {!lancamento && (
+        <fieldset className="flex flex-col gap-3 border-t pt-4">
+          <legend className="sr-only">Parcelamento</legend>
+
+          <Campo
+            rotulo="Dividir em"
+            type="number"
+            min={1}
+            max={MAX_PARCELAS}
+            ajuda={`O valor acima é o total. Até ${MAX_PARCELAS}x.`}
+            erro={errors.parcelas?.message}
+            {...register('parcelas')}
+          />
+
+          {previaParcelas && (
+            <div className="bg-accent/50 rounded-md px-3 py-2 text-xs">
+              {/*
+                A prévia é o que faz a pessoa confiar no número. Sem ela, "3x"
+                de R$ 1.000 deixa a dúvida de para onde foi o centavo — e a
+                resposta (a última parcela absorve a sobra) é melhor mostrada
+                que explicada.
+              */}
+              <p>
+                {previaParcelas.quantidade}x de{' '}
+                <strong className="font-semibold">{previaParcelas.valor}</strong>
+                {previaParcelas.ultima && (
+                  <>
+                    , a última de{' '}
+                    <strong className="font-semibold">{previaParcelas.ultima}</strong>
+                  </>
+                )}
+              </p>
+              <p className="text-muted-foreground mt-1">
+                Uma conta {entrada ? 'a receber' : 'a pagar'} por parcela, vencendo de mês em mês.
+              </p>
+            </div>
+          )}
+        </fieldset>
+      )}
 
       {/*
         Recolhido por padrão: são três campos opcionais que, abertos, dobram o

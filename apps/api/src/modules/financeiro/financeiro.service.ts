@@ -7,6 +7,8 @@ import {
 import {
   CODIGOS_ERRO,
   MIME_TYPES_ANEXO_LANCAMENTO,
+  dividirEmParcelas,
+  ocorrenciaDoCiclo,
   paginar,
   statusDoLancamento,
   type BaixaFormInput,
@@ -211,6 +213,10 @@ export class FinanceiroService {
   }
 
   async criar(dados: LancamentoFormInput): Promise<Lancamento> {
+    if (dados.parcelas > 1) {
+      return this.criarParcelado(dados);
+    }
+
     const lancamento = await this.prisma.comTenant(async (tx) => {
       await garantirVinculos(tx, dados);
 
@@ -236,6 +242,99 @@ export class FinanceiroService {
     });
 
     return this.paraResposta(lancamento);
+  }
+
+  /**
+   * Cria as parcelas de um lançamento dividido.
+   *
+   * ## O que cada parcela é
+   *
+   * Um lançamento completo: tem seu valor, seu vencimento, vence, atrasa e
+   * recebe baixa sozinha. Nada no resto do módulo precisou aprender sobre
+   * parcelamento — contas em aberto, fluxo de caixa e conciliação já sabem
+   * lidar com lançamentos comuns, e é exatamente isso que eles são.
+   *
+   * ## As três decisões
+   *
+   * **O valor vem dividido por `dividirEmParcelas`**, que põe a sobra dos
+   * centavos na última. A soma das parcelas é o total exato — se não fosse, a
+   * conciliação bancária nunca fecharia.
+   *
+   * **O vencimento anda de mês em mês a partir do primeiro**, ancorado nele e
+   * não na parcela anterior, pelo mesmo motivo da recorrência: parcela do dia
+   * 31 não pode migrar para o dia 28 ao passar por fevereiro.
+   *
+   * **A competência (`data`) é a mesma em todas.** O fato gerador é um só — a
+   * venda aconteceu num dia —, e é o vencimento que se espalha no tempo.
+   * Espalhar a competência faria uma venda de março aparecer como receita de
+   * maio no regime de competência.
+   *
+   * ## Uma auditoria, não N
+   *
+   * O log registra a criação do parcelamento como um evento, com o grupo e o
+   * total. Vinte e quatro entradas de "lançamento criado" afogariam o histórico
+   * para relatar uma única ação de uma única pessoa.
+   */
+  private async criarParcelado(dados: LancamentoFormInput): Promise<Lancamento> {
+    const valores = dividirEmParcelas(dados.valor, dados.parcelas);
+    const grupoId = uuidv7();
+
+    // Sem vencimento informado, a primeira parcela vence na competência: uma
+    // parcela sem vencimento nunca apareceria em "contas a vencer", que é o
+    // único lugar onde um parcelamento faz sentido ser acompanhado.
+    const primeiroVencimento = dados.vencimento ?? dados.data;
+
+    const lancamentos = await this.prisma.comTenant(async (tx) => {
+      await garantirVinculos(tx, dados);
+
+      const base = this.paraBanco(dados);
+      const tenantId = tenantAtual();
+
+      const criados = [];
+
+      for (const [indice, valor] of valores.entries()) {
+        const criado = await tx.lancamentoFinanceiro.create({
+          data: {
+            ...base,
+            id: uuidv7(),
+            tenantId,
+            valor,
+            vencimento: paraData(ocorrenciaDoCiclo(primeiroVencimento, 'mensal', indice)),
+            // Parcela futura não nasce paga, mesmo que a tela tenha marcado o
+            // lançamento como liquidado: quem paga à vista não parcela, e
+            // herdar a baixa daria entrada de dinheiro que não aconteceu.
+            pagoEm: indice === 0 ? base.pagoEm : null,
+            grupoId,
+            parcela: indice + 1,
+            totalParcelas: dados.parcelas,
+          },
+          include: INCLUDE_COMPLETO,
+        });
+
+        criados.push(criado);
+      }
+
+      // Os anexos vão na primeira parcela: a nota fiscal é da venda, não de
+      // cada cobrança, e replicá-la em 24 linhas multiplicaria o mesmo arquivo
+      // no banco.
+      const primeira = criados[0]!;
+      await this.substituirAnexos(tx, primeira.id, dados.anexos);
+
+      await this.auditoria.registrar(tx, {
+        entidade: 'lancamento',
+        entidadeId: primeira.id,
+        acao: 'criou',
+        resumo: `Parcelamento criado: ${dados.descricao} em ${dados.parcelas}x — total ${dados.valor}`,
+        depois: { grupoId, parcelas: dados.parcelas, total: dados.valor },
+      });
+
+      return tx.lancamentoFinanceiro.findUniqueOrThrow({
+        where: { id: primeira.id },
+        include: INCLUDE_COMPLETO,
+      });
+    });
+
+    return this.paraResposta(lancamentos);
   }
 
   /**
@@ -876,6 +975,18 @@ export class FinanceiroService {
       servicoNome: registro.servico?.nome ?? null,
       clienteId: registro.clienteId,
       clienteNome: registro.cliente?.nome ?? null,
+      // As três colunas andam juntas por restrição do banco, mas o TypeScript
+      // não sabe disso — a checagem aqui é o que converte "três nulos
+      // independentes" no objeto único que a tela espera.
+      parcelamento:
+        registro.grupoId && registro.parcela && registro.totalParcelas
+          ? {
+              grupoId: registro.grupoId,
+              parcela: registro.parcela,
+              total: registro.totalParcelas,
+            }
+          : null,
+      recorrenciaId: registro.recorrenciaId,
       anexos: registro.anexos.map((anexo) => ({
         id: anexo.id,
         nome: anexo.nome,

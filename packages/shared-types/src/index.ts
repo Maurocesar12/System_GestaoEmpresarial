@@ -30,6 +30,7 @@ export * from './financeiro/custo-operacional';
 export * from './financeiro/lancamentos';
 export * from './financeiro/painel';
 export * from './financeiro/pro-labore';
+export * from './financeiro/recorrencia';
 export * from './financeiro/reservas';
 export * from './marketing/marketing';
 export * from './operacao/estoque';

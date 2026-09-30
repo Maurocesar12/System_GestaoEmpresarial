@@ -54,6 +54,15 @@ export interface CategoriaFinanceira {
 
 // --- Lançamentos -----------------------------------------------------------
 
+/**
+ * Em quantas parcelas um lançamento pode ser dividido.
+ *
+ * Vinte e quatro cobre o parcelamento mais longo que PME de serviço pratica sem
+ * virar financiamento. O limite existe também como proteção: um `parcelas`
+ * absurdo criaria milhares de linhas numa transação só.
+ */
+export const MAX_PARCELAS = 24;
+
 export const MAX_ANEXOS_LANCAMENTO = 5;
 export const MAX_BYTES_ANEXO_LANCAMENTO = 2 * 1024 * 1024;
 
@@ -147,6 +156,15 @@ export const lancamentoFormSchema = z.object({
   clienteId: opcional(z.uuid()),
 
   anexos: z.array(anexoLancamentoSchema).max(MAX_ANEXOS_LANCAMENTO).default([]),
+
+  /**
+   * Em quantas vezes dividir. Ausente ou 1 significa lançamento avulso.
+   *
+   * O `valor` acima é sempre o **total**, nunca o da parcela: é o número que a
+   * pessoa tem em mãos ("vendi R$ 3.000 em 3x"), e fazer ela dividir de cabeça
+   * para preencher o campo é onde entram os erros de centavo.
+   */
+  parcelas: z.coerce.number().int().min(1).max(MAX_PARCELAS).default(1),
 });
 
 export type LancamentoFormInput = z.infer<typeof lancamentoFormSchema>;
@@ -258,7 +276,58 @@ export interface Lancamento {
   clienteId: string | null;
   clienteNome: string | null;
   anexos: AnexoLancamento[];
+
+  /**
+   * Parcelamento, quando este lançamento é parte de um.
+   *
+   * `null` em lançamento avulso. Cada parcela é um lançamento completo — vence,
+   * atrasa e é baixada sozinha —, então isto serve para a tela mostrar "2/3" e
+   * reencontrar as irmãs pelo `grupoId`.
+   */
+  parcelamento: { grupoId: string; parcela: number; total: number } | null;
+
+  /** O molde que gerou este lançamento, quando veio de uma recorrência. */
+  recorrenciaId: string | null;
+
   criadoEm: string;
+}
+
+/**
+ * Divide um total em parcelas sem perder nem inventar centavo.
+ *
+ * ## Por que não é só dividir
+ *
+ * R$ 1.000 em 3 dá 333,333… Arredondar cada parcela para 333,33 soma R$ 999,99
+ * — um centavo desaparece. Arredondar para cima soma R$ 1.000,02. Em um sistema
+ * onde o valor existe justamente para fechar com o extrato do banco, essa
+ * diferença é a que faz a conciliação nunca bater.
+ *
+ * A regra aqui: todas as parcelas recebem o valor arredondado para baixo, e a
+ * **última** recebe a sobra. Assim a soma é exatamente o total, e as parcelas
+ * 1 a n−1 ficam com o valor "redondo" que aparece no combinado com o cliente
+ * ("3x de R$ 333,33").
+ *
+ * Trabalha em centavos (inteiros) de ponta a ponta: fazer a divisão em ponto
+ * flutuante traria de volta o erro que o `DECIMAL` do banco existe para evitar.
+ *
+ * @param total String decimal, como `"1000.00"`.
+ * @returns Uma string decimal por parcela, na ordem.
+ */
+export function dividirEmParcelas(total: string, parcelas: number): string[] {
+  if (parcelas < 1) return [];
+
+  // `Math.round` na conversão, e não `parseInt`: "1000.00" * 100 pode chegar a
+  // 99999.99999 em ponto flutuante, e truncar perderia um centavo antes de a
+  // divisão começar.
+  const centavosTotais = Math.round(Number(total) * 100);
+
+  const porParcela = Math.floor(centavosTotais / parcelas);
+  const sobra = centavosTotais - porParcela * parcelas;
+
+  return Array.from({ length: parcelas }, (_, indice) => {
+    const centavos = indice === parcelas - 1 ? porParcela + sobra : porParcela;
+    return (centavos / 100).toFixed(2);
+  });
 }
 
 /** Dar baixa: registrar que o dinheiro entrou ou saiu. */

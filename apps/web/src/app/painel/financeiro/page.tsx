@@ -106,6 +106,12 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
               Importar / exportar
             </Link>
             <Link
+              href="/painel/financeiro/recorrencias"
+              className={estilosBotao({ variante: 'secundario' })}
+            >
+              Recorrentes
+            </Link>
+            <Link
               href="/painel/financeiro/reservas"
               className={estilosBotao({ variante: 'secundario' })}
             >
@@ -378,6 +384,12 @@ async function CorpoDoPainel({
                       {lancamento.servicoNome ?? ROTULO_TIPO_LANCAMENTO[lancamento.tipo]}
                       {lancamento.natureza === 'pessoal' &&
                         ` · ${ROTULO_NATUREZA[lancamento.natureza]}`}
+                      {/* Cada parcela é uma linha própria na tabela. Sem o
+                          "2/3", três linhas de R$ 333,33 no mesmo mês pareceriam
+                          três cobranças diferentes do mesmo cliente. */}
+                      {lancamento.parcelamento &&
+                        ` · parcela ${lancamento.parcelamento.parcela}/${lancamento.parcelamento.total}`}
+                      {lancamento.recorrenciaId && ' · recorrente'}
                     </div>
                   </TabelaCelula>
 

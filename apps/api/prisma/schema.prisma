@@ -260,6 +260,7 @@ model Tenant {
   lembretes             LembreteFollowUp[]
   categoriasFinanceiras CategoriaFinanceira[]
   lancamentos           LancamentoFinanceiro[]
+  lancamentosRecorrentes LancamentoRecorrente[]
   proLabores            ProLabore[]
   reservas              ReservaFinanceira[]
   anexosLancamentos     AnexoLancamento[]
@@ -426,6 +427,7 @@ model Cliente {
   posicaoFunil ClienteFunil?
   lembretes    LembreteFollowUp[]
   lancamentos  LancamentoFinanceiro[]
+  recorrencias LancamentoRecorrente[]
   etiquetas    ClienteEtiqueta[]
 
   @@index([tenantId, nome])
@@ -523,6 +525,7 @@ model Servico {
   orcamentos    Orcamento[]
   agendamentos  Agendamento[]
   lancamentos   LancamentoFinanceiro[]
+  recorrencias  LancamentoRecorrente[]
   materiais     ServicoMaterial[]
   movimentacoes MovimentacaoEstoque[]
   comissoes     Comissao[]
@@ -686,6 +689,7 @@ model CategoriaFinanceira {
   criadoEm DateTime @default(now()) @map("criado_em")
 
   lancamentos LancamentoFinanceiro[]
+  recorrencias LancamentoRecorrente[]
 
   @@unique([tenantId, nome])
   @@map("categoria_financeira")
@@ -717,6 +721,24 @@ model LancamentoFinanceiro {
   /// aberto — é este campo, e não `data`, que o fluxo de caixa soma.
   pagoEm DateTime? @map("pago_em") @db.Date
 
+  /// Une as parcelas de um mesmo parcelamento. Nulo em lançamento avulso.
+  ///
+  /// Cada parcela é um lançamento completo, que vence e é baixado sozinho. Este
+  /// campo só serve para a tela dizer "2/3" e reencontrar as irmãs.
+  grupoId String? @map("grupo_id") @db.Uuid
+
+  /// Posição no parcelamento, de 1 a `totalParcelas`. Nulo em avulso.
+  parcela       Int?
+  totalParcelas Int? @map("total_parcelas")
+
+  /// O molde que gerou este lançamento, quando ele veio de uma recorrência.
+  ///
+  /// `SetNull` ao apagar o molde: o lançamento já existe e pode até já ter sido
+  /// pago — perdê-lo porque alguém desligou a recorrência seria apagar
+  /// histórico financeiro.
+  recorrenciaId String?               @map("recorrencia_id") @db.Uuid
+  recorrencia   LancamentoRecorrente? @relation(fields: [recorrenciaId], references: [id], onDelete: SetNull)
+
   categoriaId String?              @map("categoria_id") @db.Uuid
   categoria   CategoriaFinanceira? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
 
@@ -743,7 +765,86 @@ model LancamentoFinanceiro {
   /// A tela de contas em aberto busca exatamente por isto: o que ainda não foi
   /// pago, ordenado por vencimento.
   @@index([tenantId, pagoEm, vencimento])
+  /// A tela de um parcelamento busca as irmãs por aqui.
+  @@index([tenantId, grupoId])
+  @@index([tenantId, recorrenciaId])
   @@map("lancamento_financeiro")
+}
+
+/// De quanto em quanto tempo uma recorrência se repete.
+enum Periodicidade {
+  semanal
+  mensal
+  trimestral
+  anual
+
+  @@map("periodicidade")
+}
+
+/// O molde de um lançamento que se repete: aluguel, salário, mensalidade.
+///
+/// ## Por que é molde, e não lançamento
+///
+/// Uma despesa que repete não tem fim conhecido, então não há como materializar
+/// todas as ocorrências de uma vez. Aqui fica o que se repete; o agendador
+/// (`RecorrenciaAgendador`) transforma isto em `LancamentoFinanceiro` quando a
+/// data se aproxima.
+///
+/// `proximaEm` é molde e cursor ao mesmo tempo, e é o que torna a geração
+/// idempotente: avançá-lo acontece na mesma transação que cria o lançamento, de
+/// modo que uma segunda passagem no mesmo dia não reencontra o molde.
+model LancamentoRecorrente {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  tipo      TipoLancamento
+  natureza  NaturezaLancamento @default(empresa)
+  descricao String             @db.VarChar(180)
+  valor     Decimal            @db.Decimal(14, 2)
+
+  periodicidade Periodicidade
+
+  /// A primeira ocorrência. **Nunca muda**: é a âncora do ciclo, e é dela que
+  /// sai o dia de vencimento de todas as seguintes (`ocorrenciaDoCiclo`).
+  inicio DateTime @db.Date
+
+  /// Quantas ocorrências já foram geradas — o cursor.
+  ///
+  /// É um contador, e não a última data gerada, porque data deriva: um aluguel
+  /// do dia 31 encurtaria para 28 em fevereiro e nunca mais voltaria ao 31.
+  ocorrencias Int @default(0)
+
+  /// Quando a próxima vence. Derivada de `inicio` + `ocorrencias`; existe como
+  /// coluna para o agendador procurar e a tela ordenar sem recalcular.
+  proximaEm DateTime @map("proxima_em") @db.Date
+
+  /// Até quando repetir. Nulo é "até alguém desligar".
+  fim DateTime? @db.Date
+
+  /// Desligar em vez de apagar preserva o vínculo dos lançamentos já gerados.
+  ativo Boolean @default(true)
+
+  categoriaId String?              @map("categoria_id") @db.Uuid
+  categoria   CategoriaFinanceira? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+
+  servicoId String?  @map("servico_id") @db.Uuid
+  servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+
+  clienteId String?  @map("cliente_id") @db.Uuid
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  lancamentos LancamentoFinanceiro[]
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([tenantId, proximaEm])
+  /// Sem `tenant_id` na frente, de propósito: a varredura do agendador procura
+  /// moldes vencendo em **todas** as empresas, e o índice acima só serve a
+  /// buscas que já sabem o tenant.
+  @@index([ativo, proximaEm])
+  @@map("lancamento_recorrente")
 }
 
 model AnexoLancamento {
