@@ -260,17 +260,44 @@ export default async function PaginaMarketing({ searchParams }: Props) {
         </CartaoConteudo>
       </Cartao>
 
+      {/*
+        Recolhido por padrão.
+
+        Aberto, é o maior bloco da tela: a chave, o aviso de revogação e um
+        trecho de HTML que ocupa dezenas de linhas. É também o único que se usa
+        uma vez e não se revisita — quem já colou o formulário no site não
+        precisa dele empurrando o relatório para baixo todo dia.
+
+        `<details>` nativo, como no resto do sistema: funciona sem JavaScript,
+        responde ao teclado e mantém esta tela como Server Component.
+
+        A situação fica no resumo de propósito, para não ser preciso abrir só
+        para descobrir se o formulário está no ar.
+      */}
       <Cartao>
-        <CartaoCabecalho>
-          <CartaoTitulo>Formulário para o seu site</CartaoTitulo>
-        </CartaoCabecalho>
-        <CartaoConteudo>
-          <FormularioEmbed
-            chave={chave.chave}
-            urlApi={env.NEXT_PUBLIC_API_URL}
-            podeGerar={possuiPermissao(usuario, 'marketing.gerenciar')}
-          />
-        </CartaoConteudo>
+        <details>
+          <summary className="cursor-pointer px-4 py-3">
+            {/* `inline` no título: o `<summary>` precisa continuar `list-item`
+                para o navegador desenhar o triângulo, e um `h2` em bloco
+                empurraria o texto para a linha de baixo. Segue sendo um
+                cabeçalho de verdade, que o leitor de tela encontra na navegação
+                por títulos. */}
+            <h2 className="inline text-sm font-semibold tracking-tight">
+              Formulário para o seu site
+            </h2>
+            <span className="text-muted-foreground ml-2 text-xs">
+              {chave.chave ? 'ativo' : 'não configurado'}
+            </span>
+          </summary>
+
+          <div className="border-t px-4 py-4">
+            <FormularioEmbed
+              chave={chave.chave}
+              urlApi={env.NEXT_PUBLIC_API_URL}
+              podeGerar={possuiPermissao(usuario, 'marketing.gerenciar')}
+            />
+          </div>
+        </details>
       </Cartao>
     </div>
   );
