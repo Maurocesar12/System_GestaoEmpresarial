@@ -26,9 +26,95 @@ export interface DesempenhoDaOrigem {
   taxaConversao: number;
   /** Soma dos orçamentos aprovados desses clientes. */
   receita: string;
+
+  /**
+   * Dias médios entre o lead entrar e o primeiro orçamento aprovado dele.
+   *
+   * `null` quando a origem ainda não converteu ninguém. É o número que separa
+   * duas origens com a mesma taxa: indicação que fecha em três dias e anúncio
+   * que fecha em quarenta pedem decisões diferentes de caixa e de atendimento.
+   */
+  diasAteConversao: number | null;
 }
 
-/** Quantos clientes estão em cada etapa do funil, hoje. */
+/**
+ * Desempenho por campanha, lido dos parâmetros UTM.
+ *
+ * ## Por que existe
+ *
+ * Os três `utm_*` já eram gravados no cliente desde o cadastro e aceitos pelo
+ * formulário público — e nenhuma tela os mostrava. Quem etiquetava um anúncio
+ * com `utm_campaign=natal` guardava o dado e nunca conseguia lê-lo.
+ *
+ * `origem` responde "de onde veio" no nível do canal; a campanha responde
+ * "qual anúncio", que é o nível em que se decide onde parar de gastar.
+ */
+export interface DesempenhoDaCampanha {
+  /** De onde: `google`, `instagram`, `facebook`. `null` quando não veio. */
+  utmSource: string | null;
+  /** Como: `cpc`, `organico`, `email`. */
+  utmMedium: string | null;
+  /** Qual anúncio ou ação: `natal-2026`, `black-friday`. */
+  utmCampaign: string | null;
+
+  leads: number;
+  convertidos: number;
+  /** `convertidos / leads`, de 0 a 1. */
+  taxaConversao: number;
+  receita: string;
+
+  /** Dias médios até o primeiro orçamento aprovado. `null` sem conversão. */
+  diasAteConversao: number | null;
+}
+
+/**
+ * Em que passo da série o tempo é agrupado.
+ *
+ * Escolhido pelo tamanho do período, e não pelo usuário: trezentos e sessenta
+ * e cinco barras diárias num relatório de um ano não se leem, e quatro barras
+ * mensais num relatório de um mês não dizem nada.
+ */
+export const GRANULARIDADES = ['dia', 'mes'] as const;
+export type Granularidade = (typeof GRANULARIDADES)[number];
+
+/** Acima disto a série passa a ser mensal. Dois meses de barras diárias ainda se leem. */
+export const DIAS_PARA_SERIE_MENSAL = 62;
+
+export interface PontoDaSerie {
+  /** `AAAA-MM-DD` na granularidade `dia`; `AAAA-MM` na granularidade `mes`. */
+  quando: string;
+  leads: number;
+  /** Quantos desses leads já viraram venda. */
+  convertidos: number;
+}
+
+/**
+ * Quantos leads entraram ao longo do período.
+ *
+ * Um total sozinho não diz se o marketing está funcionando: "80 leads no mês" é
+ * ótimo se o anterior teve 40 e ruim se teve 160. A série mostra a direção, que
+ * é o que muda a decisão.
+ *
+ * Os pontos vêm **completos**, incluindo os de valor zero: uma série que só
+ * lista os dias com lead esconde exatamente a informação que interessa — os
+ * dias em que não entrou ninguém.
+ */
+export interface SerieDeLeads {
+  granularidade: Granularidade;
+  pontos: PontoDaSerie[];
+}
+
+/**
+ * Quantos leads do período estão em cada etapa do funil.
+ *
+ * **É a coorte do período, não o funil inteiro.** Antes esta lista contava
+ * todos os clientes de cada etapa, ignorando o filtro de data — então mudar o
+ * período alterava a tabela de origens e deixava esta intacta, e metade do
+ * relatório respondia ao filtro enquanto a outra metade não.
+ *
+ * A leitura certa agora é: *dos leads que chegaram neste período, onde eles
+ * estão hoje*. Quem quer o funil inteiro, com todo mundo, tem a tela do funil.
+ */
 export interface OcupacaoDaEtapa {
   etapaId: string;
   etapa: string;
@@ -38,8 +124,14 @@ export interface OcupacaoDaEtapa {
 
 export interface RelatorioMarketing {
   origens: DesempenhoDaOrigem[];
+  campanhas: DesempenhoDaCampanha[];
+  serie: SerieDeLeads;
   etapas: OcupacaoDaEtapa[];
   totalLeads: number;
+  /** Leads do período que já têm orçamento aprovado. */
+  totalConvertidos: number;
+  /** Soma dos orçamentos aprovados dos leads do período. */
+  receitaTotal: string;
   periodo: { de: string; ate: string };
 }
 
