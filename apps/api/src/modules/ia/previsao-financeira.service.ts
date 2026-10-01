@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import {
@@ -17,6 +17,7 @@ import { AssistenteIa } from '../../infra/ia/assistente-ia';
 import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
 import { exigirContextoTenant, tenantAtual } from '../../infra/tenant/tenant-context';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
+import { motivoParaNaoPrever } from './suficiencia-previsao';
 
 interface DadosCalculados {
   saldoAtual: string;
@@ -24,7 +25,23 @@ interface DadosCalculados {
   projecoes: MesProjetado[];
   /** Ausente nas previsões gravadas antes desta versão. */
   negocio?: BaseDaPrevisao;
+  /**
+   * Lançamentos com baixa dentro da janela do histórico — a mesma base de
+   * `historico`. Ausente nas previsões gravadas antes desta versão.
+   */
+  lancamentosNoHistorico?: number;
 }
+
+/**
+ * O que conta na cota mensal: só previsão que a IA de fato analisou.
+ *
+ * A análise local entra quando o fornecedor falha, e o cliente não escolheu
+ * isso. Descontar do limite do Premium um resultado que o próprio sistema
+ * considera inferior seria cobrar do cliente a falha de outro. A reserva em
+ * andamento é gravada como `demonstracao` até a resposta chegar, então este
+ * filtro também a exclui — quem a protege é a condição própria em `reservar`.
+ */
+const ANALISADA_PELA_IA = { modo: 'openai' } as const;
 
 interface ReservaPrevisao {
   id: string;
@@ -71,7 +88,7 @@ export class PrevisaoFinanceiraService {
         }),
         tx.tenant.findUniqueOrThrow({ where: { id: tenantAtual() }, include: { plano: true } }),
         tx.previsaoFinanceira.count({
-          where: { criadoEm: { gte: inicio }, modelo: { not: 'processando' } },
+          where: { criadoEm: { gte: inicio }, ...ANALISADA_PELA_IA },
         }),
       ]);
       return { previsao, limite: limitePrevisoesIa(tenant.plano), usado };
@@ -221,7 +238,12 @@ export class PrevisaoFinanceiraService {
         outputTokens: resultado.outputTokens,
         custoEstimadoUsd: custo.toFixed(6),
       },
-      quota: { usado: reserva.usado, limite: reserva.limite },
+      // A reserva contou esta previsão. Se a IA não respondeu, ela não ocupa
+      // cota (ver `ANALISADA_PELA_IA`), e o número devolvido precisa dizer isso.
+      quota: {
+        usado: resultado.modo === 'openai' ? reserva.usado : reserva.usado - 1,
+        limite: reserva.limite,
+      },
     };
   }
 
@@ -255,13 +277,23 @@ export class PrevisaoFinanceiraService {
         });
       }
 
+      // Depois do plano e antes da cota: quem não tem Premium vê o convite, e
+      // quem tem mas ainda não tem histórico sai daqui sem gastar previsão.
+      const motivo = motivoParaNaoPrever({
+        historico: calculados.historico,
+        lancamentosPagos: calculados.lancamentosNoHistorico ?? 0,
+      });
+      if (motivo) {
+        throw new UnprocessableEntityException({
+          codigo: CODIGOS_ERRO.VALIDACAO,
+          mensagem: motivo,
+        });
+      }
+
       const usado = await tx.previsaoFinanceira.count({
         where: {
           criadoEm: { gte: inicioDoMes },
-          OR: [
-            { modelo: { not: 'processando' } },
-            { modelo: 'processando', criadoEm: { gte: processandoDesde } },
-          ],
+          OR: [ANALISADA_PELA_IA, { modelo: 'processando', criadoEm: { gte: processandoDesde } }],
         },
       });
       const limite = limitePrevisoesIa(tenant.plano);
@@ -403,7 +435,13 @@ export class PrevisaoFinanceiraService {
       };
     });
 
-    return { saldoAtual: moeda(saldoAtual), historico, projecoes, negocio };
+    return {
+      saldoAtual: moeda(saldoAtual),
+      historico,
+      projecoes,
+      negocio,
+      lancamentosNoHistorico: pagos.length,
+    };
   }
 
   /**

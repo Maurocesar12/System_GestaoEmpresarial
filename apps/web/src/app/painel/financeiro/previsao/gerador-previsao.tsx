@@ -137,7 +137,7 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
         <span>
           {resultado.modo === 'openai'
             ? 'Análise com IA'
-            : 'Análise local — o modelo não respondeu desta vez'}
+            : 'Análise local — o modelo não respondeu desta vez, e esta previsão não contou na sua cota'}
         </span>
         <span>
           Gerada em{' '}
