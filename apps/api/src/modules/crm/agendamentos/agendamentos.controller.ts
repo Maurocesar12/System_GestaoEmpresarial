@@ -67,7 +67,7 @@ export class AgendamentosController {
     @Body(new ZodValidationPipe(mudarStatusAgendamentoSchema))
     dados: MudarStatusAgendamentoInput,
   ): Promise<Agendamento> {
-    return this.agendamentos.mudarStatus(id, dados.acao, dados.materiais);
+    return this.agendamentos.mudarStatus(id, dados.acao, dados.materiais, dados.recebimento);
   }
 
   @Delete(':id')

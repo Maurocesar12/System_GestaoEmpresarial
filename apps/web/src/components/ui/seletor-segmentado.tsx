@@ -53,6 +53,10 @@ export function SeletorSegmentado<T extends string>({
 }) {
   const idGrupo = useId();
 
+  // Três opções lado a lado não cabem com ícone num celular de 390px: o texto
+  // quebrava e vazava do botão. Abaixo de `sm` o ícone sai e o rótulo fica.
+  const iconeSoNoDesktop = opcoes.length > 2;
+
   return (
     <div className="flex flex-col gap-1.5">
       <span id={idGrupo} className="text-sm font-medium">
@@ -72,7 +76,9 @@ export function SeletorSegmentado<T extends string>({
             <label
               key={opcao.valor}
               className={cn(
-                'flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-[0.3rem] px-3 text-sm font-medium transition-colors',
+                // `min-h` em vez de `h`: se um rótulo ainda assim quebrar, o
+                // botão cresce junto em vez de deixar o texto escapar.
+                'flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-[0.3rem] px-2 py-1 text-center text-sm leading-tight font-medium transition-colors sm:px-3',
                 'has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-1',
                 escolhida
                   ? cn(TOM_ATIVO[opcao.tom ?? 'neutro'], 'shadow-[var(--sombra-sutil)]')
@@ -89,7 +95,12 @@ export function SeletorSegmentado<T extends string>({
                 onChange={() => aoMudar(opcao.valor)}
                 className="sr-only"
               />
-              {Icone && <Icone aria-hidden className="size-4" />}
+              {Icone && (
+                <Icone
+                  aria-hidden
+                  className={cn('size-4 shrink-0', iconeSoNoDesktop && 'hidden sm:block')}
+                />
+              )}
               {opcao.rotulo}
             </label>
           );

@@ -257,6 +257,75 @@ describe('agendamentos (HTTP)', () => {
     });
   });
 
+  describe('recebimento na execução', () => {
+    interface LancamentoListado {
+      tipo: string;
+      valor: string;
+      data: string;
+      vencimento: string | null;
+      pagoEm: string | null;
+      servicoId: string | null;
+      clienteId: string | null;
+    }
+
+    async function lancamentosDoServico(): Promise<LancamentoListado[]> {
+      const { body } = await req(tokenA)
+        .get(`/api/financeiro/lancamentos?servicoId=${servicoId}&porPagina=100`)
+        .expect(200);
+      return body.dados;
+    }
+
+    it('"Já recebi" lança a entrada paga, ligada ao serviço e ao dia do compromisso', async () => {
+      const id = await novoAgendamento('2026-09-12T10:00');
+
+      await req(tokenA)
+        .post(`/api/agendamentos/${id}/status`)
+        .send({ acao: 'executar', recebimento: { situacao: 'recebido', valor: '210.00' } })
+        .expect(201);
+
+      const lancado = (await lancamentosDoServico()).find((l) => l.valor === '210.00');
+
+      // É o serviço ligado que põe a receita na margem por serviço — o motivo
+      // de lançar daqui, e não pedir para digitar de novo no financeiro.
+      expect(lancado).toMatchObject({
+        tipo: 'entrada',
+        data: '2026-09-12',
+        servicoId,
+        clienteId,
+        vencimento: null,
+      });
+      expect(lancado?.pagoEm).not.toBeNull();
+    });
+
+    it('"Vou receber" vira conta a receber em aberto', async () => {
+      const id = await novoAgendamento('2026-09-13T10:00');
+
+      await req(tokenA)
+        .post(`/api/agendamentos/${id}/status`)
+        .send({
+          acao: 'executar',
+          recebimento: { situacao: 'a_receber', valor: '320.00', vencimento: '2026-10-13' },
+        })
+        .expect(201);
+
+      const lancado = (await lancamentosDoServico()).find((l) => l.valor === '320.00');
+
+      expect(lancado).toMatchObject({ tipo: 'entrada', vencimento: '2026-10-13', pagoEm: null });
+    });
+
+    it('valor inválido recusa tudo — o agendamento continua pendente', async () => {
+      const id = await novoAgendamento('2026-09-14T10:00');
+
+      await req(tokenA)
+        .post(`/api/agendamentos/${id}/status`)
+        .send({ acao: 'executar', recebimento: { situacao: 'recebido', valor: '0' } })
+        .expect(400);
+
+      const { body } = await req(tokenA).get(`/api/agendamentos/${id}`).expect(200);
+      expect(body.status).toBe('agendado');
+    });
+  });
+
   describe('isolamento entre empresas', () => {
     it('não lista agendamentos de outra empresa', async () => {
       const { body } = await req(tokenB).get('/api/agendamentos').expect(200);

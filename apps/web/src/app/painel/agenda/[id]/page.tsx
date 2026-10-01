@@ -111,6 +111,8 @@ export default async function PaginaAgendamento({ params }: Props) {
             materialId: item.materialId,
             quantidade: item.quantidade.replace('.', ','),
           }))}
+          valorSugerido={agendamento.valorSugerido}
+          podeLancarReceita={possuiPermissao(usuario, 'financeiro.criar')}
         />
       </section>
 

@@ -6,6 +6,7 @@ import {
   STATUS_AGENDAMENTO,
   estaAtrasado,
   formatarTelefone,
+  possuiPermissao,
   type Agendamento,
   type Paginado,
   type StatusAgendamento,
@@ -17,7 +18,7 @@ import { EstadoVazio } from '@/components/ui/estado-vazio';
 import { BarraDeFiltros, FiltroLink } from '@/components/ui/filtro-link';
 import { Selo } from '@/components/ui/selo';
 import { agruparPorDia } from '@/lib/agrupamento';
-import { apiComSessao } from '@/lib/api-servidor';
+import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
 import { AcoesAgendamento } from './acoes-agendamento';
 
@@ -59,7 +60,11 @@ export default async function PaginaAgenda({ searchParams }: Props) {
   if (de) query.set('de', de);
   if (ate) query.set('ate', ate);
 
-  const agenda = await apiComSessao<Paginado<Agendamento>>(`/agendamentos?${query.toString()}`);
+  const [agenda, usuario] = await Promise.all([
+    apiComSessao<Paginado<Agendamento>>(`/agendamentos?${query.toString()}`),
+    usuarioAtual(),
+  ]);
+  const podeLancarReceita = possuiPermissao(usuario, 'financeiro.criar');
 
   const atrasados = agenda.dados.filter(estaAtrasado);
   const porDia = agruparPorDia(agenda.dados, (agendamento) => agendamento.dataHora);
@@ -175,7 +180,12 @@ export default async function PaginaAgenda({ searchParams }: Props) {
                         </div>
                       </div>
 
-                      <AcoesAgendamento id={agendamento.id} status={agendamento.status} />
+                      <AcoesAgendamento
+                        id={agendamento.id}
+                        status={agendamento.status}
+                        valorSugerido={agendamento.valorSugerido}
+                        podeLancarReceita={podeLancarReceita}
+                      />
                     </CartaoItem>
                   ))}
                 </CartaoLista>

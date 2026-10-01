@@ -245,6 +245,70 @@ export class FinanceiroService {
   }
 
   /**
+   * Lança a receita de um serviço que acabou de ser executado.
+   *
+   * Recebe a transação da execução, e não abre outra: se o lançamento falhar,
+   * o agendamento continua pendente — mesma regra do atendimento, da baixa de
+   * estoque e da comissão. Não existe serviço executado pela metade.
+   *
+   * O serviço vai vinculado de saída. É isso que põe a receita na margem por
+   * serviço, e era o campo mais esquecido quando o lançamento era digitado à
+   * mão.
+   *
+   * @param dados.dia Dia do serviço, em `AAAA-MM-DD`. Vira a competência e, no
+   *   recebido, a data da baixa — limitada a hoje, porque baixa no futuro
+   *   afirmaria um dinheiro que ainda não entrou.
+   */
+  async registrarReceitaDeServico(
+    tx: TransacaoComTenant,
+    dados: {
+      descricao: string;
+      valor: string;
+      dia: string;
+      servicoId: string | null;
+      clienteId: string;
+      recebimento: { situacao: 'recebido' } | { situacao: 'a_receber'; vencimento: string };
+    },
+  ): Promise<void> {
+    const hoje = hojeEmDia();
+    const recebido = dados.recebimento.situacao === 'recebido';
+
+    const criado = await tx.lancamentoFinanceiro.create({
+      data: {
+        id: uuidv7(),
+        tenantId: tenantAtual(),
+        tipo: 'entrada',
+        natureza: 'empresa',
+        // O limite da coluna é 180; o nome do serviço mais o do cliente cabe com
+        // folga quase sempre, mas "quase" não serve para uma gravação que
+        // derrubaria a execução inteira.
+        descricao: dados.descricao.slice(0, 180),
+        valor: new Prisma.Decimal(dados.valor),
+        data: paraData(dados.dia)!,
+        vencimento:
+          dados.recebimento.situacao === 'a_receber'
+            ? paraData(dados.recebimento.vencimento)
+            : null,
+        pagoEm: recebido ? paraData(dados.dia < hoje ? dados.dia : hoje) : null,
+        servicoId: dados.servicoId,
+        clienteId: dados.clienteId,
+      },
+      include: INCLUDE_COMPLETO,
+    });
+
+    await this.auditoria.registrar(tx, {
+      entidade: 'lancamento',
+      entidadeId: criado.id,
+      acao: 'criou',
+      resumo: this.resumirLancamento(
+        recebido ? 'Recebimento do serviço executado' : 'Conta a receber do serviço executado',
+        criado,
+      ),
+      depois: this.paraAuditoria(criado),
+    });
+  }
+
+  /**
    * Cria as parcelas de um lançamento dividido.
    *
    * ## O que cada parcela é

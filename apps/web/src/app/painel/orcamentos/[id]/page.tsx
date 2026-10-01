@@ -1,15 +1,21 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { CalendarPlus } from 'lucide-react';
 import {
   ROTULO_STATUS,
+  ROTULO_STATUS_AGENDAMENTO,
   formatarBRL,
+  formatarDataHora,
+  possuiPermissao,
+  type Agendamento,
   type Cliente,
   type Orcamento,
   type Paginado,
   type PessoaEquipe,
   type Servico,
 } from '@gestao/shared-types';
-import { apiComSessao } from '@/lib/api-servidor';
+import { estilosBotao } from '@/components/ui/botao';
+import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { formatarDataCompleta } from '@/lib/formatacao';
 import { AcoesStatus } from '../acoes-status';
 import { FormularioOrcamento } from '../formulario-orcamento';
@@ -25,14 +31,32 @@ interface Props {
 export default async function PaginaOrcamento({ params }: Props) {
   const { id } = await params;
 
-  const [orcamento, clientes, servicos, pessoas] = await Promise.all([
+  const [orcamento, clientes, servicos, pessoas, usuario] = await Promise.all([
     apiComSessao<Orcamento>(`/orcamentos/${id}`),
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),
     apiComSessao<Paginado<Servico>>('/servicos?porPagina=100&somenteAtivos=true'),
     apiComSessao<PessoaEquipe[]>('/equipe/pessoas'),
+    usuarioAtual(),
   ]);
 
   const editavel = orcamento.status === 'aberto';
+
+  // Orçamento aprovado tem um próximo passo óbvio: marcar o serviço. Se já
+  // existe um agendamento ligado a ele (e não cancelado), o atalho leva até
+  // esse agendamento em vez de oferecer criar um segundo.
+  const ofereceAgendar =
+    orcamento.status === 'aprovado' && possuiPermissao(usuario, 'agenda.gerenciar');
+
+  const agendamentoExistente = ofereceAgendar
+    ? (
+        await apiComSessao<Paginado<Agendamento>>(
+          `/agendamentos?clienteId=${orcamento.clienteId}&porPagina=100`,
+        )
+      ).dados.find(
+        (agendamento) =>
+          agendamento.orcamentoId === orcamento.id && agendamento.status !== 'cancelado',
+      )
+    : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,6 +79,44 @@ export default async function PaginaOrcamento({ params }: Props) {
         <span className="text-sm font-medium">Resposta do cliente:</span>
         <AcoesStatus id={orcamento.id} status={orcamento.status} />
       </section>
+
+      {ofereceAgendar && (
+        <section className="border-sucesso/40 bg-sucesso-suave flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+          {agendamentoExistente ? (
+            <>
+              <div className="flex flex-col gap-0.5">
+                <p className="text-sm font-medium">Serviço já agendado</p>
+                <p className="text-muted-foreground text-sm">
+                  {formatarDataHora(agendamentoExistente.dataHora)} ·{' '}
+                  {ROTULO_STATUS_AGENDAMENTO[agendamentoExistente.status]}
+                </p>
+              </div>
+              <Link
+                href={`/painel/agenda/${agendamentoExistente.id}`}
+                className={estilosBotao({ variante: 'secundario' })}
+              >
+                Ver agendamento
+              </Link>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-0.5">
+                <p className="text-sm font-medium">Próximo passo: agendar o serviço</p>
+                <p className="text-muted-foreground text-sm">
+                  Cliente, serviço e valor já vão preenchidos. É só escolher o dia.
+                </p>
+              </div>
+              <Link
+                href={`/painel/agenda/novo?orcamento=${orcamento.id}`}
+                className={estilosBotao()}
+              >
+                <CalendarPlus aria-hidden />
+                Agendar serviço
+              </Link>
+            </>
+          )}
+        </section>
+      )}
 
       {editavel ? (
         <FormularioOrcamento

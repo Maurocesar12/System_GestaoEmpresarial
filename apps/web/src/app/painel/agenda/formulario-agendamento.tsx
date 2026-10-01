@@ -41,6 +41,8 @@ export function FormularioAgendamento({
   pessoas,
   orcamentos,
   clienteFixo,
+  servicoInicial,
+  orcamentoInicial,
 }: {
   agendamento?: Agendamento;
   clientes: Cliente[];
@@ -49,6 +51,9 @@ export function FormularioAgendamento({
   /** Orçamentos aprovados; a lista mostra só os do cliente escolhido. */
   orcamentos: Orcamento[];
   clienteFixo?: string;
+  /** Pré-seleção vinda do atalho do orçamento aprovado. */
+  servicoInicial?: string;
+  orcamentoInicial?: string;
 }) {
   const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
@@ -63,13 +68,13 @@ export function FormularioAgendamento({
     resolver: zodResolver(agendamentoFormSchema),
     defaultValues: {
       clienteId: agendamento?.clienteId ?? clienteFixo ?? '',
-      servicoId: agendamento?.servicoId ?? '',
+      servicoId: agendamento?.servicoId ?? servicoInicial ?? '',
       // O `<input type="datetime-local">` espera "AAAA-MM-DDTHH:mm" sem fuso.
       // Cortar o ISO em 16 caracteres entrega exatamente esse formato.
       dataHora: agendamento ? paraCampoDatetimeLocal(agendamento.dataHora) : proximaHoraCheia(),
       observacoes: agendamento?.observacoes ?? '',
       tecnicoId: agendamento?.tecnicoId ?? '',
-      orcamentoId: agendamento?.orcamentoId ?? '',
+      orcamentoId: agendamento?.orcamentoId ?? orcamentoInicial ?? '',
     },
   });
 

@@ -8,13 +8,9 @@ import {
   type AcaoAgendamento,
   type Agendamento,
   type AgendamentoFormInput,
+  type RecebimentoExecucaoInput,
 } from '@gestao/shared-types';
-import {
-  erroDeValidacao,
-  primeiroErro,
-  traduzirErroAcao,
-  type ResultadoAcao,
-} from '@/lib/acoes';
+import { erroDeValidacao, primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarAgendamento(
@@ -42,13 +38,15 @@ export async function salvarAgendamento(
 
 /**
  * @param materiais Só na execução. Ausente deixa a API usar a lista padrão do serviço.
+ * @param recebimento Só na execução. Ausente não lança nada no financeiro.
  */
 export async function mudarStatusAgendamento(
   id: string,
   acao: AcaoAgendamento,
   materiais?: Array<{ materialId: string; quantidade: string }>,
+  recebimento?: RecebimentoExecucaoInput,
 ): Promise<ResultadoAcao> {
-  const validacao = mudarStatusAgendamentoSchema.safeParse({ acao, materiais });
+  const validacao = mudarStatusAgendamentoSchema.safeParse({ acao, materiais, recebimento });
 
   if (!validacao.success) {
     return primeiroErro(validacao.error.issues);
@@ -66,8 +64,11 @@ export async function mudarStatusAgendamento(
   revalidatePath('/painel/agenda');
 
   // Marcar como executado cria um atendimento no histórico do cliente, baixa
-  // materiais e gera comissão — as três telas precisam refletir isso.
+  // materiais, gera comissão e pode lançar a receita — todas essas telas
+  // precisam refletir isso.
   revalidatePath('/painel/clientes', 'layout');
+  revalidatePath('/painel/financeiro', 'layout');
+  revalidatePath('/painel', 'page');
   revalidatePath('/painel/estoque', 'layout');
   revalidatePath('/painel/comissoes');
   revalidatePath('/painel/minhas-comissoes');

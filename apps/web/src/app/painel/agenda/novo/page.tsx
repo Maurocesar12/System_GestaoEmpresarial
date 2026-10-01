@@ -8,6 +8,7 @@ import {
   type PessoaEquipe,
   type Servico,
 } from '@gestao/shared-types';
+import { ApiRequestError } from '@/lib/api';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { FormularioAgendamento } from '../formulario-agendamento';
 
@@ -16,21 +17,48 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: Promise<{ cliente?: string }>;
+  searchParams: Promise<{ cliente?: string; orcamento?: string }>;
 }
 
-export default async function PaginaNovoAgendamento({ searchParams }: Props) {
-  const { cliente: clienteFixo } = await searchParams;
-  const usuario = await usuarioAtual();
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const [clientes, servicos, pessoas, orcamentos] = await Promise.all([
+export default async function PaginaNovoAgendamento({ searchParams }: Props) {
+  const { cliente, orcamento: orcamentoId } = await searchParams;
+  const usuario = await usuarioAtual();
+  const podeVerOrcamentos = possuiPermissao(usuario, 'orcamentos.visualizar');
+
+  const [clientes, servicos, pessoas, orcamentos, deOrigem] = await Promise.all([
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),
     apiComSessao<Paginado<Servico>>('/servicos?porPagina=100&somenteAtivos=true'),
     apiComSessao<PessoaEquipe[]>('/equipe/pessoas'),
-    possuiPermissao(usuario, 'orcamentos.visualizar')
+    podeVerOrcamentos
       ? apiComSessao<Paginado<Orcamento>>('/orcamentos?status=aprovado&porPagina=100')
       : null,
+    // Vindo do atalho "Agendar serviço" do orçamento aprovado. O id é checado
+    // antes de ir para a URL da API; um id inválido ou de outro status só
+    // deixa o formulário em branco, sem erro na cara de quem clicou.
+    podeVerOrcamentos && orcamentoId && UUID.test(orcamentoId)
+      ? apiComSessao<Orcamento>(`/orcamentos/${orcamentoId}`).catch((erro: unknown) => {
+          // Só o 404/403 da API vira "sem pré-seleção". O redirect de sessão
+          // expirada também chega aqui como exceção e precisa seguir adiante.
+          if (erro instanceof ApiRequestError) return null;
+          throw erro;
+        })
+      : null,
   ]);
+
+  const orcamentoDeOrigem = deOrigem?.status === 'aprovado' ? deOrigem : undefined;
+
+  // O orçamento de origem pode estar além dos 100 primeiros da lista; sem ele
+  // na lista, o select não teria como mostrá-lo escolhido.
+  const orcamentosAprovados = orcamentos?.dados ?? [];
+  if (orcamentoDeOrigem && !orcamentosAprovados.some((item) => item.id === orcamentoDeOrigem.id)) {
+    orcamentosAprovados.push(orcamentoDeOrigem);
+  }
+
+  // Do orçamento, o cliente vem travado: trocar de cliente desligaria o
+  // orçamento escolhido, que só aparece para o próprio cliente.
+  const clienteFixo = orcamentoDeOrigem?.clienteId ?? cliente;
 
   if (clientes.dados.length === 0) {
     return (
@@ -60,8 +88,10 @@ export default async function PaginaNovoAgendamento({ searchParams }: Props) {
         clientes={clientes.dados}
         servicos={servicos.dados}
         pessoas={pessoas}
-        orcamentos={orcamentos?.dados ?? []}
+        orcamentos={orcamentosAprovados}
         clienteFixo={clienteFixo}
+        servicoInicial={orcamentoDeOrigem?.servicoId ?? undefined}
+        orcamentoInicial={orcamentoDeOrigem?.id}
       />
     </div>
   );

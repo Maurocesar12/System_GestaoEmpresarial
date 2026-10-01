@@ -84,6 +84,39 @@ export const ACOES_AGENDAMENTO = ['confirmar', 'executar', 'cancelar', 'reagenda
 export const acaoAgendamentoSchema = z.enum(ACOES_AGENDAMENTO);
 export type AcaoAgendamento = z.infer<typeof acaoAgendamentoSchema>;
 
+const valorRecebimentoSchema = z
+  .string()
+  .regex(/^\d+(\.\d{1,2})?$/, 'Informe o valor recebido')
+  .refine((valor) => Number(valor) > 0, 'O valor precisa ser maior que zero');
+
+const diaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida');
+
+/**
+ * O que fazer com o dinheiro do serviço que acabou de ser executado.
+ *
+ * Fechava a lacuna mais cara do fluxo: o serviço era executado, e a receita
+ * tinha de ser digitada de novo no financeiro — valor, data, serviço. Esquecer
+ * o serviço ali tirava a receita da margem por serviço, que é justamente o
+ * número que o produto promete.
+ *
+ * Perguntar, em vez de lançar sozinho, é decisão de produto: quem já registra
+ * o recebimento à mão escolhe não lançar, e nada duplica.
+ *
+ * - `recebido`: entra com baixa — o dinheiro já está no caixa.
+ * - `a_receber`: vira conta a receber, com vencimento. A baixa vem depois, em
+ *   um clique, quando o dinheiro cair.
+ */
+export const recebimentoExecucaoSchema = z.discriminatedUnion('situacao', [
+  z.object({ situacao: z.literal('recebido'), valor: valorRecebimentoSchema }),
+  z.object({
+    situacao: z.literal('a_receber'),
+    valor: valorRecebimentoSchema,
+    vencimento: diaSchema,
+  }),
+]);
+
+export type RecebimentoExecucaoInput = z.infer<typeof recebimentoExecucaoSchema>;
+
 export const mudarStatusAgendamentoSchema = z.object({
   acao: acaoAgendamentoSchema,
   /**
@@ -93,6 +126,11 @@ export const mudarStatusAgendamentoSchema = z.object({
    * inclusive vazia, para um serviço que desta vez não gastou nada.
    */
   materiais: listaMateriaisSchema.optional(),
+  /**
+   * Só na ação `executar`. Ausente significa "não lançar agora" — e é também o
+   * que mantém funcionando quem chamava esta rota antes de ela existir.
+   */
+  recebimento: recebimentoExecucaoSchema.optional(),
 });
 
 export type MudarStatusAgendamentoInput = z.infer<typeof mudarStatusAgendamentoSchema>;
@@ -149,6 +187,12 @@ export interface Agendamento {
   tecnicoNome: string | null;
   orcamentoId: string | null;
   orcamentoValor: string | null;
+  /**
+   * Quanto este serviço deve render: o valor do orçamento ligado ou, sem ele,
+   * o preço padrão do serviço. Pré-preenche o recebimento na execução.
+   * `null` quando não há nenhum dos dois — aí quem executa digita.
+   */
+  valorSugerido: string | null;
   criadoEm: string;
 }
 
