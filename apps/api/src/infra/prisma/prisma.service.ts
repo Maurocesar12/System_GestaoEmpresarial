@@ -41,6 +41,21 @@ export const URL_DO_BANCO = Symbol('URL_DO_BANCO');
 export type Varredura = 'lembretes' | 'recorrencias' | 'expurgo';
 
 /**
+ * Limites das transações interativas.
+ *
+ * O padrão do Prisma é 5 s, e toda requisição roda dentro de uma transação
+ * (é ela que carrega o tenant para a RLS). O painel inicial faz dezenas de
+ * consultas numa transação só; com o Neon acordando de hibernação, ou com a
+ * API longe do banco, os 5 s estouravam no meio — o Prisma fechava a
+ * transação e as consultas ainda pendentes voltavam `undefined`, derrubando a
+ * tela com um erro sem relação nenhuma com a causa.
+ *
+ * - `timeout`: quanto a transação pode durar depois de aberta.
+ * - `maxWait`: quanto esperar por uma conexão livre do pool para abri-la.
+ */
+const OPCOES_TRANSACAO = { maxWait: 10_000, timeout: 20_000 } as const;
+
+/**
  * Conexão com o banco.
  *
  * Esta classe existe por causa de um detalhe que não é óbvio: a política de RLS
@@ -154,7 +169,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}::text, true)`;
 
       return operacao(tx);
-    });
+    }, OPCOES_TRANSACAO);
   }
 
   /**
@@ -199,7 +214,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.login_email', ${email}::text, true)`;
       return operacao(tx);
-    });
+    }, OPCOES_TRANSACAO);
   }
 
   /**
@@ -227,7 +242,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.varredura', ${varredura}::text, true)`;
       return operacao(tx);
-    });
+    }, OPCOES_TRANSACAO);
   }
 
   /**
@@ -245,7 +260,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.comEscopo.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}::text, true)`;
       return operacao(tx);
-    });
+    }, OPCOES_TRANSACAO);
   }
 
   /**
@@ -280,7 +295,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await tx.tenant.create({ data: { ...dados, id: tenantId } });
 
       return operacao(tx, tenantId);
-    });
+    }, OPCOES_TRANSACAO);
   }
 }
 
