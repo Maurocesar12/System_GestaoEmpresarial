@@ -39,6 +39,9 @@ export type MotivoAcesso =
   /** Conta encerrada pelo próprio cliente ou pelo suporte. */
   | 'cancelado';
 
+/** A partir de quantos dias para o vencimento o aviso fica urgente. */
+const DIAS_AVISO_URGENTE = 3;
+
 export interface SituacaoDeAcesso {
   liberado: boolean;
   motivo: MotivoAcesso;
@@ -49,6 +52,30 @@ export interface SituacaoDeAcesso {
    * `null` quando não há prazo.
    */
   diasRestantes: number | null;
+  /*
+   * Decididos aqui, na API — a tela só mostra. Antes ela mesma calculava se
+   * avisava (7 dias), se o aviso era urgente (3 dias) e qual frase escrever.
+   */
+  /** A frase que o usuário lê — a mesma no bloqueio da API e no aviso da tela. */
+  mensagem: string;
+  /** Mostrar o aviso de vencimento no topo do painel: em teste, ou perto de vencer. */
+  exibirAviso: boolean;
+  /** Faltam poucos dias: o aviso muda de tom. */
+  avisoUrgente: boolean;
+}
+
+type SituacaoBase = Omit<SituacaoDeAcesso, 'mensagem' | 'exibirAviso' | 'avisoUrgente'>;
+
+function completar(base: SituacaoBase): SituacaoDeAcesso {
+  const comPrazo = base.acessoAte !== null && base.diasRestantes !== null;
+  const perto = comPrazo && base.diasRestantes! <= DIAS_AVISO_PAGAMENTO;
+
+  return {
+    ...base,
+    mensagem: mensagemDeAcesso(base),
+    exibirAviso: comPrazo && (base.motivo === 'trial' || perto),
+    avisoUrgente: comPrazo && base.diasRestantes! <= DIAS_AVISO_URGENTE,
+  };
 }
 
 export interface DadosDeAcesso {
@@ -100,7 +127,12 @@ export function calcularAcesso(dados: DadosDeAcesso, hoje: Date = new Date()): S
   const diaDeHoje = apenasODia(hoje);
 
   if (dados.status === 'cancelado') {
-    return { liberado: false, motivo: 'cancelado', acessoAte: null, diasRestantes: null };
+    return completar({
+      liberado: false,
+      motivo: 'cancelado',
+      acessoAte: null,
+      diasRestantes: null,
+    });
   }
 
   // O pagamento manda sobre o teste: quem pagou no meio do trial não deve
@@ -113,23 +145,28 @@ export function calcularAcesso(dados: DadosDeAcesso, hoje: Date = new Date()): S
 
   if (limite === null) {
     // Sem teste e sem pagamento: não há o que liberar nem data a mostrar.
-    return { liberado: false, motivo: 'sem_pagamento', acessoAte: null, diasRestantes: null };
+    return completar({
+      liberado: false,
+      motivo: 'sem_pagamento',
+      acessoAte: null,
+      diasRestantes: null,
+    });
   }
 
   const diasRestantes = Math.round((limite - diaDeHoje) / DIA_MS);
   const dentroDoPrazo = diasRestantes >= 0;
   const pagou = Boolean(dados.ultimoPagamentoEm);
 
-  return {
+  return completar({
     liberado: dentroDoPrazo,
     motivo: dentroDoPrazo ? (pagou ? 'pago' : 'trial') : pagou ? 'vencido' : 'sem_pagamento',
     acessoAte: formatarDia(limite),
     diasRestantes,
-  };
+  });
 }
 
 /** A frase que o usuário lê — a mesma no bloqueio da API e no aviso da tela. */
-export function mensagemDeAcesso(situacao: SituacaoDeAcesso): string {
+export function mensagemDeAcesso(situacao: SituacaoBase): string {
   const data = situacao.acessoAte
     ? new Date(`${situacao.acessoAte}T00:00:00Z`).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
     : null;

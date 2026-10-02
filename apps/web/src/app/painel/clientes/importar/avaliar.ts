@@ -1,14 +1,15 @@
-import { clienteFormSchema, type ClienteFormInput } from '@gestao/shared-types';
+import { LIMITE_IMPORTACAO, type ClienteFormInput } from '@gestao/shared-types';
 import { linhaParaCliente, type CampoImportavel } from '@/lib/colunas-cliente';
 import type { LinhaPlanilha } from '@/lib/planilha';
+import { conferirImportacao } from '../acoes';
 
 /**
- * Uma linha da planilha depois de validada.
+ * Uma linha da planilha depois de conferida pela API.
  *
  * Guarda tanto o texto original (`bruto`, para a prévia mostrar o que a pessoa
  * escreveu) quanto o resultado normalizado (`dados`, que é o que vai para a
- * API) — exibir o valor já normalizado confundiria quem está conferindo, porque
- * o telefone apareceria sem a máscara que ele digitou.
+ * importação) — exibir o valor já normalizado confundiria quem está
+ * conferindo, porque o telefone apareceria sem a máscara que ele digitou.
  */
 export interface LinhaAvaliada {
   /** Número da linha no arquivo, contando o cabeçalho. Começa em 2. */
@@ -22,36 +23,41 @@ export interface LinhaAvaliada {
 }
 
 /**
- * Valida a planilha inteira com o **mesmo** schema do formulário de cadastro.
+ * Manda a planilha para a API conferir e junta as respostas.
  *
- * Reaproveitar `clienteFormSchema` é o ponto: a importação aceita exatamente o
- * que o cadastro manual aceita, nem mais nem menos. Uma segunda validação
- * escrita só para cá acabaria divergindo — e a divergência apareceria como
- * cliente importado que o formulário recusaria.
+ * Aqui só se lê o arquivo: cada linha vira o objeto de colunas que o
+ * mapeamento escolheu, sem nenhuma regra. Quem diz se a linha é válida é a
+ * API (`/clientes/importar/conferir`), com o mesmo schema do cadastro e da
+ * importação. Em lotes, no mesmo teto da importação.
  */
-export function avaliarLinhas(
+export async function avaliarLinhas(
   linhas: LinhaPlanilha[],
   mapa: Record<CampoImportavel, number | null>,
-): LinhaAvaliada[] {
-  return linhas.map((linha, indice) => {
-    const bruto = linhaParaCliente(linha, mapa);
-    const resultado = clienteFormSchema.safeParse(bruto);
+): Promise<{ avaliadas?: LinhaAvaliada[]; erro?: string }> {
+  const brutas = linhas.map((linha) => linhaParaCliente(linha, mapa));
+  const avaliadas: LinhaAvaliada[] = [];
 
-    // +2: a planilha começa em 1 e a primeira linha é o cabeçalho, então a
-    // primeira linha de dados é a 2. É esse número que a pessoa vê no Excel.
-    const numeroNaPlanilha = indice + 2;
+  for (let inicio = 0; inicio < brutas.length; inicio += LIMITE_IMPORTACAO) {
+    const lote = brutas.slice(inicio, inicio + LIMITE_IMPORTACAO);
+    const resposta = await conferirImportacao(lote);
 
-    if (resultado.success) {
-      return { numeroNaPlanilha, bruto, valida: true, erros: [], dados: resultado.data };
+    if (resposta.erro || !resposta.linhas) {
+      return { erro: resposta.erro ?? 'Não foi possível conferir a planilha.' };
     }
 
-    // Mensagens sem o caminho do campo quando ele já está óbvio na tela; com o
-    // nome do campo quando não está.
-    const erros = resultado.error.issues.map((problema) => {
-      const campo = problema.path[0];
-      return campo && campo !== 'nome' ? `${String(campo)}: ${problema.message}` : problema.message;
+    resposta.linhas.forEach((conferida, posicao) => {
+      const indice = inicio + posicao;
+      avaliadas.push({
+        // +2: a planilha começa em 1 e a primeira linha é o cabeçalho, então a
+        // primeira linha de dados é a 2. É esse número que a pessoa vê no Excel.
+        numeroNaPlanilha: indice + 2,
+        bruto: brutas[indice]!,
+        valida: conferida.valida,
+        erros: conferida.erros,
+        dados: conferida.dados ?? undefined,
+      });
     });
+  }
 
-    return { numeroNaPlanilha, bruto, valida: false, erros };
-  });
+  return { avaliadas };
 }

@@ -4,7 +4,6 @@ import { FileText } from 'lucide-react';
 import {
   ROTULO_STATUS,
   STATUS_ORCAMENTO,
-  estaVencido,
   formatarBRL,
   type Orcamento,
   type Paginado,
@@ -163,14 +162,14 @@ export default async function PaginaOrcamentos({ searchParams }: Props) {
                         {ROTULO_STATUS[orcamento.status]}
                       </Selo>
 
-                      {estaVencido(orcamento) && (
+                      {orcamento.vencido && (
                         <span className="text-muted-foreground text-xs">validade expirada</span>
                       )}
                     </span>
                   </TabelaCelula>
 
                   <TabelaCelula>
-                    <AcoesStatus id={orcamento.id} status={orcamento.status} />
+                    <AcoesStatus id={orcamento.id} acoes={orcamento.acoesDisponiveis} />
                   </TabelaCelula>
                 </TabelaLinha>
               ))}

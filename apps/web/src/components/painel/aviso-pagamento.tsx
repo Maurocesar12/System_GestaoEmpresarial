@@ -3,7 +3,7 @@
 import { X } from 'lucide-react';
 import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
-import { DIAS_AVISO_PAGAMENTO, type SituacaoDeAcesso } from '@gestao/shared-types';
+import type { SituacaoDeAcesso } from '@gestao/shared-types';
 import { cn } from '@/lib/utils';
 
 const CHAVE = 'gestao:aviso-pagamento';
@@ -60,7 +60,12 @@ function lerDispensa(): string | null {
  *
  * Vencido não chega aqui: a API recusa o login antes.
  */
-export function AvisoPagamento({ acesso }: { acesso?: SituacaoDeAcesso }) {
+export function AvisoPagamento({
+  acesso,
+}: {
+  acesso?: Pick<SituacaoDeAcesso, 'motivo' | 'acessoAte' | 'diasRestantes'> &
+    Partial<Pick<SituacaoDeAcesso, 'exibirAviso' | 'avisoUrgente'>>;
+}) {
   /*
    * `useSyncExternalStore` em vez de `useEffect` + `useState`: é o jeito que o
    * React oferece para ler algo que vive fora dele — aqui, o `localStorage`.
@@ -70,15 +75,13 @@ export function AvisoPagamento({ acesso }: { acesso?: SituacaoDeAcesso }) {
    */
   const dispensa = useSyncExternalStore(inscrever, lerDispensa, () => null);
 
-  if (!acesso?.acessoAte || acesso.diasRestantes === null) return null;
+  // Se avisa, e com que urgência, quem decide é a API (`exibirAviso`,
+  // `avisoUrgente`). A tela só respeita a dispensa de hoje.
+  if (!acesso?.exibirAviso || !acesso.acessoAte || acesso.diasRestantes === null) return null;
   if (dispensa === marca(acesso.acessoAte)) return null;
 
   const emTeste = acesso.motivo === 'trial';
-  const perto = acesso.diasRestantes <= DIAS_AVISO_PAGAMENTO;
-
-  if (!emTeste && !perto) return null;
-
-  const urgente = acesso.diasRestantes <= 3;
+  const urgente = acesso.avisoUrgente === true;
 
   const dispensar = () => {
     try {

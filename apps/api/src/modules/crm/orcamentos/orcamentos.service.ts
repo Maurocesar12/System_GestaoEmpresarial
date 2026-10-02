@@ -6,6 +6,7 @@ import {
   ROTULO_STATUS,
   TRANSICOES,
   acoesDisponiveis,
+  estaVencido,
   type AcaoOrcamento,
   type Orcamento,
   type OrcamentoFormInput,
@@ -92,9 +93,13 @@ export class OrcamentosService {
    * soma aconteceria em ponto flutuante — perdendo os centavos que o `NUMERIC`
    * existe para preservar.
    */
-  async resumir(): Promise<ResumoOrcamentos> {
+  async resumir(clienteId?: string): Promise<ResumoOrcamentos> {
     const grupos = await this.prisma.comTenant((tx) =>
       tx.orcamento.groupBy({
+        // Com `clienteId`, é o "fechado com este cliente" da ficha — somado
+        // aqui sobre todos os orçamentos, e não na tela sobre a página que ela
+        // por acaso carregou.
+        where: clienteId ? { clienteId } : {},
         by: ['status'],
         _count: { _all: true },
         _sum: { valor: true },
@@ -290,6 +295,10 @@ export class OrcamentosService {
   }
 
   private paraResposta(registro: OrcamentoBanco): Orcamento {
+    // `validoAte` é uma data pura no banco (sem hora). Cortar em 10 caracteres
+    // evita que o fuso do servidor a empurre um dia para trás.
+    const validoAte = registro.validoAte?.toISOString().slice(0, 10) ?? null;
+
     return {
       id: registro.id,
       clienteId: registro.clienteId,
@@ -299,13 +308,17 @@ export class OrcamentosService {
       descricao: registro.descricao,
       valor: registro.valor.toFixed(2),
       status: registro.status,
-      // `validoAte` é uma data pura no banco (sem hora). Cortar em 10
-      // caracteres evita que o fuso do servidor a empurre um dia para trás.
-      validoAte: registro.validoAte?.toISOString().slice(0, 10) ?? null,
+      validoAte,
       respondidoEm: registro.respondidoEm?.toISOString() ?? null,
       vendedorId: registro.vendedorId,
       vendedorNome: registro.vendedor?.nome ?? null,
       criadoEm: registro.criadoEm.toISOString(),
+      // A mesma tabela que `mudarStatus` usa para recusar transição inválida,
+      // e a mesma regra que `atualizar` usa para recusar edição: a tela nunca
+      // oferece o que esta API recusaria.
+      acoesDisponiveis: acoesDisponiveis(registro.status),
+      vencido: estaVencido({ status: registro.status, validoAte }),
+      editavel: registro.status === 'aberto',
     };
   }
 }

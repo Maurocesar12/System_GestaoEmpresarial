@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Download } from 'lucide-react';
-import { mesCorrente } from '@gestao/shared-types';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
@@ -8,8 +7,14 @@ import { ImportadorFinanceiro } from './importador-financeiro';
 
 export const metadata: Metadata = { title: 'Dados financeiros' };
 
+/**
+ * Um `<a>` comum, e não `<Link>`: a rota devolve um arquivo para baixar, e a
+ * navegação do Next tentaria renderizá-la como página. Sem datas, a API
+ * exporta o mês corrente.
+ */
+const ROTA_EXPORTACAO = '/painel/financeiro/dados/exportar';
+
 export default function PaginaDadosFinanceiros() {
-  const periodo = mesCorrente();
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoPagina
@@ -34,10 +39,7 @@ export default function PaginaDadosFinanceiros() {
             <p className="text-muted-foreground text-sm">
               Baixe as contas da empresa no período atual em CSV, compatível com Excel.
             </p>
-            <a
-              className={estilosBotao()}
-              href={`/painel/financeiro/dados/exportar?de=${periodo.de}&ate=${periodo.ate}`}
-            >
+            <a className={estilosBotao()} href={ROTA_EXPORTACAO}>
               <Download />
               Exportar mês atual
             </a>

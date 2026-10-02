@@ -128,9 +128,8 @@ export function GeradorPrevisao({
 }
 
 function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraResponse }) {
-  const ultimoMes = resultado.projecoes.at(-1);
-  const entradas = resultado.projecoes.reduce((total, mes) => total + Number(mes.entradas), 0);
-  const saidas = resultado.projecoes.reduce((total, mes) => total + Number(mes.saidas), 0);
+  // Somados pela API, também para previsões já salvas (ela soma ao responder).
+  const totais = resultado.totais;
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
@@ -144,19 +143,19 @@ function ResultadoPrevisao({ resultado }: { resultado: PrevisaoFinanceiraRespons
           {new Date(resultado.geradoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
         </span>
       </div>
-      {ultimoMes && (
+      {totais.saldoFinal !== null && (
         <dl className="grid grid-cols-1 gap-5 border-b pb-6 sm:grid-cols-3">
           {[
-            { titulo: 'Saldo ao final do período', valor: Number(ultimoMes.saldoAcumulado) },
-            { titulo: 'Entradas projetadas', valor: entradas },
-            { titulo: 'Saídas projetadas', valor: saidas },
+            { titulo: 'Saldo ao final do período', valor: totais.saldoFinal },
+            { titulo: 'Entradas projetadas', valor: totais.entradas },
+            { titulo: 'Saídas projetadas', valor: totais.saidas },
           ].map((item) => (
             <div key={item.titulo} className="min-w-0">
               <dt className="text-xs text-muted-foreground">{item.titulo}</dt>
               <dd
-                className={`mt-2 break-words text-2xl font-semibold tabular-nums ${item.valor < 0 ? 'text-destructive' : ''}`}
+                className={`mt-2 break-words text-2xl font-semibold tabular-nums ${item.valor.startsWith('-') ? 'text-destructive' : ''}`}
               >
-                {formatarBRL(String(item.valor))}
+                {formatarBRL(item.valor)}
               </dd>
             </div>
           ))}

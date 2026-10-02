@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -10,12 +12,16 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  margemPercentual,
   servicoFormSchema,
+  simulacaoMargemSchema,
   servicosQuerySchema,
   type Paginado,
   type Servico,
   type ServicoFormInput,
   type ServicosQuery,
+  type SimulacaoMargem,
+  type SimulacaoMargemInput,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
@@ -43,6 +49,17 @@ export class ServicosController {
   @Get(':id')
   buscar(@Param('id', ParseUUIDPipe) id: string): Promise<Servico> {
     return this.servicos.buscarPorId(id);
+  }
+
+  /** Prévia da margem enquanto se digita custo e preço. Não grava nada. */
+  @Post('simular-margem')
+  @Permissoes('servicos.gerenciar')
+  @HttpCode(HttpStatus.OK)
+  simularMargem(
+    @Body(new ZodValidationPipe(simulacaoMargemSchema)) dados: SimulacaoMargemInput,
+  ): SimulacaoMargem {
+    const margem = margemPercentual(dados.custoBase, dados.precoPadrao);
+    return { margemPercentual: margem, abaixoDoCusto: margem !== null && margem < 0 };
   }
 
   @Post()

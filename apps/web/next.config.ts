@@ -7,6 +7,42 @@ import type { NextConfig } from 'next';
 // como "/C:/..." e o Next não consegue resolvê-lo.
 const raizMonorepo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
+/**
+ * Content-Security-Policy: de onde a página pode carregar cada coisa.
+ *
+ * O navegador nunca fala com a API direto — toda chamada passa pelo servidor
+ * do Next (server components e server actions). Por isso `connect-src` fica
+ * só na própria origem: um script injetado não consegue mandar dado para fora,
+ * nem para a API com o cookie de alguém.
+ *
+ * `'unsafe-inline'` em `script-src` é o custo do App Router sem nonce: o Next
+ * injeta scripts inline de hidratação. Nonce exigiria renderizar toda página
+ * por requisição, inclusive o site público. O resto da política continua
+ * valendo: nada de script de outra origem, de `<object>`, de `<base>` trocado,
+ * de formulário enviado para fora nem de a página ser embutida em iframe.
+ */
+function politicaDeConteudo(): string {
+  const desenvolvimento = process.env.NODE_ENV !== 'production';
+
+  return [
+    "default-src 'self'",
+    // `unsafe-eval` só em desenvolvimento: o React usa para montar a pilha de
+    // erros. Em produção não entra.
+    `script-src 'self' 'unsafe-inline'${desenvolvimento ? " 'unsafe-eval'" : ''}`,
+    "style-src 'self' 'unsafe-inline'",
+    // `data:` e `blob:` para a prévia dos anexos (imagem e PDF) e dos gráficos.
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    // O recarregamento ao vivo do `next dev` usa WebSocket.
+    `connect-src 'self'${desenvolvimento ? ' ws: wss:' : ''}`,
+    "frame-src 'self' blob: data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -56,6 +92,7 @@ const nextConfig: NextConfig = {
         value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
       },
       { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+      { key: 'Content-Security-Policy', value: politicaDeConteudo() },
     ];
 
     if (process.env.NODE_ENV === 'production') {

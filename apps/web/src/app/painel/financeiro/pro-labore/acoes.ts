@@ -1,34 +1,24 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  proLaboreFormSchema,
-  type ProLabore,
-  type ProLaboreFormEntrada,
-} from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { ProLabore, ProLaboreFormEntrada, SimulacaoProLabore } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /**
- * Define o pró-labore a partir de uma data.
+ * Define o prÃ³-labore a partir de uma data.
  *
- * Recebe a entrada **antes** da transformação do schema (`ProLaboreFormEntrada`)
- * porque o valor chega como a pessoa digitou — "5.000,00" — e é o
- * `dinheiroDigitadoSchema` que converte para decimal. Aceitar o tipo já
- * transformado obrigaria a tela a fazer essa conversão por conta própria, que é
- * exatamente onde R$ 250,00 já virou R$ 25.000,00 uma vez neste projeto.
+ * Recebe a entrada **antes** da transformaÃ§Ã£o do schema (`ProLaboreFormEntrada`)
+ * porque o valor chega como a pessoa digitou â€” "5.000,00" â€” e Ã© o
+ * `dinheiroDigitadoSchema` que converte para decimal. Aceitar o tipo jÃ¡
+ * transformado obrigaria a tela a fazer essa conversÃ£o por conta prÃ³pria, que Ã©
+ * exatamente onde R$ 250,00 jÃ¡ virou R$ 25.000,00 uma vez neste projeto.
  */
 export async function definirProLabore(dados: ProLaboreFormEntrada): Promise<ResultadoAcao> {
-  const validacao = proLaboreFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<ProLabore>('/financeiro/pro-labore', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);
@@ -47,4 +37,21 @@ export async function removerProLabore(id: string): Promise<ResultadoAcao> {
 
   revalidatePath('/painel/financeiro', 'layout');
   return {};
+}
+
+/** PrÃ©via "cabe no teto?", calculada pela API. Erro sÃ³ some com a prÃ©via. */
+export async function simularProLabore(dados: {
+  valor: string;
+  meses: string;
+}): Promise<{ dados?: SimulacaoProLabore }> {
+  try {
+    return {
+      dados: await apiComSessao<SimulacaoProLabore>('/financeiro/pro-labore/simular', {
+        method: 'POST',
+        body: JSON.stringify(dados),
+      }),
+    };
+  } catch {
+    return {};
+  }
 }

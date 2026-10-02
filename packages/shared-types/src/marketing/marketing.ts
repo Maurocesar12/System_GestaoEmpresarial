@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { opcional, textoOpcional } from '../common/opcional';
 import { telefoneSchema } from '../crm/clientes';
+import { dataFinalSchema, dataInicialSchema } from '../financeiro/lancamentos';
 
 /**
  * Marketing — módulo beta (arquitetura §8.3).
@@ -132,12 +133,19 @@ export interface RelatorioMarketing {
   totalConvertidos: number;
   /** Soma dos orçamentos aprovados dos leads do período. */
   receitaTotal: string;
+  /**
+   * Convertidos ÷ leads do período, de 0 a 1. Sobre o total, e não como
+   * média das taxas por origem: a média trataria uma origem de 1 lead igual a
+   * uma de 100.
+   */
+  taxaConversao: number;
   periodo: { de: string; ate: string };
 }
 
 export const marketingQuerySchema = z.object({
-  de: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inicial inválida'),
-  ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data final inválida'),
+  // Ausentes, valem o mês corrente em São Paulo — decidido pela API.
+  de: dataInicialSchema,
+  ate: dataFinalSchema,
 });
 
 export type MarketingQuery = z.infer<typeof marketingQuerySchema>;

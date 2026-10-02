@@ -12,6 +12,8 @@ import {
   ROTULO_STATUS_AGENDAMENTO,
   TRANSICOES_AGENDAMENTO,
   acoesAgendamentoDisponiveis,
+  estaAtrasado,
+  estaPendente,
   type AcaoAgendamento,
   type Agendamento,
   type AgendamentoFormInput,
@@ -344,6 +346,14 @@ export class AgendamentosService {
       valorSugerido:
         registro.orcamento?.valor.toFixed(2) ?? registro.servico?.precoPadrao?.toFixed(2) ?? null,
       criadoEm: registro.criadoEm.toISOString(),
+      // A mesma máquina de estados que `mudarStatus` usa para recusar, e a
+      // mesma regra de `atualizar`: a tela só mostra o que esta API aceitaria.
+      acoesDisponiveis: acoesAgendamentoDisponiveis(registro.status),
+      pendente: estaPendente(registro),
+      atrasado: estaAtrasado({
+        status: registro.status,
+        dataHora: registro.dataHora.toISOString(),
+      }),
     };
   }
 }

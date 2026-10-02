@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
-import { possuiPermissao, type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
+import { type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
+import { pode } from '@/lib/permissoes';
 
 export interface ItemHistorico {
   href: string;
@@ -13,10 +14,10 @@ export interface ItemHistorico {
 export function filtrarHistoricoPorPermissao(
   historico: readonly ItemHistorico[],
   usuario: UsuarioAutenticado,
-  movimentacao: string
+  movimentacao: string,
 ): readonly ItemHistorico[] {
   return historico.filter((item) => {
-    if (item.permissao && !possuiPermissao(usuario, item.permissao)) {
+    if (item.permissao && !pode(usuario, item.permissao)) {
       return false;
     }
     return item.movimentacao === movimentacao;
@@ -26,7 +27,7 @@ export function filtrarHistoricoPorPermissao(
 export default async function Historico({
   historico,
   usuario,
-  movimentacao
+  movimentacao,
 }: {
   historico: readonly ItemHistorico[];
   usuario: UsuarioAutenticado;
@@ -49,6 +50,6 @@ export default async function Historico({
           </div>
         </a>
       ))}
-    </div>  
+    </div>
   );
-}           
+}

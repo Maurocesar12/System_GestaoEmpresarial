@@ -1,23 +1,18 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  importacaoLancamentosSchema,
-  type ImportacaoLancamentosInput,
-  type ResultadoImportacaoLancamentos,
-} from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { ResultadoImportacaoLancamentos } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function importarLancamentos(
-  dados: ImportacaoLancamentosInput,
+  // As células como saíram da planilha; a API normaliza e valida.
+  dados: { lancamentos: Record<string, string>[] },
 ): Promise<ResultadoAcao & { criados?: number }> {
-  const validacao = importacaoLancamentosSchema.safeParse(dados);
-  if (!validacao.success) return erroDeValidacao(validacao.error.issues);
   try {
     const resultado = await apiComSessao<ResultadoImportacaoLancamentos>(
       '/financeiro/dados/importar',
-      { method: 'POST', body: JSON.stringify(validacao.data) },
+      { method: 'POST', body: JSON.stringify(dados) },
     );
     revalidatePath('/painel/financeiro', 'layout');
     return { criados: resultado.criados };

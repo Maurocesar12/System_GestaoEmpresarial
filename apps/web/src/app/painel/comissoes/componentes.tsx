@@ -4,7 +4,6 @@ import {
   ROTULO_STATUS_COMISSAO,
   ROTULO_TIPO_COMISSAO,
   formatarBRL,
-  mesCorrente,
   type Comissao,
   type PessoaEquipe,
 } from '@gestao/shared-types';
@@ -28,17 +27,29 @@ import {
 } from '@/components/ui/tabela';
 import { formatarDataCurta } from '@/lib/formatacao';
 
-const DIA = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Período e situação da URL, com o mês corrente como padrão. */
-export function lerFiltrosComissoes(parametros: { de?: string; ate?: string; status?: string }) {
-  const padrao = mesCorrente();
+/**
+ * Repassa à API os filtros da URL, como vieram.
+ *
+ * Sem regra aqui: a API valida as datas e a situação, e sem datas usa o mês
+ * corrente (em São Paulo). O período que ela usou volta em `relatorio.periodo`.
+ */
+export function lerFiltrosComissoes(parametros: {
+  de?: string;
+  ate?: string;
+  status?: string;
+  usuarioId?: string;
+}) {
+  const query = new URLSearchParams();
+  for (const chave of ['de', 'ate', 'status', 'usuarioId'] as const) {
+    const valor = parametros[chave];
+    if (valor) query.set(chave, valor);
+  }
 
   return {
-    de: parametros.de && DIA.test(parametros.de) ? parametros.de : padrao.de,
-    ate: parametros.ate && DIA.test(parametros.ate) ? parametros.ate : padrao.ate,
-    status:
-      parametros.status === 'pendente' || parametros.status === 'fechada' ? parametros.status : '',
+    query,
+    status: parametros.status ?? '',
+    usuarioId: parametros.usuarioId ?? '',
+    filtrado: query.size > 0,
   };
 }
 
@@ -48,6 +59,7 @@ export function FiltrosComissoes({
   status,
   usuarioId = '',
   pessoas,
+  ativo,
 }: {
   de: string;
   ate: string;
@@ -55,9 +67,9 @@ export function FiltrosComissoes({
   usuarioId?: string;
   /** Presente só na visão da equipe. */
   pessoas?: PessoaEquipe[];
+  /** A URL trouxe algum filtro: a barra abre já aberta. */
+  ativo: boolean;
 }) {
-  const padrao = mesCorrente();
-  const ativo = de !== padrao.de || ate !== padrao.ate || Boolean(status) || Boolean(usuarioId);
   const rotaBase = pessoas ? '/painel/comissoes' : '/painel/minhas-comissoes';
 
   return (

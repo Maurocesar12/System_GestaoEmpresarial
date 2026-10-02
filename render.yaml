@@ -90,8 +90,16 @@ services:
       # `sync: false` faz o Render perguntar o valor na primeira publicação em
       # vez de assumir um padrão.
 
-      # Connection string do Neon. PRECISA terminar em `?sslmode=require`.
+      # Connection string do Neon com o papel `gestao_app` (NOBYPASSRLS).
+      # PRECISA terminar em `?sslmode=require`. Com o papel dono do banco a API
+      # se recusa a subir: ele ignora a RLS e uma empresa veria a outra.
       - key: DATABASE_URL
+        sync: false
+
+      # Connection string do Neon com o papel dono (`neondb_owner`). Usada só
+      # por `prisma migrate deploy` e pelo seed no build — criar tabela e
+      # política exige o dono. A aplicação em execução nunca a usa.
+      - key: ADMIN_DATABASE_URL
         sync: false
 
       # Origens do CORS: a URL da Vercel, sem barra no final.
@@ -158,7 +166,3 @@ services:
         value: 0.20
       - key: OPENAI_CUSTO_OUTPUT_USD_MILHAO
         value: 1.20
-
-      # Reservado para o painel interno (AdminModule), que ainda não existe.
-      - key: ADMIN_DATABASE_URL
-        value: ''

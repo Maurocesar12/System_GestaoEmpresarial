@@ -1,7 +1,6 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, type LoginInput } from '@gestao/shared-types';
+import { type LoginInput } from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -34,7 +33,6 @@ export function FormularioLogin() {
     setError,
     formState: { errors },
   } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
     defaultValues: { email: '', senha: '' },
   });
 
@@ -92,7 +90,9 @@ export function FormularioLogin() {
       <Botao type="submit" carregando={enviando}>
         Entrar
       </Botao>
-      <Link href="/recuperar-senha" className="text-center text-sm underline underline-offset-4">Esqueci minha senha</Link>
+      <Link href="/recuperar-senha" className="text-center text-sm underline underline-offset-4">
+        Esqueci minha senha
+      </Link>
     </form>
   );
 }

@@ -25,12 +25,26 @@ import { obterContextoTenant } from '../tenant/tenant-context';
  */
 const MODELOS_GLOBAIS = new Set<string>(['Plano', 'Tenant']);
 
-/** Operações cujo `where` deve ser restringido ao tenant. */
+/**
+ * Operações cujo `where` deve ser restringido ao tenant.
+ *
+ * Inclui as de chave única (`findUnique`, `update`, `delete`, `upsert`). Elas
+ * já ficaram de fora, confiando só na RLS — e a produção mostrou o custo: com
+ * a conexão no papel dono do banco, que ignora a RLS, um `findUnique` com o id
+ * de outra empresa devolvia a linha. Desde o Prisma 5 o `where` de chave única
+ * aceita campos extras, então o carimbo aqui vale para elas também, e as duas
+ * camadas voltam a ser independentes de verdade.
+ */
 const OPERACOES_COM_FILTRO = new Set<string>([
   'findFirst',
   'findFirstOrThrow',
   'findMany',
+  'findUnique',
+  'findUniqueOrThrow',
+  'update',
   'updateMany',
+  'updateManyAndReturn',
+  'delete',
   'deleteMany',
   'count',
   'aggregate',
@@ -110,10 +124,23 @@ export function criarExtensaoTenant() {
             return query({ ...argsTipados, data: dataComTenant });
           }
 
-          // `findUnique`, `update` e `delete` ficam de fora de propósito: eles
-          // buscam por chave única, e o Prisma não aceita um campo extra no
-          // `where` dessas operações. Quem os protege é a RLS — uma linha de
-          // outra empresa simplesmente não é encontrada, mesmo com o id certo.
+          // `upsert` busca e, se não achar, cria: filtra a busca e carimba a
+          // criação. O `update` dele não leva `tenantId` — o registro achado
+          // já é da empresa, e trocar o dono nunca é uma intenção legítima.
+          if (operation === 'upsert') {
+            const argsTipados = (args ?? {}) as ArgsComWhere & {
+              create?: Record<string, unknown>;
+            };
+            return query({
+              ...argsTipados,
+              where: { ...argsTipados.where, tenantId },
+              create: aplicarTenant(argsTipados.create ?? {}, tenantId, model),
+            } as typeof args);
+          }
+
+          // Operações sem `where` nem dado próprio (as `$raw` não passam
+          // por aqui). Uma operação nova do Prisma cai neste ponto e segue
+          // protegida pela RLS.
           return query(args);
         },
       },

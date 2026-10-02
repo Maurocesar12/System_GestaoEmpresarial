@@ -78,9 +78,14 @@ function linha(
 const MAXIMO_EXEMPLOS = 5;
 
 async function main(): Promise<void> {
-  const usuarios = await prisma.usuario.findMany({
-    select: { tenantId: true, email: true },
-    orderBy: [{ papel: 'asc' }, { criadoEm: 'asc' }],
+  // Declara a listagem: sem isso a política `usuario_listagem_admin` não
+  // libera nada (migration `20261001120000_politicas_declaradas`).
+  const usuarios = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.varredura', 'contas', true)`;
+    return tx.usuario.findMany({
+      select: { tenantId: true, email: true },
+      orderBy: [{ papel: 'asc' }, { criadoEm: 'asc' }],
+    });
   });
 
   const empresas = new Map<string, string>();

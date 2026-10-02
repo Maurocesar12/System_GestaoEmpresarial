@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Wrench } from 'lucide-react';
-import { formatarBRL, margemPercentual, type Paginado, type Servico } from '@gestao/shared-types';
+import { formatarBRL, type Paginado, type Servico } from '@gestao/shared-types';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Cartao } from '@/components/ui/cartao';
@@ -85,9 +85,7 @@ export default async function PaginaServicos() {
                   </TabelaCelula>
 
                   <TabelaCelula numerica>
-                    <PercentualMargem
-                      percentual={margemPercentual(servico.custoBase, servico.precoPadrao)}
-                    />
+                    <PercentualMargem percentual={servico.margemPercentual} />
                   </TabelaCelula>
                 </TabelaLinha>
               ))}

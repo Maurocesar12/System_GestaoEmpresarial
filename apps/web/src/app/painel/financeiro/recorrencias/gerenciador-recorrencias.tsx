@@ -3,7 +3,6 @@
 import {
   PERIODICIDADES,
   ROTULO_PERIODICIDADE,
-  TIPOS_CUSTO_POR_LANCAMENTO,
   formatarBRL,
   hojeISO,
   type CategoriaFinanceira,
@@ -80,11 +79,7 @@ export function GerenciadorRecorrencias({
 
             <TabelaCorpo>
               {recorrencias.map((recorrencia) => (
-                <LinhaRecorrencia
-                  key={recorrencia.id}
-                  recorrencia={recorrencia}
-                  onErro={setErro}
-                />
+                <LinhaRecorrencia key={recorrencia.id} recorrencia={recorrencia} onErro={setErro} />
               ))}
             </TabelaCorpo>
           </TabelaRolavel>
@@ -166,9 +161,7 @@ function LinhaRecorrencia({
           <button
             type="button"
             disabled={agindo}
-            onClick={() =>
-              executar(() => alternarRecorrencia(recorrencia.id, !recorrencia.ativo))
-            }
+            onClick={() => executar(() => alternarRecorrencia(recorrencia.id, !recorrencia.ativo))}
             aria-label={
               recorrencia.ativo
                 ? `Pausar a recorrência ${recorrencia.descricao}`
@@ -271,21 +264,20 @@ function NovaRecorrencia({
   const [clienteId, setClienteId] = useState('');
   const [criando, iniciar] = useTransition();
 
-  // Mesma regra do formulário de lançamento: entrada oferece receita, saída
-  // oferece custo. Ela vive no contrato para os dois não divergirem.
-  const categoriasDoTipo = useMemo(() => {
-    const servem: readonly string[] = TIPOS_CUSTO_POR_LANCAMENTO[tipo];
-    return categorias.filter((categoria) => servem.includes(categoria.tipoCusto));
-  }, [categorias, tipo]);
+  // Para qual tipo cada categoria serve vem da API (`servePara`), que recusa a
+  // combinação errada. A tela só filtra o que mostrar.
+  const categoriasDoTipo = useMemo(
+    () => categorias.filter((categoria) => categoria.servePara.includes(tipo)),
+    [categorias, tipo],
+  );
 
   const trocarTipo = (proximo: TipoLancamento) => {
     setTipo(proximo);
 
     // A categoria escolhida pode não servir ao tipo novo. Limpar é melhor que
-    // enviar uma combinação que a tela mesma não ofereceria.
-    const servem: readonly string[] = TIPOS_CUSTO_POR_LANCAMENTO[proximo];
+    // enviar uma combinação que a API recusaria.
     const atual = categorias.find((categoria) => categoria.id === categoriaId);
-    if (atual && !servem.includes(atual.tipoCusto)) setCategoriaId('');
+    if (atual && !atual.servePara.includes(proximo)) setCategoriaId('');
   };
 
   const enviar = (evento: React.FormEvent) => {

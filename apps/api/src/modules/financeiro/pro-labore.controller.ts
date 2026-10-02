@@ -10,9 +10,12 @@ import {
 } from '@nestjs/common';
 import {
   proLaboreFormSchema,
+  simulacaoProLaboreSchema,
   sugestaoQuerySchema,
   type ProLabore,
   type ProLaboreFormInput,
+  type SimulacaoProLabore,
+  type SimulacaoProLaboreInput,
   type SugestaoProLabore,
   type SugestaoQuery,
 } from '@gestao/shared-types';
@@ -49,6 +52,15 @@ export class ProLaboreController {
   @Get('vigente')
   vigente(): Promise<ProLabore | null> {
     return this.proLabore.vigente();
+  }
+
+  /** Prévia do formulário: o valor digitado cabe no teto? Não grava nada. */
+  @Post('simular')
+  @HttpCode(HttpStatus.OK)
+  simular(
+    @CorpoValidado(simulacaoProLaboreSchema) dados: SimulacaoProLaboreInput,
+  ): Promise<SimulacaoProLabore> {
+    return this.proLabore.simular(dados);
   }
 
   @Post()

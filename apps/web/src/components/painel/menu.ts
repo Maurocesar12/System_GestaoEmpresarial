@@ -20,7 +20,8 @@ import {
   Megaphone,
   type LucideIcon,
 } from 'lucide-react';
-import { possuiPermissao, type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
+import { type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
+import { pode } from '@/lib/permissoes';
 
 /**
  * Estrutura do menu do painel.
@@ -210,7 +211,7 @@ export function menuDoUsuario(
     itens: grupo.itens.filter(
       (item) =>
         (!item.somenteAdmin || usuario.papel === 'admin') &&
-        (item.permissao === null || possuiPermissao(usuario, item.permissao)),
+        (item.permissao === null || pode(usuario, item.permissao)),
     ),
   })).filter((grupo) => grupo.itens.length > 0);
 }

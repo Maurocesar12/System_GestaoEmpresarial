@@ -1,12 +1,6 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  atendimentoFormSchema,
-  hojeISO,
-  type Atendimento,
-  type AtendimentoFormInput,
-} from '@gestao/shared-types';
+import { hojeISO, type Atendimento, type AtendimentoFormInput } from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -39,7 +33,6 @@ export function Atendimentos({
     reset,
     formState: { errors },
   } = useForm<AtendimentoFormInput>({
-    resolver: zodResolver(atendimentoFormSchema),
     defaultValues: { descricao: '', data: hojeISO() },
   });
 

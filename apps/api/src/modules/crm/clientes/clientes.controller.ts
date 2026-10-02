@@ -14,10 +14,13 @@ import {
 import {
   clienteFormSchema,
   clientesQuerySchema,
+  conferenciaImportacaoClientesSchema,
   importacaoClientesSchema,
   type Cliente,
   type ClienteFormInput,
   type ClientesQuery,
+  type ConferenciaImportacaoClientes,
+  type ConferenciaImportacaoClientesInput,
   type ImportacaoClientesInput,
   type Paginado,
   type ResultadoImportacao,
@@ -25,6 +28,7 @@ import {
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { ClientesService } from './clientes.service';
+import { conferirLinhasDeClientes } from './conferencia-importacao';
 
 /**
  * Rotas de clientes.
@@ -65,16 +69,30 @@ export class ClientesController {
    * Importa um lote vindo de planilha.
    *
    * Recebe JSON, e não o arquivo: quem lê a planilha é o navegador, o que
-   * permite mostrar a conferência antes de gravar qualquer coisa e poupa a API
-   * de lidar com upload, formato de arquivo e memória de arquivo grande.
-   *
-   * A validação roda aqui de novo, com o mesmo schema que a tela usou. O que a
-   * tela valida é conveniência para quem digita; garantia é o que acontece no
-   * servidor.
+   * poupa a API de lidar com upload, formato de arquivo e memória de arquivo
+   * grande. Ler não é validar — a validação é desta API, aqui e em
+   * `importar/conferir`.
    *
    * Restrito a `admin`: importar mil clientes de uma vez tem peso diferente de
    * cadastrar um.
    */
+  /**
+   * Confere a planilha sem gravar nada: a prévia "válida / com erro" da tela.
+   *
+   * Recebe as linhas cruas, como saíram do arquivo. A tela não valida nada —
+   * só mostra o que esta rota devolve, e depois manda para `importar` os
+   * `dados` das linhas válidas.
+   */
+  @Post('importar/conferir')
+  @Permissoes('clientes.importar')
+  @HttpCode(HttpStatus.OK)
+  conferirImportacao(
+    @Body(new ZodValidationPipe(conferenciaImportacaoClientesSchema))
+    dados: ConferenciaImportacaoClientesInput,
+  ): ConferenciaImportacaoClientes {
+    return { linhas: conferirLinhasDeClientes(dados.clientes) };
+  }
+
   @Post('importar')
   @Permissoes('clientes.importar')
   importar(

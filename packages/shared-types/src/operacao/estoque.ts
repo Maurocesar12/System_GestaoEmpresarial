@@ -143,6 +143,22 @@ export const listaMateriaisSchema = z
 export const fichaTecnicaSchema = z.object({ itens: listaMateriaisSchema });
 export type FichaTecnicaInput = z.infer<typeof fichaTecnicaSchema>;
 
+/**
+ * Prévia do custo de uma lista de materiais enquanto a pessoa edita.
+ *
+ * Mesma forma da ficha técnica. A API multiplica pelo custo médio lido do
+ * banco agora — a tela usava o custo da lista que tinha carregado, que podia
+ * ter mudado com uma entrada de estoque registrada nesse meio-tempo.
+ */
+export const simulacaoCustoMateriaisSchema = fichaTecnicaSchema;
+export type SimulacaoCustoMateriaisInput = FichaTecnicaInput;
+
+export interface SimulacaoCustoMateriais {
+  /** Custo de cada linha, na ordem enviada. */
+  linhas: Array<{ materialId: string; custo: string }>;
+  custoTotal: string;
+}
+
 export interface Material {
   id: string;
   nome: string;
@@ -155,8 +171,24 @@ export interface Material {
   valorEmEstoque: string;
   estoqueMinimo: string | null;
   abaixoDoMinimo: boolean;
+  /** Consumo registrado além do que havia: o saldo ficou abaixo de zero. */
+  negativo: boolean;
   ativo: boolean;
   criadoEm: string;
+}
+
+/**
+ * Totais do estoque inteiro, somados pela API.
+ *
+ * A tela somava os materiais da página que tinha carregado — com busca, filtro
+ * ou mais de cem materiais, o "valor em estoque" ficava errado sem aviso.
+ */
+export interface ResumoEstoque {
+  /** Soma de `valorEmEstoque` dos materiais ativos. Saldo negativo conta zero. */
+  valorEmEstoque: string;
+  materiaisAtivos: number;
+  abaixoDoMinimo: number;
+  negativos: number;
 }
 
 export interface MovimentacaoEstoque {

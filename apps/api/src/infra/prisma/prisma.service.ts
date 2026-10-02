@@ -35,6 +35,12 @@ function criarAdaptador(connectionString: string): PrismaPg {
 export const URL_DO_BANCO = Symbol('URL_DO_BANCO');
 
 /**
+ * As rotinas que podem ler sem empresa no contexto, cada uma com a sua
+ * política no banco (migration `20261001120000_politicas_declaradas`).
+ */
+export type Varredura = 'lembretes' | 'recorrencias' | 'expurgo';
+
+/**
  * Conexão com o banco.
  *
  * Esta classe existe por causa de um detalhe que não é óbvio: a política de RLS
@@ -78,6 +84,43 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleInit(): Promise<void> {
     await this.$connect();
     this.logger.log('Conectado ao banco.');
+    await this.garantirPapelSemBypass();
+  }
+
+  /**
+   * Recusa subir em produção com um papel que ignora a RLS.
+   *
+   * A RLS é a camada que vale mesmo com bug no código — mas só para papéis
+   * sem `BYPASSRLS` e que não sejam superusuário. O papel padrão do Neon
+   * (`neondb_owner`) tem `BYPASSRLS`, e com ele as políticas existem, estão
+   * certas e não filtram nada. Foi assim que a produção ficou: isolada só pelo
+   * código, sem ninguém perceber.
+   *
+   * Em produção, falhar ao subir é melhor que subir aberto: o deploy quebra,
+   * o log diz o motivo, e nenhuma empresa enxerga a outra nesse meio-tempo.
+   * Fora de produção só avisa — o banco local de desenvolvimento costuma usar
+   * o superusuário, e travar ali não protegeria dado de ninguém.
+   */
+  private async garantirPapelSemBypass(): Promise<void> {
+    const [papel] = await this.$queryRaw<
+      Array<{ nome: string; bypass: boolean; superusuario: boolean }>
+    >`SELECT rolname AS nome, rolbypassrls AS bypass, rolsuper AS superusuario
+        FROM pg_roles WHERE rolname = current_user`;
+
+    if (!papel || (!papel.bypass && !papel.superusuario)) {
+      return;
+    }
+
+    const mensagem =
+      `O papel "${papel.nome}" ignora a RLS (${papel.superusuario ? 'superusuário' : 'BYPASSRLS'}). ` +
+      'Conecte a aplicação com o papel gestao_app (DATABASE_URL) e deixe o papel dono só para ' +
+      'migrations (ADMIN_DATABASE_URL). Veja apps/api/prisma/papel-aplicacao.sql.';
+
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Recusando subir: ${mensagem}`);
+    }
+
+    this.logger.warn(`Isolamento entre empresas só pelo código neste ambiente. ${mensagem}`);
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -134,6 +177,57 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
 
     return operacao(this);
+  }
+
+  /**
+   * Lê `usuario` pelo e-mail, antes de saber a empresa — login, recuperação de
+   * senha, checagem de e-mail duplicado.
+   *
+   * A política `usuario_login` só libera a linha cujo e-mail é o declarado em
+   * `app.login_email`, e só dentro desta transação. Antes ela liberava a tabela
+   * **inteira** sempre que não havia empresa no contexto: qualquer consulta
+   * esquecida fora de `comTenant()` enxergava as contas — e os hashes de senha —
+   * de todas as empresas. Agora uma consulta assim não vê nada.
+   */
+  async comEmailDeLogin<T>(
+    email: string,
+    motivo: string,
+    operacao: (db: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    this.logger.debug(`comEmailDeLogin: ${motivo}`);
+
+    return this.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.login_email', ${email}::text, true)`;
+      return operacao(tx);
+    });
+  }
+
+  /**
+   * Roda uma varredura que precisa enxergar todas as empresas: lembretes
+   * vencidos, recorrências a gerar, contas canceladas a excluir.
+   *
+   * Cada varredura tem uma política própria que só vale com `app.varredura`
+   * igual ao nome dela. Sem a declaração, a consulta não vê nada — a política
+   * deixa de ser "qualquer coisa sem contexto" e passa a ser "esta rotina,
+   * que disse quem é".
+   */
+  async comVarredura<T>(
+    varredura: Varredura,
+    motivo: string,
+    operacao: (db: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (obterContextoTenant()) {
+      // Com contexto, a política da varredura nem se aplica — e quem pediu
+      // provavelmente queria `comTenant()`.
+      throw new Error(
+        `comVarredura("${varredura}") chamada dentro de um contexto de tenant: ${motivo}`,
+      );
+    }
+
+    return this.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.varredura', ${varredura}::text, true)`;
+      return operacao(tx);
+    });
   }
 
   /**

@@ -17,10 +17,8 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import {
-  DIAS_PARA_REATIVACAO,
   formatarBRL,
   formatarEspera,
-  possuiPermissao,
   ROTULO_MOTIVO_REATIVACAO,
   ROTULO_SITUACAO_LEAD,
   type AlertaDoPainel,
@@ -47,6 +45,7 @@ import { linkTelefone, linkWhatsApp } from '@/lib/contato';
 import { formatarQuando } from '@/lib/formatacao';
 import { lerUsuarioDaSessao } from '@/lib/sessao';
 import { cn } from '@/lib/utils';
+import { pode } from '@/lib/permissoes';
 import { AtualizacaoAutomatica } from './atualizacao-automatica';
 import { GraficoResumoPainel } from './grafico-resumo-painel';
 import { NovoLead } from './novo-lead';
@@ -92,7 +91,7 @@ export default async function PaginaPainel() {
   // Sem cookie legível, o botão aparece: a API recusa de verdade quem não pode
   // cadastrar, e esconder a ação de um administrador por causa de um cookie
   // ausente seria o pior dos dois erros possíveis.
-  const podeCriarLead = !usuario || possuiPermissao(usuario, 'clientes.criar');
+  const podeCriarLead = !usuario || pode(usuario, 'clientes.criar');
 
   return (
     <div className="flex flex-col gap-6">
@@ -174,7 +173,9 @@ export default async function PaginaPainel() {
         depois de cinco blocos — quem abria o painel rolava meia tela até o
         número que mais decide o dia.
       */}
-      {financeiro && <GraficoResumoPainel serie={financeiro.serie} />}
+      {financeiro && (
+        <GraficoResumoPainel serie={financeiro.serie} resumo={financeiro.resumoSerie} />
+      )}
 
       {financeiro && <ContasEmAberto financeiro={financeiro} />}
 
@@ -361,10 +362,7 @@ function CartaoLeads({
   /** Cortesia com o usuário: quem não pode cadastrar não vê o botão. A API é quem recusa de verdade. */
   podeCriar: boolean;
 }) {
-  const emContato = Math.max(
-    0,
-    leads.noPeriodo - leads.aguardandoContato - leads.comProposta - leads.ganhos,
-  );
+  const { emContato } = leads;
 
   return (
     <Cartao id="leads" className="flex scroll-mt-4 flex-col">
@@ -490,7 +488,7 @@ function CartaoReativacao({
         </CartaoTitulo>
 
         <span className="text-muted-foreground shrink-0 text-xs">
-          sem contato há {DIAS_PARA_REATIVACAO}+ dias
+          sem contato há {reativacao.diasSemContato}+ dias
         </span>
       </CartaoCabecalho>
 

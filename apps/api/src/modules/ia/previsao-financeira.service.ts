@@ -50,6 +50,23 @@ interface ReservaPrevisao {
 }
 
 /**
+ * Os números do topo do resultado, somados aqui e não na tela.
+ *
+ * A tela somava com `Number`, em ponto flutuante: doze meses de centavos
+ * acumulavam erro de arredondamento no total.
+ */
+function totaisDaProjecao(projecoes: MesProjetado[]): PrevisaoFinanceiraResponse['totais'] {
+  const somar = (campo: 'entradas' | 'saidas') =>
+    projecoes.reduce((total, mes) => total.plus(mes[campo]), new Prisma.Decimal(0)).toFixed(2);
+
+  return {
+    entradas: somar('entradas'),
+    saidas: somar('saidas'),
+    saldoFinal: projecoes.at(-1)?.saldoAcumulado ?? null,
+  };
+}
+
+/**
  * Previsão financeira.
  *
  * ## Recurso de plano, e não de cota
@@ -104,6 +121,7 @@ export class PrevisaoFinanceiraService {
       aviso: AVISO_PREVISAO,
       historico: base.historico,
       projecoes: base.projecoes,
+      totais: totaisDaProjecao(base.projecoes),
       analise: dados.previsao.resultado as unknown as PrevisaoFinanceiraResponse['analise'],
       baseDeDados: base.negocio,
       consumo: {
@@ -231,6 +249,7 @@ export class PrevisaoFinanceiraService {
       aviso: AVISO_PREVISAO,
       historico: calculados.historico,
       projecoes: calculados.projecoes,
+      totais: totaisDaProjecao(calculados.projecoes),
       analise: resultado.analise,
       baseDeDados: calculados.negocio,
       consumo: {

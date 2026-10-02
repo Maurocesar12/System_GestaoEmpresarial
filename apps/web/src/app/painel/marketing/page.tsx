@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 import { Megaphone } from 'lucide-react';
 import {
   formatarBRL,
-  mesCorrente,
-  possuiPermissao,
   type ChaveMarketing,
   type RelatorioMarketing,
   type SerieDeLeads,
@@ -27,6 +25,7 @@ import {
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { env } from '@/lib/env';
 import { formatarPeriodo } from '@/lib/formatacao';
+import { pode } from '@/lib/permissoes';
 import { FormularioEmbed } from './formulario-embed';
 
 export const metadata: Metadata = { title: 'Marketing' };
@@ -45,26 +44,28 @@ interface Props {
  */
 export default async function PaginaMarketing({ searchParams }: Props) {
   const parametros = await searchParams;
-  const padrao = mesCorrente();
-  const de = parametros.de ?? padrao.de;
-  const ate = parametros.ate ?? padrao.ate;
-  const periodo = new URLSearchParams({ de, ate }).toString();
+
+  // Repassa só as datas que vieram: sem elas, a API usa o mês corrente (em
+  // São Paulo) e devolve o período que usou.
+  const consulta = new URLSearchParams();
+  if (parametros.de) consulta.set('de', parametros.de);
+  if (parametros.ate) consulta.set('ate', parametros.ate);
 
   const [relatorio, chave, usuario] = await Promise.all([
-    apiComSessao<RelatorioMarketing>(`/marketing/relatorio?${periodo}`),
+    apiComSessao<RelatorioMarketing>(`/marketing/relatorio?${consulta.toString()}`),
     apiComSessao<ChaveMarketing>('/marketing/chave'),
     usuarioAtual(),
   ]);
 
-  const ativo = de !== padrao.de || ate !== padrao.ate;
+  const { de, ate } = relatorio.periodo;
+  const ativo = consulta.size > 0;
   const melhor = relatorio.origens[0];
+  // Só a escala das barras: o maior valor de cada lista vira 100% da largura.
   const maiorVolume = Math.max(...relatorio.origens.map((item) => item.leads), 0);
   const maiorCampanha = Math.max(...relatorio.campanhas.map((item) => item.leads), 0);
   const maiorEtapa = Math.max(...relatorio.etapas.map((item) => item.clientes), 0);
 
-  // A taxa geral é calculada sobre o total, e não como média das taxas por
-  // origem: a média trataria uma origem de 1 lead igual a uma de 100.
-  const taxaGeral = relatorio.totalLeads === 0 ? 0 : relatorio.totalConvertidos / relatorio.totalLeads;
+  const taxaGeral = relatorio.taxaConversao;
 
   return (
     <div className="flex flex-col gap-8">
@@ -193,9 +194,7 @@ export default async function PaginaMarketing({ searchParams }: Props) {
             </TabelaCabecalho>
             <TabelaCorpo>
               {relatorio.campanhas.map((item) => (
-                <TabelaLinha
-                  key={`${item.utmSource}|${item.utmMedium}|${item.utmCampaign}`}
-                >
+                <TabelaLinha key={`${item.utmSource}|${item.utmMedium}|${item.utmCampaign}`}>
                   <TabelaCelula className="min-w-56">
                     <div className="flex flex-col gap-1">
                       <span className="font-medium">
@@ -294,7 +293,7 @@ export default async function PaginaMarketing({ searchParams }: Props) {
             <FormularioEmbed
               chave={chave.chave}
               urlApi={env.NEXT_PUBLIC_API_URL}
-              podeGerar={possuiPermissao(usuario, 'marketing.gerenciar')}
+              podeGerar={pode(usuario, 'marketing.gerenciar')}
             />
           </div>
         </details>
@@ -390,10 +389,7 @@ function BarraDaSerie({
     .join(' · ');
 
   return (
-    <span
-      title={rotulo}
-      className="group/barra flex h-24 min-w-1.5 flex-1 flex-col justify-end"
-    >
+    <span title={rotulo} className="group/barra flex h-24 min-w-1.5 flex-1 flex-col justify-end">
       {/* Altura mínima nas barras com valor: uma barra de 1 lead num período
           cujo pico é 40 sairia com menos de um pixel e pareceria vazia. */}
       <span

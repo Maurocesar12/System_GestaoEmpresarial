@@ -56,6 +56,28 @@ export interface Servico {
   precoPadrao: string | null;
   ativo: boolean;
   criadoEm: string;
+  /** Calculada pela API com `margemPercentual`. `null` sem preço definido. */
+  margemPercentual: number | null;
+}
+
+/**
+ * Prévia da margem enquanto a pessoa digita custo e preço.
+ *
+ * Aceita os valores como foram digitados ("1.250,00"): converter o formato
+ * brasileiro é trabalho do schema, o mesmo da gravação. A tela tinha uma
+ * conversão própria, diferente desta — a prévia podia discordar do salvo.
+ */
+export const simulacaoMargemSchema = z.object({
+  custoBase: dinheiroDigitadoSchema,
+  precoPadrao: dinheiroDigitadoSchema,
+});
+
+export type SimulacaoMargemInput = z.infer<typeof simulacaoMargemSchema>;
+
+export interface SimulacaoMargem {
+  margemPercentual: number | null;
+  /** Preço abaixo do custo: o serviço dá prejuízo antes de qualquer despesa. */
+  abaixoDoCusto: boolean;
 }
 
 /**

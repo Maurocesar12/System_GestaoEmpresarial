@@ -1,12 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  atendimentoFormSchema,
-  type Atendimento,
-  type AtendimentoFormInput,
-} from '@gestao/shared-types';
-import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { Atendimento, AtendimentoFormInput } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export type { ResultadoAcao } from '@/lib/acoes';
@@ -15,16 +11,10 @@ export async function registrarAtendimento(
   clienteId: string,
   dados: AtendimentoFormInput,
 ): Promise<ResultadoAcao> {
-  const validacao = atendimentoFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Atendimento>(`/clientes/${clienteId}/atendimentos`, {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível registrar. Tente novamente.');

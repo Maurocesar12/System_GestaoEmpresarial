@@ -60,6 +60,13 @@ export const orcamentosQuerySchema = paginacaoQuerySchema.extend({
 
 export type OrcamentosQuery = z.infer<typeof orcamentosQuerySchema>;
 
+/** Resumo por status; com `clienteId`, só os orçamentos daquele cliente. */
+export const resumoOrcamentosQuerySchema = z.object({
+  clienteId: z.uuid().optional(),
+});
+
+export type ResumoOrcamentosQuery = z.infer<typeof resumoOrcamentosQuerySchema>;
+
 /** As ações possíveis sobre um orçamento. */
 export const ACOES_ORCAMENTO = ['aprovar', 'recusar', 'reabrir'] as const;
 export const acaoOrcamentoSchema = z.enum(ACOES_ORCAMENTO);
@@ -121,6 +128,16 @@ export interface Orcamento {
   vendedorId: string | null;
   vendedorNome: string | null;
   criadoEm: string;
+  /**
+   * Calculados pela API — a tela só lê. Antes ela mesma derivava isso do
+   * `status` e da data, e uma mudança de regra precisava chegar aos dois lados.
+   */
+  /** Botões de resposta que a máquina de estados permite agora. */
+  acoesDisponiveis: AcaoOrcamento[];
+  /** Aberto e com a validade já passada. */
+  vencido: boolean;
+  /** Ainda aceita alteração de valor, serviço e descrição. */
+  editavel: boolean;
 }
 
 /** Totais por status, para o resumo da tela. */
@@ -130,8 +147,8 @@ export interface ResumoOrcamentos {
   recusados: { quantidade: number; valor: string };
 }
 
-/** Um orçamento aberto cuja validade já passou. */
-export function estaVencido(orcamento: Orcamento): boolean {
+/** Um orçamento aberto cuja validade já passou. Usado pela API ao montar a resposta. */
+export function estaVencido(orcamento: Pick<Orcamento, 'status' | 'validoAte'>): boolean {
   if (orcamento.status !== 'aberto' || !orcamento.validoAte) {
     return false;
   }

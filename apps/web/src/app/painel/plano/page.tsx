@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import {
   formatarBRL,
-  mensagemDeAcesso,
   type ConsumoIaResponse,
   type PlanoCatalogo,
   type PlanoAtualResponse,
@@ -58,7 +57,7 @@ export default async function PaginaPlano() {
             </div>
 
             <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
-              {mensagemDeAcesso(atual.assinatura.acesso)}
+              {atual.assinatura.acesso.mensagem}
               {atual.assinatura.ultimoPagamentoEm &&
                 ` Último pagamento confirmado em ${formatarDataCompleta(atual.assinatura.ultimoPagamentoEm)}.`}
             </p>

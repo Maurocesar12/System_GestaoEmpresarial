@@ -2,31 +2,23 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  agendamentoFormSchema,
-  mudarStatusAgendamentoSchema,
-  type AcaoAgendamento,
-  type Agendamento,
-  type AgendamentoFormInput,
-  type RecebimentoExecucaoInput,
+import type {
+  AcaoAgendamento,
+  Agendamento,
+  AgendamentoFormEntrada,
+  RecebimentoExecucaoEntrada,
 } from '@gestao/shared-types';
-import { erroDeValidacao, primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarAgendamento(
   id: string | null,
-  dados: AgendamentoFormInput,
+  dados: AgendamentoFormEntrada,
 ): Promise<ResultadoAcao> {
-  const validacao = agendamentoFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Agendamento>(id ? `/agendamentos/${id}` : '/agendamentos', {
       method: id ? 'PATCH' : 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);
@@ -44,18 +36,12 @@ export async function mudarStatusAgendamento(
   id: string,
   acao: AcaoAgendamento,
   materiais?: Array<{ materialId: string; quantidade: string }>,
-  recebimento?: RecebimentoExecucaoInput,
+  recebimento?: RecebimentoExecucaoEntrada,
 ): Promise<ResultadoAcao> {
-  const validacao = mudarStatusAgendamentoSchema.safeParse({ acao, materiais, recebimento });
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Agendamento>(`/agendamentos/${id}/status`, {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({ acao, materiais, recebimento }),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);

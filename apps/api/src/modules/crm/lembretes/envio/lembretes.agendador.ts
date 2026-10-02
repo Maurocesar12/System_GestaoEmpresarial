@@ -79,7 +79,8 @@ export class LembretesAgendador {
    * resultado — o worker lê já dentro do escopo da empresa.
    */
   private buscarVencidos(): Promise<{ id: string; tenantId: string }[]> {
-    return this.prisma.semTenant(
+    return this.prisma.comVarredura(
+      'lembretes',
       'varredura de lembretes vencidos: roda fora de requisição e precisa enxergar todas as empresas',
       (cliente) =>
         cliente.lembreteFollowUp.findMany({

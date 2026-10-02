@@ -1,13 +1,10 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CANAIS_LEMBRETE,
   ROTULO_CANAL_LEMBRETE,
-  lembreteFormSchema,
   type Cliente,
   type LembreteFormEntrada,
-  type LembreteFormInput,
 } from '@gestao/shared-types';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
@@ -36,8 +33,7 @@ export function FormularioLembrete({
     handleSubmit,
     setError,
     formState: { errors },
-  } = useForm<LembreteFormEntrada, unknown, LembreteFormInput>({
-    resolver: zodResolver(lembreteFormSchema),
+  } = useForm<LembreteFormEntrada>({
     defaultValues: {
       clienteId: clienteFixo ?? '',
       canal: 'email',
@@ -45,7 +41,7 @@ export function FormularioLembrete({
     },
   });
 
-  const aoEnviar = (dados: LembreteFormInput) => {
+  const aoEnviar = (dados: LembreteFormEntrada) => {
     setFalha(undefined);
 
     iniciarEnvio(async () => {

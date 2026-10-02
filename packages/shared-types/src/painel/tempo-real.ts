@@ -51,6 +51,8 @@ export interface BlocoLeads {
   semContatoNoPrazo: number;
   comProposta: number;
   ganhos: number;
+  /** Já atendidos, ainda sem proposta nem fechamento. Calculado pela API. */
+  emContato: number;
   valorEmProposta: string;
   porOrigem: Array<{ origem: string; total: number }>;
   /** A fila em si — o cartão a mostra inteira, sem tela intermediária. */
@@ -143,6 +145,8 @@ export interface ClienteFrioDoPainel {
 
 export interface BlocoReativacao {
   total: number;
+  /** A partir de quantos dias sem contato o cliente entra na lista. */
+  diasSemContato: number;
   /** Quantos foram ranqueados — o cartão mostra os melhores desses. */
   analisados: number;
   valorHistorico: string;
@@ -171,8 +175,23 @@ export interface BlocoFinanceiro {
    */
   vencidosAPagar: { quantidade: number; valor: string };
   vencidosAReceber: { quantidade: number; valor: string };
-  /** Últimos seis meses, do mais antigo ao mais recente. */
-  serie: Array<{ mes: string; entradas: string; saidas: string; saldo: string }>;
+  /** Últimos seis meses, do mais antigo ao mais recente. `acumulado` soma os saldos. */
+  serie: Array<{ mes: string; entradas: string; saidas: string; saldo: string; acumulado: string }>;
+  /** As leituras embaixo do gráfico, calculadas pela API. */
+  resumoSerie: {
+    totalEntradas: string;
+    totalSaidas: string;
+    saldoDoPeriodo: string;
+    temMovimento: boolean;
+    /** Entre os meses fechados (ou o corrente, se for o único). */
+    melhorMes: { mes: string; saldo: string; emAndamento: boolean } | null;
+    mesesNegativos: number;
+    mesesComparados: number;
+    /** Saldo do período ÷ entradas, de -∞ a 1. Zero sem entradas. */
+    sobraPorReal: number;
+    /** Negativa, baixa (abaixo de 10%) ou saudável. A faixa é regra da API. */
+    faixaSobra: 'negativa' | 'baixa' | 'saudavel';
+  };
 }
 
 export interface EventoDoPainel {

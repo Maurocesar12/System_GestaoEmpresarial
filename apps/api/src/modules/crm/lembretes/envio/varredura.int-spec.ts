@@ -6,9 +6,9 @@ import { PrismaService } from '../../../../infra/prisma/prisma.service';
 /**
  * Testes da política `lembrete_varredura`.
  *
- * Esta política é a única brecha de leitura sem contexto fora da tabela
- * `usuario`, e existe para o agendador conseguir achar lembretes vencidos de
- * todas as empresas (ver a migration `20260831120000_lembrete_varredura`).
+ * Existe para o agendador conseguir achar lembretes vencidos de todas as
+ * empresas, e só vale quando ele declara `app.varredura = 'lembretes'` (ver a
+ * migration `20261001120000_politicas_declaradas`).
  *
  * Uma brecha só é segura enquanto for do tamanho que se pretendia. É isso que
  * este arquivo mede: que ela abre o **mínimo** — leitura, sem contexto, apenas
@@ -99,14 +99,32 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-/** Ids visíveis para a varredura, que roda sem contexto de tenant. */
+/** Ids visíveis para a varredura, que roda sem contexto e se declara. */
 async function idsVisiveisSemContexto(): Promise<string[]> {
-  const linhas = await prisma.lembreteFollowUp.findMany({ select: { id: true } });
+  const linhas = await prisma.comVarredura('lembretes', 'teste da política', (db) =>
+    db.lembreteFollowUp.findMany({ select: { id: true } }),
+  );
 
   return linhas.map((linha) => linha.id);
 }
 
 describe('política lembrete_varredura', () => {
+  it('não mostra nada a uma consulta sem contexto que não se declarou', async () => {
+    // O caso que a política antiga deixava passar: código esquecido fora de
+    // `comTenant()`. Sem declarar a varredura, ele não vê lembrete nenhum.
+    const linhas = await prisma.lembreteFollowUp.findMany({ select: { id: true } });
+
+    expect(linhas).toEqual([]);
+  });
+
+  it('não mostra nada a outra varredura declarada', async () => {
+    const linhas = await prisma.comVarredura('expurgo', 'teste da política', (db) =>
+      db.lembreteFollowUp.findMany({ select: { id: true } }),
+    );
+
+    expect(linhas).toEqual([]);
+  });
+
   it('deixa a varredura enxergar pendentes de todas as empresas', async () => {
     // É a razão de a política existir: sem isso o agendador não acha nada e
     // nenhum lembrete jamais sai.

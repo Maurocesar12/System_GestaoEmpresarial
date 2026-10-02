@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { unstable_rethrow } from 'next/navigation';
-import { exclusaoHistoricoSchema, type ResultadoExclusaoHistorico } from '@gestao/shared-types';
-import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { ResultadoExclusaoHistorico } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /**
@@ -28,16 +28,10 @@ export async function removerHistorico(id: string): Promise<ResultadoExclusao> {
 export async function removerHistoricos(ids: string[]): Promise<ResultadoExclusao> {
   // Valida no servidor também: a tela só oferece ids que ela mesma listou, mas
   // uma ação de servidor é um endereço público como qualquer outro.
-  const validacao = exclusaoHistoricoSchema.safeParse({ ids: ids.map((id) => id.trim()) });
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues, 'Selecione um histórico válido para excluir.');
-  }
-
   try {
     const { removidos } = await apiComSessao<ResultadoExclusaoHistorico>('/auditoria', {
       method: 'DELETE',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({ ids: ids.map((id) => id.trim()) }),
     });
 
     // Recarrega a listagem antes de responder: é o servidor que decide quais

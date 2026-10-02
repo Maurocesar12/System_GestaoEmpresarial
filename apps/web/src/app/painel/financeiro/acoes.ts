@@ -2,31 +2,24 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  categoriaFormSchema,
-  lancamentoFormSchema,
-  type CategoriaFinanceira,
-  type CategoriaFormInput,
-  type Lancamento,
-  type LancamentoFormInput,
+import type {
+  CategoriaFinanceira,
+  CategoriaFormInput,
+  Lancamento,
+  LancamentoFormEntrada,
+  SimulacaoParcelas,
 } from '@gestao/shared-types';
-import { erroDeValidacao, primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarLancamento(
   id: string | null,
-  dados: LancamentoFormInput,
+  dados: LancamentoFormEntrada,
 ): Promise<ResultadoAcao> {
-  const validacao = lancamentoFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Lancamento>(
       id ? `/financeiro/lancamentos/${id}` : '/financeiro/lancamentos',
-      { method: id ? 'PATCH' : 'POST', body: JSON.stringify(validacao.data) },
+      { method: id ? 'PATCH' : 'POST', body: JSON.stringify(dados) },
     );
   } catch (erro) {
     return traduzirErroAcao(erro);
@@ -36,6 +29,23 @@ export async function salvarLancamento(
   // fluxo de caixa e a margem ao mesmo tempo.
   revalidatePath('/painel/financeiro', 'layout');
   redirect('/painel/financeiro');
+}
+
+/** Prévia do parcelamento, calculada pela API. Erro só some com a prévia. */
+export async function simularParcelas(dados: {
+  valor: string;
+  parcelas: string;
+}): Promise<{ dados?: SimulacaoParcelas }> {
+  try {
+    return {
+      dados: await apiComSessao<SimulacaoParcelas>('/financeiro/lancamentos/simular-parcelas', {
+        method: 'POST',
+        body: JSON.stringify(dados),
+      }),
+    };
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -85,16 +95,10 @@ export async function removerLancamento(id: string): Promise<ResultadoAcao> {
 }
 
 export async function criarCategoria(dados: CategoriaFormInput): Promise<ResultadoAcao> {
-  const validacao = categoriaFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<CategoriaFinanceira>('/financeiro/categorias', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);

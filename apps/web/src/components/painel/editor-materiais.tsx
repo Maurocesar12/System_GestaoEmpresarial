@@ -1,7 +1,9 @@
 'use client';
 
-import { formatarBRL, normalizarQuantidade } from '@gestao/shared-types';
+import { formatarBRL } from '@gestao/shared-types';
+import { simularCustoMateriais } from '@/app/painel/estoque/acoes';
 import { estilosControle } from '@/components/ui/campo';
+import { useSimulacao } from '@/lib/simulacao';
 import { cn } from '@/lib/utils';
 
 export interface MaterialDoCatalogo {
@@ -17,17 +19,13 @@ export interface LinhaMaterial {
   quantidade: string;
 }
 
-function numero(valor: string): number {
-  const convertido = Number(normalizarQuantidade(valor));
-  return Number.isFinite(convertido) ? convertido : 0;
-}
-
 /**
  * Lista editável de materiais, usada na lista padrão do serviço e na
  * conferência da execução.
  *
- * O custo mostrado é estimativa pelo custo médio de agora, só para orientar:
- * o valor que entra na margem é calculado pela API no momento da baixa.
+ * O custo mostrado é estimativa da API pelo custo médio de agora, só para
+ * orientar: a tela não faz conta. O valor que entra na margem é calculado pela
+ * API no momento da baixa.
  */
 export function EditorMateriais({
   catalogo,
@@ -44,9 +42,13 @@ export function EditorMateriais({
   const usados = new Set(linhas.map((linha) => linha.materialId));
   const disponiveis = catalogo.filter((material) => !usados.has(material.id));
 
-  const custoDaLinha = (linha: LinhaMaterial) =>
-    numero(linha.quantidade) * Number(porId.get(linha.materialId)?.custoMedio ?? 0);
-  const total = linhas.reduce((soma, linha) => soma + custoDaLinha(linha), 0);
+  const estimativa = useSimulacao(
+    linhas.length > 0 ? { itens: linhas } : null,
+    simularCustoMateriais,
+  );
+  const custoPorMaterial = new Map(
+    (estimativa?.linhas ?? []).map((linha) => [linha.materialId, linha.custo]),
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -76,7 +78,9 @@ export function EditorMateriais({
                 />
                 <span className="text-muted-foreground w-10 text-xs">{material?.unidade}</span>
                 <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">
-                  {formatarBRL(custoDaLinha(linha).toFixed(2))}
+                  {custoPorMaterial.has(linha.materialId)
+                    ? formatarBRL(custoPorMaterial.get(linha.materialId)!)
+                    : '—'}
                 </span>
                 <button
                   type="button"
@@ -114,7 +118,12 @@ export function EditorMateriais({
       )}
 
       <p className="text-muted-foreground text-xs">
-        Custo estimado pelo custo médio atual: {formatarBRL(total.toFixed(2))}
+        Custo estimado pelo custo médio atual:{' '}
+        {estimativa
+          ? formatarBRL(estimativa.custoTotal)
+          : linhas.length === 0
+            ? formatarBRL('0.00')
+            : '—'}
       </p>
     </div>
   );

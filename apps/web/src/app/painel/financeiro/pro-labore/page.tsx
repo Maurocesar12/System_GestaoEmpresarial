@@ -61,7 +61,6 @@ export default async function PaginaProLabore({
     apiComSessao<ProLabore[]>('/financeiro/pro-labore'),
   ]);
 
-  const folga = Number(sugestao.folga);
   const semDefinicao = sugestao.valorVigente === null;
   const hoje = hojeISO();
 
@@ -105,11 +104,11 @@ export default async function PaginaProLabore({
         <Indicador
           titulo="Folga"
           valor={formatarBRL(sugestao.folga)}
-          tom={folga < 0 ? 'negativo' : 'positivo'}
+          tom={sugestao.acimaDoTeto ? 'negativo' : 'positivo'}
           detalhe={
             semDefinicao
               ? 'defina a retirada para comparar'
-              : folga < 0
+              : sugestao.acimaDoTeto
                 ? 'você está retirando acima do teto'
                 : 'espaço até o teto'
           }
@@ -177,6 +176,7 @@ export default async function PaginaProLabore({
           <FormularioProLabore
             tetoSugerido={sugestao.tetoSugerido}
             valorVigente={sugestao.valorVigente}
+            meses={janela}
           />
         </CartaoConteudo>
       </Cartao>
@@ -209,7 +209,7 @@ export default async function PaginaProLabore({
             </TabelaCabecalho>
 
             <TabelaCorpo>
-              {historico.map((vigencia, indice) => (
+              {historico.map((vigencia) => (
                 <TabelaLinha key={vigencia.id}>
                   <TabelaCelula>
                     <div className="flex flex-wrap items-center gap-2">
@@ -226,7 +226,7 @@ export default async function PaginaProLabore({
 
                   <TabelaCelula numerica className="font-medium">
                     <span className="block">{formatarBRL(vigencia.valor)}</span>
-                    <Variacao atual={vigencia.valor} anterior={historico[indice + 1]?.valor} />
+                    <Variacao variacao={vigencia.variacao} />
                   </TabelaCelula>
 
                   <TabelaCelula numerica>
@@ -278,16 +278,15 @@ function SeloDaVigencia({ vigencia, hoje }: { vigencia: ProLabore; hoje: string 
  * Uma coluna de valores absolutos esconde o que o dono quer saber ao abrir o
  * histórico: se a retirada vem subindo, e em que ritmo.
  */
-function Variacao({ atual, anterior }: { atual: string; anterior?: string }) {
-  if (!anterior) return null;
+function Variacao({ variacao }: { variacao: string | null }) {
+  // A diferença vem calculada pela API; a tela só escolhe a seta e a cor.
+  if (variacao === null || Number(variacao) === 0) return null;
 
-  const diferenca = Number(atual) - Number(anterior);
-
-  if (diferenca === 0) return null;
+  const subiu = !variacao.startsWith('-');
 
   return (
-    <span className={diferenca > 0 ? 'text-sucesso text-xs' : 'text-destructive text-xs'}>
-      {diferenca > 0 ? '↑' : '↓'} {formatarBRL(Math.abs(diferenca).toFixed(2))}
+    <span className={subiu ? 'text-sucesso text-xs' : 'text-destructive text-xs'}>
+      {subiu ? '↑' : '↓'} {formatarBRL(variacao.replace('-', ''))}
     </span>
   );
 }

@@ -3,7 +3,6 @@
 import {
   formatarBRL,
   GRUPOS_PERMISSOES,
-  PERMISSOES_PADRAO_POR_PAPEL,
   type ConviteEquipe,
   type Funcionario,
   type EquipeResponse,
@@ -31,12 +30,13 @@ export function GerenciadorEquipe({
   funcionarios,
   convites,
   capacidade,
+  permissoesPadraoPorPapel,
   mostrarComissoes,
 }: EquipeResponse & {
   /** Percentuais de comissão são só do admin; a API também recusa os demais. */
   mostrarComissoes: boolean;
 }) {
-  const limiteAtingido = capacidade.vagasDisponiveis === 0;
+  const { limiteAtingido } = capacidade;
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,11 +48,16 @@ export function GerenciadorEquipe({
               key={funcionario.id}
               funcionario={funcionario}
               mostrarComissoes={mostrarComissoes}
+              padroes={permissoesPadraoPorPapel}
             />
           ))}
         </div>
         <div className="flex flex-col gap-6">
-          <FormularioConvite bloqueado={limiteAtingido} capacidade={capacidade} />
+          <FormularioConvite
+            bloqueado={limiteAtingido}
+            capacidade={capacidade}
+            padroes={permissoesPadraoPorPapel}
+          />
           {convites.length > 0 && <ConvitesPendentes convites={convites} />}
         </div>
       </div>
@@ -61,10 +66,7 @@ export function GerenciadorEquipe({
 }
 
 function ResumoPlano({ capacidade }: { capacidade: EquipeResponse['capacidade'] }) {
-  const percentual =
-    capacidade.limiteUsuarios === null
-      ? 0
-      : Math.min(100, Math.round((capacidade.vagasOcupadas / capacidade.limiteUsuarios) * 100));
+  const percentual = capacidade.percentualOcupado;
 
   return (
     <Cartao>
@@ -112,7 +114,11 @@ function ResumoPlano({ capacidade }: { capacidade: EquipeResponse['capacidade'] 
             />
             <MetricaPlano
               rotulo="Vagas disponíveis"
-              valor={capacidade.vagasDisponiveis === null ? 'Sem limite' : String(capacidade.vagasDisponiveis)}
+              valor={
+                capacidade.vagasDisponiveis === null
+                  ? 'Sem limite'
+                  : String(capacidade.vagasDisponiveis)
+              }
               detalhe={
                 capacidade.limiteUsuarios === null
                   ? 'Sem teto definido'
@@ -143,18 +149,12 @@ function ResumoPlano({ capacidade }: { capacidade: EquipeResponse['capacidade'] 
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <ItemCobranca rotulo="Base" valor={formatarBRL(capacidade.precoBase)} />
-            <ItemCobranca
-              rotulo="Adicionais"
-              valor={formatarBRL(capacidade.adicionalUsuarios)}
-            />
+            <ItemCobranca rotulo="Adicionais" valor={formatarBRL(capacidade.adicionalUsuarios)} />
             <ItemCobranca
               rotulo="Por adicional"
               valor={formatarBRL(capacidade.precoPorUsuarioAdicional)}
             />
-            <ItemCobranca
-              rotulo="Usuários extras"
-              valor={String(capacidade.usuariosAdicionais)}
-            />
+            <ItemCobranca rotulo="Usuários extras" valor={String(capacidade.usuariosAdicionais)} />
           </dl>
 
           {capacidade.proximoPlano && (
@@ -177,7 +177,15 @@ function ResumoPlano({ capacidade }: { capacidade: EquipeResponse['capacidade'] 
   );
 }
 
-function MetricaPlano({ rotulo, valor, detalhe }: { rotulo: string; valor: string; detalhe: string }) {
+function MetricaPlano({
+  rotulo,
+  valor,
+  detalhe,
+}: {
+  rotulo: string;
+  valor: string;
+  detalhe: string;
+}) {
   return (
     <div className="rounded-md border bg-card p-3">
       <p className="text-muted-foreground text-xs">{rotulo}</p>
@@ -199,9 +207,12 @@ function ItemCobranca({ rotulo, valor }: { rotulo: string; valor: string }) {
 function FormularioFuncionario({
   funcionario,
   mostrarComissoes,
+  padroes,
 }: {
   funcionario: Funcionario;
   mostrarComissoes: boolean;
+  /** Permissões de partida de cada papel, vindas da API. */
+  padroes: EquipeResponse['permissoesPadraoPorPapel'];
 }) {
   const [papel, setPapel] = useState<PapelUsuario>(funcionario.papel);
   const [permissoes, setPermissoes] = useState<Permissao[]>(funcionario.permissoes);
@@ -211,7 +222,7 @@ function FormularioFuncionario({
 
   function trocarPapel(novo: PapelUsuario) {
     setPapel(novo);
-    setPermissoes([...PERMISSOES_PADRAO_POR_PAPEL[novo]]);
+    setPermissoes([...padroes[novo]]);
   }
 
   return (
@@ -311,14 +322,15 @@ function FormularioFuncionario({
 function FormularioConvite({
   bloqueado,
   capacidade,
+  padroes,
 }: {
   bloqueado: boolean;
   capacidade: EquipeResponse['capacidade'];
+  /** Permissões de partida de cada papel, vindas da API. */
+  padroes: EquipeResponse['permissoesPadraoPorPapel'];
 }) {
   const [papel, setPapel] = useState<PapelUsuario>('atendente');
-  const [permissoes, setPermissoes] = useState<Permissao[]>([
-    ...PERMISSOES_PADRAO_POR_PAPEL.atendente,
-  ]);
+  const [permissoes, setPermissoes] = useState<Permissao[]>([...padroes.atendente]);
   const [falha, setFalha] = useState<string>();
   const [enviando, iniciar] = useTransition();
   const { avisar } = useAvisos();
@@ -363,7 +375,7 @@ function FormularioConvite({
               if (!resultado.erro) {
                 formulario.reset();
                 setPapel('atendente');
-                setPermissoes([...PERMISSOES_PADRAO_POR_PAPEL.atendente]);
+                setPermissoes([...padroes.atendente]);
                 avisar('sucesso', 'Convite enviado por e-mail.');
               }
             });
@@ -378,7 +390,7 @@ function FormularioConvite({
             onChange={(e) => {
               const valor = e.target.value as PapelUsuario;
               setPapel(valor);
-              setPermissoes([...PERMISSOES_PADRAO_POR_PAPEL[valor]]);
+              setPermissoes([...padroes[valor]]);
             }}
           >
             {(['atendente', 'financeiro', 'tecnico'] as const).map((valor) => (

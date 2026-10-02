@@ -98,6 +98,8 @@ export interface PrevisaoFinanceiraResponse {
   aviso: string;
   historico: MesFinanceiro[];
   projecoes: MesProjetado[];
+  /** Somados pela API sobre as projeções. `saldoFinal` é `null` sem projeção. */
+  totais: { entradas: string; saidas: string; saldoFinal: string | null };
   analise: AnalisePrevisaoFinanceira;
   /** Ausente nas previsões geradas antes desta versão. */
   baseDeDados?: BaseDaPrevisao;

@@ -156,6 +156,38 @@ export const importacaoClientesSchema = z.object({
 export type ImportacaoClientesInput = z.infer<typeof importacaoClientesSchema>;
 
 /**
+ * Conferência da planilha antes de importar: as linhas como saíram do arquivo,
+ * sem nenhuma validação feita na tela.
+ *
+ * Cada linha é um objeto qualquer de propósito — validar é justamente o
+ * trabalho da API, e uma linha malformada precisa chegar até ela para voltar
+ * com o motivo em vez de derrubar a requisição inteira.
+ */
+export const conferenciaImportacaoClientesSchema = z.object({
+  clientes: z
+    .array(z.record(z.string(), z.unknown()))
+    .min(1, 'Envie ao menos uma linha')
+    .max(LIMITE_IMPORTACAO, `Envie no máximo ${LIMITE_IMPORTACAO} linhas por vez`),
+});
+
+export type ConferenciaImportacaoClientesInput = z.infer<
+  typeof conferenciaImportacaoClientesSchema
+>;
+
+/** Uma linha conferida pela API, na mesma posição em que foi enviada. */
+export interface LinhaClienteConferida {
+  valida: boolean;
+  /** Mensagens legíveis, com o nome do campo quando não é o nome do cliente. */
+  erros: string[];
+  /** Os dados já normalizados, prontos para `/clientes/importar`. `null` se inválida. */
+  dados: ClienteFormInput | null;
+}
+
+export interface ConferenciaImportacaoClientes {
+  linhas: LinhaClienteConferida[];
+}
+
+/**
  * Por que uma linha não virou cliente.
  *
  * Importação silenciosa é pior do que importação que falha: o usuário acha que

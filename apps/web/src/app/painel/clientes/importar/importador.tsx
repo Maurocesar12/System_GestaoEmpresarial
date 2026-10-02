@@ -7,14 +7,14 @@ import {
 } from '@gestao/shared-types';
 import { ArrowLeft, CircleCheck, FileSpreadsheet, Upload } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState, type DragEvent } from 'react';
+import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao, estilosBotao } from '@/components/ui/botao';
 import { Cartao } from '@/components/ui/cartao';
 import { detectarColunas, type CampoImportavel } from '@/lib/colunas-cliente';
 import { ErroDePlanilha, EXTENSOES_ACEITAS, lerPlanilha, type PlanilhaLida } from '@/lib/planilha';
 import { importarClientes, revalidarClientes } from '../acoes';
-import { avaliarLinhas } from './avaliar';
+import { avaliarLinhas, type LinhaAvaliada } from './avaliar';
 import { Conferencia } from './conferencia';
 import { ModeloPlanilha } from './modelo-planilha';
 
@@ -47,13 +47,41 @@ export function Importador() {
   const [importando, setImportando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
 
-  // Revalidar só quando a planilha ou o mapeamento mudam: a validação percorre
-  // o arquivo inteiro, e refazê-la a cada tecla travaria a tela em arquivos
-  // grandes.
-  const avaliadas = useMemo(
-    () => (planilha && mapa ? avaliarLinhas(planilha.linhas, mapa) : []),
-    [planilha, mapa],
-  );
+  const [avaliadas, setAvaliadas] = useState<LinhaAvaliada[]>([]);
+  const [conferindo, setConferindo] = useState(false);
+
+  // A versão de cada pedido descarta a resposta atrasada: trocar duas colunas
+  // seguidas não pode deixar na tela a conferência do mapeamento antigo.
+  const versaoDaConferencia = useRef(0);
+
+  /**
+   * Pede à API a conferência da planilha com este mapeamento.
+   *
+   * Chamada pelos próprios eventos — arquivo lido, coluna trocada — e não por
+   * um efeito: só esses dois mudam o resultado, e é neles que a tela sabe que
+   * precisa conferir de novo.
+   */
+  async function conferir(
+    planilhaAtual: PlanilhaLida,
+    mapaAtual: Record<CampoImportavel, number | null>,
+  ): Promise<void> {
+    const versao = ++versaoDaConferencia.current;
+    setConferindo(true);
+
+    const resposta = await avaliarLinhas(planilhaAtual.linhas, mapaAtual);
+    if (versao !== versaoDaConferencia.current) return;
+
+    setConferindo(false);
+    setAvaliadas(resposta.avaliadas ?? []);
+    setErro(resposta.erro);
+  }
+
+  function trocarColuna(campo: CampoImportavel, indice: number | null): void {
+    if (!planilha || !mapa) return;
+    const novo = { ...mapa, [campo]: indice };
+    setMapa(novo);
+    void conferir(planilha, novo);
+  }
 
   const prontas = useMemo(() => avaliadas.filter((linha) => linha.valida), [avaliadas]);
 
@@ -63,11 +91,13 @@ export function Importador() {
 
     try {
       const lida = await lerPlanilha(arquivo);
+      const detectado = detectarColunas(lida.cabecalhos);
 
       setPlanilha(lida);
-      setMapa(detectarColunas(lida.cabecalhos));
+      setMapa(detectado);
       setNomeArquivo(arquivo.name);
       setEtapa('conferencia');
+      void conferir(lida, detectado);
     } catch (falha) {
       setErro(
         falha instanceof ErroDePlanilha
@@ -146,6 +176,9 @@ export function Importador() {
   }
 
   function recomecar(): void {
+    versaoDaConferencia.current++;
+    setAvaliadas([]);
+    setConferindo(false);
     setPlanilha(null);
     setMapa(null);
     setNomeArquivo('');
@@ -245,9 +278,7 @@ export function Importador() {
           <Conferencia
             cabecalhos={planilha.cabecalhos}
             mapa={mapa}
-            aoTrocarColuna={(campo, indice) =>
-              setMapa((atual) => (atual ? { ...atual, [campo]: indice } : atual))
-            }
+            aoTrocarColuna={trocarColuna}
             avaliadas={avaliadas}
           />
 
@@ -255,10 +286,16 @@ export function Importador() {
             <Botao
               onClick={() => void importar()}
               carregando={importando}
-              disabled={prontas.length === 0}
+              disabled={conferindo || prontas.length === 0}
             >
               Importar {prontas.length} {prontas.length === 1 ? 'cliente' : 'clientes'}
             </Botao>
+
+            {conferindo && (
+              <p className="text-muted-foreground text-sm" role="status">
+                Conferindo a planilha…
+              </p>
+            )}
 
             {importando && prontas.length > LIMITE_IMPORTACAO && (
               <p className="text-muted-foreground text-sm">
@@ -266,7 +303,7 @@ export function Importador() {
               </p>
             )}
 
-            {prontas.length === 0 && (
+            {!conferindo && prontas.length === 0 && (
               <p className="text-muted-foreground text-sm">
                 Nenhuma linha está pronta. Confira o mapeamento das colunas acima.
               </p>

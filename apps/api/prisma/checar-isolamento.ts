@@ -25,17 +25,15 @@ import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 const IDENTIFICADOR = /^[a-z_][a-z0-9_]*$/;
 
 /**
- * Tabelas que podem devolver linha sem contexto, cada uma por um motivo escrito
- * na migration que criou a política.
+ * Tabelas que podem devolver linha sem contexto.
  *
- * A lista é fechada de propósito: se amanhã alguém abrir uma política que vaze
- * sem contexto, a tabela aparece fora desta lista e o script reprova.
+ * Vazia desde a migration `20261001120000_politicas_declaradas`: o login e as
+ * varreduras agora precisam se declarar (`app.login_email`, `app.varredura`),
+ * e uma consulta sem contexto que não se declarou não vê nada em tabela
+ * nenhuma. Se amanhã alguém abrir uma política que vaze sem contexto, a tabela
+ * reprova aqui — e entrar nesta lista exige escrever o motivo.
  */
-const EXCECOES = new Map<string, string>([
-  ['usuario', 'usuario_login — o login acha a pessoa antes de saber a empresa'],
-  ['tenant', 'tenant_expurgo — só empresas canceladas, para a rotina de exclusão'],
-  ['lembrete_follow_up', 'lembrete_varredura — a varredura roda sem ninguém logado'],
-]);
+const EXCECOES = new Map<string, string>();
 
 function exigirConexao(): string {
   const url = process.env.DATABASE_URL?.trim();
@@ -207,10 +205,12 @@ async function main(): Promise<void> {
 
   console.log('\n4. Consulta com contexto de empresa');
 
-  const empresas = await prisma.usuario.findMany({
-    select: { tenantId: true },
-    distinct: ['tenantId'],
-    take: 2,
+  // A listagem de contas precisa se declarar, como nos scripts de
+  // administração — a prova de que o passo 3 está certo é esta mesma leitura
+  // não achar nada sem a declaração.
+  const empresas = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.varredura', 'contas', true)`;
+    return tx.usuario.findMany({ select: { tenantId: true }, distinct: ['tenantId'], take: 2 });
   });
 
   if (empresas.length < 2) {

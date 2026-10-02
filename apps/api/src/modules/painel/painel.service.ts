@@ -52,6 +52,9 @@ const ITENS_DO_CARTAO = 6;
 /** Meses do gráfico de caixa do painel. */
 const MESES_DA_SERIE = 6;
 
+/** A partir de quanto a sobra de cada real que entra deixa de ser apertada. */
+const SOBRA_SAUDAVEL = 0.1;
+
 /**
  * Painel em tempo real.
  *
@@ -143,6 +146,11 @@ export class PainelService {
       semContatoNoPrazo: resumo.semContatoNoPrazo,
       comProposta: resumo.comProposta,
       ganhos: resumo.ganhos,
+      // Quem já foi atendido mas ainda não recebeu proposta nem fechou.
+      emContato: Math.max(
+        0,
+        resumo.noPeriodo - resumo.aguardandoContato - resumo.comProposta - resumo.ganhos,
+      ),
       valorEmProposta: resumo.valorEmProposta,
       porOrigem: resumo.porOrigem,
       ultimos: ultimos.map((lead) => ({
@@ -389,6 +397,7 @@ export class PainelService {
 
     return {
       total,
+      diasSemContato: DIAS_PARA_REATIVACAO,
       analisados: clientes.length,
       valorHistorico: clientes
         .reduce((soma, cliente) => soma.plus(cliente.valorHistorico), ZERO)
@@ -474,12 +483,7 @@ export class PainelService {
         quantidade: aReceberVencido._count._all,
         valor: (aReceberVencido._sum.valor ?? ZERO).toFixed(2),
       },
-      serie: [...porMes.entries()].map(([mes, valores]) => ({
-        mes,
-        entradas: valores.entradas.toFixed(2),
-        saidas: valores.saidas.toFixed(2),
-        saldo: valores.entradas.minus(valores.saidas).toFixed(2),
-      })),
+      ...resumirSerie(porMes),
     };
   }
 
@@ -721,4 +725,62 @@ function valorDoTipo(
   tipo: 'entrada' | 'saida',
 ): Prisma.Decimal {
   return grupos.find((grupo) => grupo.tipo === tipo)?._sum.valor ?? ZERO;
+}
+
+/**
+ * A série do gráfico e as conclusões que a tela mostra embaixo dele.
+ *
+ * Moravam no componente do gráfico, somadas em `Number`. As leituras — melhor
+ * mês, meses no vermelho, quanto sobra de cada real — são de negócio, e a
+ * regra de usar só os meses fechados (o corrente está pela metade e seria o
+ * "pior mês" todo dia 2) agora está num lugar só.
+ */
+function resumirSerie(
+  porMes: Map<string, { entradas: Prisma.Decimal; saidas: Prisma.Decimal }>,
+): Pick<BlocoFinanceiro, 'serie' | 'resumoSerie'> {
+  let acumulado = ZERO;
+  const meses = [...porMes.entries()].map(([mes, valores]) => {
+    const saldo = valores.entradas.minus(valores.saidas);
+    acumulado = acumulado.plus(saldo);
+    return { mes, entradas: valores.entradas, saidas: valores.saidas, saldo, acumulado };
+  });
+
+  const totalEntradas = meses.reduce((soma, mes) => soma.plus(mes.entradas), ZERO);
+  const totalSaidas = meses.reduce((soma, mes) => soma.plus(mes.saidas), ZERO);
+  const saldoDoPeriodo = totalEntradas.minus(totalSaidas);
+
+  // Quanto sobra de cada real que entra. Abaixo de 10% é margem apertada.
+  const sobra = totalEntradas.isZero()
+    ? 0
+    : Number(saldoDoPeriodo.dividedBy(totalEntradas).toFixed(4));
+
+  const fechados = meses.slice(0, -1);
+  const base = fechados.length > 0 ? fechados : meses;
+  const melhor = base.reduce<(typeof meses)[number] | null>(
+    (maior, mes) => (maior === null || mes.saldo.greaterThan(maior.saldo) ? mes : maior),
+    null,
+  );
+
+  return {
+    serie: meses.map((mes) => ({
+      mes: mes.mes,
+      entradas: mes.entradas.toFixed(2),
+      saidas: mes.saidas.toFixed(2),
+      saldo: mes.saldo.toFixed(2),
+      acumulado: mes.acumulado.toFixed(2),
+    })),
+    resumoSerie: {
+      totalEntradas: totalEntradas.toFixed(2),
+      totalSaidas: totalSaidas.toFixed(2),
+      saldoDoPeriodo: saldoDoPeriodo.toFixed(2),
+      temMovimento: meses.some((mes) => !mes.entradas.isZero() || !mes.saidas.isZero()),
+      melhorMes: melhor
+        ? { mes: melhor.mes, saldo: melhor.saldo.toFixed(2), emAndamento: fechados.length === 0 }
+        : null,
+      mesesNegativos: base.filter((mes) => mes.saldo.isNegative()).length,
+      mesesComparados: base.length,
+      sobraPorReal: sobra,
+      faixaSobra: sobra < 0 ? 'negativa' : sobra < SOBRA_SAUDAVEL ? 'baixa' : 'saudavel',
+    },
+  };
 }

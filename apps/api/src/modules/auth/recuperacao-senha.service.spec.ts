@@ -18,13 +18,22 @@ describe('RecuperacaoSenhaService', () => {
   const revogar = jest.fn();
   const atualizar = jest.fn();
   const buscar = jest.fn();
-  const tx = { usuario: { findUnique: buscar, updateMany: atualizar }, refreshToken: { updateMany: revogar } };
+  const tx = {
+    usuario: { findUnique: buscar, updateMany: atualizar },
+    refreshToken: { updateMany: revogar },
+  };
   const prisma = {
-    semTenant: (_motivo: string, callback: (db: typeof tx) => unknown) => callback(tx),
+    comEmailDeLogin: (_email: string, _motivo: string, callback: (db: typeof tx) => unknown) =>
+      callback(tx),
     comTenantExplicito: (_id: string, callback: (db: typeof tx) => unknown) => callback(tx),
   } as unknown as PrismaService;
-  const senhas = { gerarHash: jest.fn(() => Promise.resolve('hash-novo')) } as unknown as SenhaService;
-  const service = new RecuperacaoSenhaService(prisma, jwt, senhas, config, { modo: 'smtp', enviar });
+  const senhas = {
+    gerarHash: jest.fn(() => Promise.resolve('hash-novo')),
+  } as unknown as SenhaService;
+  const service = new RecuperacaoSenhaService(prisma, jwt, senhas, config, {
+    modo: 'smtp',
+    enviar,
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -53,9 +62,14 @@ describe('RecuperacaoSenhaService', () => {
   });
 
   it('recusa token expirado e token de acesso', async () => {
-    const token = jwt.sign({ tipo: 'recuperacao' }, { expiresIn: -1, audience: 'recuperacao-senha' });
+    const token = jwt.sign(
+      { tipo: 'recuperacao' },
+      { expiresIn: -1, audience: 'recuperacao-senha' },
+    );
     await expect(service.redefinir(token, 'SenhaNova123!')).rejects.toThrow('Link inválido');
-    await expect(service.redefinir(jwt.sign({ tipo: 'acesso' }), 'SenhaNova123!')).rejects.toThrow('Link inválido');
+    await expect(service.redefinir(jwt.sign({ tipo: 'acesso' }), 'SenhaNova123!')).rejects.toThrow(
+      'Link inválido',
+    );
     expect(atualizar).not.toHaveBeenCalled();
   });
 

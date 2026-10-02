@@ -4,7 +4,6 @@ import {
   ROTULO_CANAL_LEMBRETE,
   ROTULO_STATUS,
   formatarBRL,
-  possuiPermissao,
   type Atendimento,
   type Cliente,
   type EtapaFunil,
@@ -12,6 +11,7 @@ import {
   type Orcamento,
   type Paginado,
   type ConfiguracoesEmpresa,
+  type ResumoOrcamentos,
 } from '@gestao/shared-types';
 import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao } from '@/lib/api-servidor';
@@ -22,6 +22,7 @@ import {
   formatarDiaAgenda,
   formatarHora,
 } from '@/lib/formatacao';
+import { pode } from '@/lib/permissoes';
 import { FormularioCliente } from '../formulario-cliente';
 import { Atendimentos } from './atendimentos';
 import { BotaoAnonimizar } from './botao-anonimizar';
@@ -48,26 +49,32 @@ interface Props {
 export default async function PaginaCliente({ params }: Props) {
   const { id } = await params;
 
-  const [usuario, cliente, etapas, orcamentos, atendimentos, lembretes, configuracoes] =
-    await Promise.all([
-      lerUsuarioDaSessao(),
-      apiComSessao<Cliente>(`/clientes/${id}`),
-      apiComSessao<EtapaFunil[]>('/funil/etapas'),
-      apiComSessao<Paginado<Orcamento>>(`/orcamentos?clienteId=${id}&porPagina=50`),
-      apiComSessao<Atendimento[]>(`/clientes/${id}/atendimentos`),
-      apiComSessao<Paginado<LembreteFollowUp>>(
-        `/lembretes?clienteId=${id}&status=pendente&porPagina=5`,
-      ),
-      apiComSessao<ConfiguracoesEmpresa>('/configuracoes'),
-    ]);
+  const [
+    usuario,
+    cliente,
+    etapas,
+    orcamentos,
+    resumoOrcamentos,
+    atendimentos,
+    lembretes,
+    configuracoes,
+  ] = await Promise.all([
+    lerUsuarioDaSessao(),
+    apiComSessao<Cliente>(`/clientes/${id}`),
+    apiComSessao<EtapaFunil[]>('/funil/etapas'),
+    apiComSessao<Paginado<Orcamento>>(`/orcamentos?clienteId=${id}&porPagina=50`),
+    // Os totais vêm somados pela API sobre todos os orçamentos do cliente — e
+    // não pela tela, sobre os 50 que a lista acima carrega.
+    apiComSessao<ResumoOrcamentos>(`/orcamentos/resumo?clienteId=${id}`),
+    apiComSessao<Atendimento[]>(`/clientes/${id}/atendimentos`),
+    apiComSessao<Paginado<LembreteFollowUp>>(
+      `/lembretes?clienteId=${id}&status=pendente&porPagina=5`,
+    ),
+    apiComSessao<ConfiguracoesEmpresa>('/configuracoes'),
+  ]);
 
   const etapaAtual = cliente.etapaFunil?.id ?? null;
-  const podeTratarDadosPessoais =
-    usuario !== undefined && possuiPermissao(usuario, 'clientes.dados_pessoais');
-
-  const totalAprovado = orcamentos.dados
-    .filter((orcamento) => orcamento.status === 'aprovado')
-    .reduce((soma, orcamento) => soma + Number(orcamento.valor), 0);
+  const podeTratarDadosPessoais = usuario !== undefined && pode(usuario, 'clientes.dados_pessoais');
 
   return (
     <div className="flex flex-col gap-6">
@@ -99,12 +106,12 @@ export default async function PaginaCliente({ params }: Props) {
       <section className="grid gap-3 sm:grid-cols-4">
         <Indicador
           titulo="Fechado com este cliente"
-          valor={formatarBRL(totalAprovado.toFixed(2))}
+          valor={formatarBRL(resumoOrcamentos.aprovados.valor)}
         />
         <Indicador
           titulo="Orçamentos"
           valor={String(orcamentos.meta.total)}
-          detalhe={`${orcamentos.dados.filter((o) => o.status === 'aberto').length} em aberto`}
+          detalhe={`${resumoOrcamentos.abertos.quantidade} em aberto`}
         />
         <Indicador
           titulo="Atendimentos"

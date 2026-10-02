@@ -102,12 +102,19 @@ export interface ClienteNoFunil {
    * ver quanto vale cada negociação sem abrir a ficha de ninguém.
    */
   orcamentoAberto: OrcamentoDoCartao | null;
+  /** Dias inteiros desde que entrou na etapa. Calculado pela API. */
+  diasNaEtapa: number;
+  /** Está na etapa há `DIAS_PARA_ALERTA` dias ou mais. Calculado pela API. */
+  parado: boolean;
 }
 
 /** Uma coluna do quadro: a etapa e quem está nela. */
 export interface ColunaFunil {
   etapa: EtapaFunil;
   clientes: ClienteNoFunil[];
+  /** Soma das propostas em aberto da coluna. */
+  valorEmAberto: string;
+  parados: number;
 }
 
 /**
@@ -120,6 +127,14 @@ export interface ColunaFunil {
 export interface QuadroFunil {
   colunas: ColunaFunil[];
   totalForaDoFunil: number;
+  /** Totais do quadro, somados pela API — a tela não faz conta. */
+  totalNoFunil: number;
+  totalParados: number;
+  propostasAbertas: number;
+  /** Soma das propostas em aberto de todas as colunas. */
+  valorPipeline: string;
+  /** A partir de quantos dias na etapa o cliente conta como parado. */
+  diasParaAlerta: number;
 }
 
 /**

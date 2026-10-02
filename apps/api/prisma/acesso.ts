@@ -55,13 +55,17 @@ async function comTenant<T>(
  * Empresas e o e-mail de contato de cada uma.
  *
  * A descoberta parte de `usuario` porque `tenant` não é legível sem contexto —
- * e é a política `usuario_login` que permite esta leitura. Empresa sem usuário
- * não aparece, o que não é perda: ninguém consegue entrar nela.
+ * e é a política `usuario_listagem_admin`, com a varredura `contas` declarada,
+ * que permite esta leitura. Empresa sem usuário não aparece, o que não é
+ * perda: ninguém consegue entrar nela.
  */
 async function descobrirEmpresas(): Promise<Map<string, string>> {
-  const usuarios = await prisma.usuario.findMany({
-    select: { tenantId: true, email: true },
-    orderBy: [{ papel: 'asc' }, { criadoEm: 'asc' }],
+  const usuarios = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.varredura', 'contas', true)`;
+    return tx.usuario.findMany({
+      select: { tenantId: true, email: true },
+      orderBy: [{ papel: 'asc' }, { criadoEm: 'asc' }],
+    });
   });
 
   const porEmpresa = new Map<string, string>();

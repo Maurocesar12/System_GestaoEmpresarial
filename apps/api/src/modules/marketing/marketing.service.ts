@@ -43,10 +43,7 @@ type ResumoConversao = {
   receitaTotal: Prisma.Decimal;
 };
 
-type UtmDaCampanha = Pick<
-  DesempenhoDaCampanha,
-  'utmSource' | 'utmMedium' | 'utmCampaign'
->;
+type UtmDaCampanha = Pick<DesempenhoDaCampanha, 'utmSource' | 'utmMedium' | 'utmCampaign'>;
 
 /** Agrupa uma lista por uma chave calculada, preservando a ordem de chegada. */
 function agrupar<T>(itens: T[], chaveDe: (item: T) => string): Map<string, T[]> {
@@ -168,6 +165,8 @@ export class MarketingService {
       totalLeads: leads.length,
       totalConvertidos: conversao.porCliente.size,
       receitaTotal: conversao.receitaTotal.toFixed(2),
+      // Sobre o total, e não média das taxas por origem (ver o contrato).
+      taxaConversao: leads.length === 0 ? 0 : conversao.porCliente.size / leads.length,
       periodo: { de: query.de, ate: query.ate },
     };
   }

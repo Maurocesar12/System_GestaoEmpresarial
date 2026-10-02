@@ -10,18 +10,25 @@ import {
   Post,
 } from '@nestjs/common';
 import {
+  analiseConciliacaoSchema,
   baixaFormSchema,
   categoriaFormSchema,
+  dividirEmParcelas,
   lancamentoFormSchema,
+  simulacaoParcelasSchema,
   lancamentosQuerySchema,
   periodoQuerySchema,
+  type AnaliseConciliacaoInput,
   type BaixaFormInput,
+  type ConciliacaoAnalisada,
   type CategoriaFinanceira,
   type CategoriaFormInput,
   type CustoOperacional,
   type FluxoDeCaixa,
   type Lancamento,
   type LancamentoFormInput,
+  type SimulacaoParcelas,
+  type SimulacaoParcelasInput,
   type LancamentosQuery,
   LANCAMENTOS_POR_PAGINA,
   painelFinanceiroQuerySchema,
@@ -186,6 +193,33 @@ export class FinanceiroController {
   @Get('lancamentos/:id')
   buscar(@Param('id', ParseUUIDPipe) id: string): Promise<Lancamento> {
     return this.financeiro.buscarPorId(id);
+  }
+
+  /** Lê o extrato e sugere os vínculos com as contas em aberto. Não grava nada. */
+  @Post('conciliacao/analisar')
+  @HttpCode(HttpStatus.OK)
+  analisarConciliacao(
+    @CorpoValidado(analiseConciliacaoSchema) dados: AnaliseConciliacaoInput,
+  ): Promise<ConciliacaoAnalisada> {
+    return this.financeiro.analisarConciliacao(dados);
+  }
+
+  /** Prévia do parcelamento: divide como `criar` vai dividir, sem gravar nada. */
+  @Post('lancamentos/simular-parcelas')
+  @Permissoes('financeiro.criar')
+  @HttpCode(HttpStatus.OK)
+  simularParcelas(
+    @CorpoValidado(simulacaoParcelasSchema) dados: SimulacaoParcelasInput,
+  ): SimulacaoParcelas {
+    const partes = dividirEmParcelas(dados.valor, dados.parcelas);
+    const primeira = partes[0]!;
+    const ultima = partes[partes.length - 1]!;
+
+    return {
+      quantidade: dados.parcelas,
+      valorParcela: primeira,
+      ultimaParcela: ultima === primeira ? null : ultima,
+    };
   }
 
   @Post('lancamentos')

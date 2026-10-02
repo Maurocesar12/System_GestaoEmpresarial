@@ -54,32 +54,30 @@ interface Ponto {
  * parecer uma queda. A barra listrada e o rótulo "parcial" evitam a leitura
  * errada sem esconder o dado.
  */
-export function GraficoResumoPainel({ serie }: { serie: BlocoFinanceiro['serie'] }) {
+export function GraficoResumoPainel({
+  serie,
+  resumo,
+}: {
+  serie: BlocoFinanceiro['serie'];
+  /** Totais e leituras do período, calculados pela API. */
+  resumo: BlocoFinanceiro['resumoSerie'];
+}) {
   const [visao, setVisao] = useState<Visao>('fluxo');
   const [focado, setFocado] = useState<number | null>(null);
 
-  // O acumulado sai de um `reduce`, e não de um contador atualizado dentro do
-  // `map`: reatribuir variável durante a renderização é o tipo de coisa que
-  // funciona até o React renderizar duas vezes.
-  const pontos = serie.reduce<Ponto[]>((lista, mes) => {
-    const saldo = Number(mes.saldo);
+  // Só a conversão para desenhar: valores, saldo e acumulado vêm da API.
+  const pontos: Ponto[] = serie.map((mes) => ({
+    mes: mes.mes,
+    entradas: Number(mes.entradas),
+    saidas: Number(mes.saidas),
+    saldo: Number(mes.saldo),
+    acumulado: Number(mes.acumulado),
+  }));
 
-    return [
-      ...lista,
-      {
-        mes: mes.mes,
-        entradas: Number(mes.entradas),
-        saidas: Number(mes.saidas),
-        saldo,
-        acumulado: (lista.at(-1)?.acumulado ?? 0) + saldo,
-      },
-    ];
-  }, []);
-
-  const totalEntradas = pontos.reduce((soma, ponto) => soma + ponto.entradas, 0);
-  const totalSaidas = pontos.reduce((soma, ponto) => soma + ponto.saidas, 0);
-  const saldoDoPeriodo = totalEntradas - totalSaidas;
-  const temMovimento = pontos.some((ponto) => ponto.entradas > 0 || ponto.saidas > 0);
+  const totalEntradas = Number(resumo.totalEntradas);
+  const totalSaidas = Number(resumo.totalSaidas);
+  const saldoDoPeriodo = Number(resumo.saldoDoPeriodo);
+  const { temMovimento } = resumo;
 
   // O mês corrente é o último da série e o foco padrão: é o que a pessoa quer
   // ver ao abrir o painel.
@@ -196,7 +194,7 @@ export function GraficoResumoPainel({ serie }: { serie: BlocoFinanceiro['serie']
               aoFocar={setFocado}
             />
 
-            <Indicadores pontos={pontos} totalEntradas={totalEntradas} />
+            <Indicadores resumo={resumo} />
 
             <Tabela pontos={pontos} indiceAtual={indiceAtual} />
           </>
@@ -601,46 +599,42 @@ function Barra({
  * negócio diferente de faturar metade e sobrar 30%, e nenhum dos dois aparece
  * na altura das barras.
  */
-function Indicadores({ pontos, totalEntradas }: { pontos: Ponto[]; totalEntradas: number }) {
-  // Os meses fechados são a base da comparação: o corrente está pela metade e
-  // entraria como "pior mês" em todo dia 2.
-  const fechados = pontos.slice(0, -1);
-  const base = fechados.length > 0 ? fechados : pontos;
-  const primeiro = base[0];
+function Indicadores({ resumo }: { resumo: BlocoFinanceiro['resumoSerie'] }) {
+  const { melhorMes, mesesNegativos, mesesComparados, sobraPorReal, faixaSobra } = resumo;
 
-  if (!primeiro) {
+  if (!melhorMes) {
     return null;
   }
-
-  const melhor = base.reduce(
-    (maior, ponto) => (ponto.saldo > maior.saldo ? ponto : maior),
-    primeiro,
-  );
-  const negativos = base.filter((ponto) => ponto.saldo < 0).length;
-  const saldoTotal = pontos.reduce((soma, ponto) => soma + ponto.saldo, 0);
-  const sobra = totalEntradas > 0 ? saldoTotal / totalEntradas : 0;
 
   return (
     <div className="bg-muted/20 grid gap-3 border-t p-4 sm:grid-cols-3 sm:px-5">
       <Insight
         rotulo="Melhor mês"
-        valor={formatarBRL(melhor.saldo.toFixed(2))}
-        detalhe={`${formatarMesCompleto(melhor.mes)}${fechados.length > 0 ? '' : ' (em andamento)'}`}
-        tom={melhor.saldo < 0 ? 'text-destructive' : 'text-sucesso'}
+        valor={formatarBRL(melhorMes.saldo)}
+        detalhe={`${formatarMesCompleto(melhorMes.mes)}${melhorMes.emAndamento ? ' (em andamento)' : ''}`}
+        tom={melhorMes.saldo.startsWith('-') ? 'text-destructive' : 'text-sucesso'}
       />
       <Insight
         rotulo="Sobra de cada real que entra"
-        valor={`${Math.round(sobra * 100)}%`}
+        valor={`${Math.round(sobraPorReal * 100)}%`}
         detalhe="Saldo do período sobre as entradas"
-        tom={sobra < 0 ? 'text-destructive' : sobra < 0.1 ? 'text-atencao' : 'text-sucesso'}
+        tom={
+          faixaSobra === 'negativa'
+            ? 'text-destructive'
+            : faixaSobra === 'baixa'
+              ? 'text-atencao'
+              : 'text-sucesso'
+        }
       />
       <Insight
         rotulo="Meses no vermelho"
-        valor={`${negativos} de ${base.length}`}
+        valor={`${mesesNegativos} de ${mesesComparados}`}
         detalhe={
-          negativos === 0 ? 'Nenhum mês fechou negativo' : 'Meses em que saiu mais do que entrou'
+          mesesNegativos === 0
+            ? 'Nenhum mês fechou negativo'
+            : 'Meses em que saiu mais do que entrou'
         }
-        tom={negativos > 0 ? 'text-destructive' : 'text-foreground'}
+        tom={mesesNegativos > 0 ? 'text-destructive' : 'text-foreground'}
       />
     </div>
   );

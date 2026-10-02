@@ -26,6 +26,7 @@ export * from './crm/leads';
 export * from './crm/lembretes';
 export * from './crm/orcamentos';
 export * from './crm/servicos';
+export * from './financeiro/conciliacao';
 export * from './financeiro/custo-operacional';
 export * from './financeiro/lancamentos';
 export * from './financeiro/painel';

@@ -4,11 +4,7 @@ import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
 import { apiComSessao } from '@/lib/api-servidor';
 import { formatarPeriodo } from '@/lib/formatacao';
-import {
-  FiltrosComissoes,
-  TabelaComissoes,
-  lerFiltrosComissoes,
-} from '../comissoes/componentes';
+import { FiltrosComissoes, TabelaComissoes, lerFiltrosComissoes } from '../comissoes/componentes';
 
 export const metadata: Metadata = { title: 'Minhas comissões' };
 
@@ -23,14 +19,17 @@ interface Props {
  * pessoa. O percentual não aparece como cadastro, só aplicado em cada comissão.
  */
 export default async function PaginaMinhasComissoes({ searchParams }: Props) {
-  const { de, ate, status } = lerFiltrosComissoes(await searchParams);
+  const { de: deUrl, ate: ateUrl, status: statusUrl } = await searchParams;
+  const { query, status, filtrado } = lerFiltrosComissoes({
+    de: deUrl,
+    ate: ateUrl,
+    status: statusUrl,
+  });
 
-  const query = new URLSearchParams({ de, ate });
-  if (status) query.set('status', status);
+  const relatorio = await apiComSessao<RelatorioComissoes>(`/comissoes/minhas?${query.toString()}`);
 
-  const relatorio = await apiComSessao<RelatorioComissoes>(
-    `/comissoes/minhas?${query.toString()}`,
-  );
+  // O período que a API usou (o mês corrente dela, sem datas na URL).
+  const { de, ate } = relatorio.periodo;
 
   return (
     <div className="flex flex-col gap-6">
@@ -39,7 +38,7 @@ export default async function PaginaMinhasComissoes({ searchParams }: Props) {
         descricao={`${formatarPeriodo(de, ate)} · das vendas aprovadas e dos serviços que você executou.`}
       />
 
-      <FiltrosComissoes de={de} ate={ate} status={status} />
+      <FiltrosComissoes de={de} ate={ate} status={status} ativo={filtrado} />
 
       <FaixaDeIndicadores>
         <Indicador

@@ -2,29 +2,18 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  orcamentoFormSchema,
-  type AcaoOrcamento,
-  type Orcamento,
-  type OrcamentoFormInput,
-} from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { AcaoOrcamento, Orcamento, OrcamentoFormEntrada } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarOrcamento(
   id: string | null,
-  dados: OrcamentoFormInput,
+  dados: OrcamentoFormEntrada,
 ): Promise<ResultadoAcao> {
-  const validacao = orcamentoFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Orcamento>(id ? `/orcamentos/${id}` : '/orcamentos', {
       method: id ? 'PATCH' : 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);

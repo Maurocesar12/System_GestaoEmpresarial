@@ -2,25 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  lembreteFormSchema,
-  type LembreteFollowUp,
-  type LembreteFormInput,
-} from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { LembreteFollowUp, LembreteFormInput } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarLembrete(dados: LembreteFormInput): Promise<ResultadoAcao> {
-  const validacao = lembreteFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<LembreteFollowUp>('/lembretes', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);

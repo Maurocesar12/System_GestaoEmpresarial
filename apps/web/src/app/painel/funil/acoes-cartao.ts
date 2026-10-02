@@ -1,14 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  atendimentoFormSchema,
-  clienteFormSchema,
-  type Atendimento,
-  type AtendimentoFormInput,
-  type Cliente,
-} from '@gestao/shared-types';
-import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { Atendimento, AtendimentoFormInput, Cliente } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /** O que o cartão aberto mostra. */
@@ -62,29 +56,23 @@ export async function salvarCartao(
     return traduzirErroAcao(erro, 'Não foi possível carregar o cliente.');
   }
 
-  const validacao = clienteFormSchema.safeParse({
-    nome: alteracoes.nome,
-    observacoes: alteracoes.observacoes,
-    // Preservados como estão: o cartão não os edita.
-    email: atual.email ?? '',
-    telefone: atual.telefone ?? '',
-    documento: atual.documento ?? '',
-    origem: atual.origem ?? '',
-    utmSource: atual.utmSource ?? '',
-    utmMedium: atual.utmMedium ?? '',
-    utmCampaign: atual.utmCampaign ?? '',
-    camposPersonalizados: atual.camposPersonalizados,
-    etiquetas: atual.etiquetas,
-  });
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Cliente>(`/clientes/${clienteId}`, {
       method: 'PATCH',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({
+        nome: alteracoes.nome,
+        observacoes: alteracoes.observacoes,
+        // Preservados como estão: o cartão não os edita.
+        email: atual.email ?? '',
+        telefone: atual.telefone ?? '',
+        documento: atual.documento ?? '',
+        origem: atual.origem ?? '',
+        utmSource: atual.utmSource ?? '',
+        utmMedium: atual.utmMedium ?? '',
+        utmCampaign: atual.utmCampaign ?? '',
+        camposPersonalizados: atual.camposPersonalizados,
+        etiquetas: atual.etiquetas,
+      }),
     });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível salvar. Tente novamente.');
@@ -108,18 +96,12 @@ export async function anotarNoCartao(
   clienteId: string,
   dados: AtendimentoFormInput,
 ): Promise<ResultadoAcao & { atendimento?: Atendimento }> {
-  const validacao = atendimentoFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
   let atendimento: Atendimento;
 
   try {
     atendimento = await apiComSessao<Atendimento>(`/clientes/${clienteId}/atendimentos`, {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível registrar. Tente novamente.');

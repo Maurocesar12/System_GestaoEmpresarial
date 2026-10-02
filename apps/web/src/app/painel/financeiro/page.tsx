@@ -7,7 +7,6 @@ import {
   ROTULO_STATUS_LANCAMENTO,
   ROTULO_TIPO_LANCAMENTO,
   formatarBRL,
-  mesCorrente,
   type CategoriaFinanceira,
   type FluxoDeCaixa,
   type PainelFinanceiro,
@@ -72,12 +71,14 @@ interface Props {
  */
 export default async function PaginaFinanceiro({ searchParams }: Props) {
   const parametros = await searchParams;
-  const padrao = mesCorrente();
-  const de = parametros.de ?? padrao.de;
-  const ate = parametros.ate ?? padrao.ate;
   const categoriaId = parametros.categoriaId ?? '';
 
-  const queryPeriodo = new URLSearchParams({ de, ate });
+  // Sem datas na URL, a API usa o mês corrente (em São Paulo) e devolve o
+  // período que usou. A tela não calcula datas.
+  const queryPeriodo = new URLSearchParams();
+  if (parametros.de) queryPeriodo.set('de', parametros.de);
+  if (parametros.ate) queryPeriodo.set('ate', parametros.ate);
+  const filtrado = Boolean(parametros.de || parametros.ate || categoriaId);
   if (categoriaId) {
     queryPeriodo.set('categoriaId', categoriaId);
   }
@@ -90,7 +91,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
     <div className="flex flex-col gap-8">
       <CabecalhoPagina
         titulo="Financeiro"
-        descricao={`${formatarPeriodo(de, ate)} · valores da empresa, sem os pessoais.`}
+        descricao="Valores da empresa, sem os pessoais."
         acoes={
           <>
             <Link
@@ -146,7 +147,7 @@ export default async function PaginaFinanceiro({ searchParams }: Props) {
         fica claro que aquilo ainda está sendo calculado.
       */}
       <Suspense key={periodo} fallback={<CorpoCarregando />}>
-        <CorpoDoPainel de={de} ate={ate} categoriaId={categoriaId} periodo={periodo} />
+        <CorpoDoPainel categoriaId={categoriaId} filtrado={filtrado} periodo={periodo} />
       </Suspense>
     </div>
   );
@@ -174,18 +175,20 @@ function CorpoCarregando() {
  * mesmo trabalho em paralelo, só que ao lado do banco.
  */
 async function CorpoDoPainel({
-  de,
-  ate,
   categoriaId,
+  filtrado,
   periodo,
 }: {
-  de: string;
-  ate: string;
   categoriaId: string;
+  filtrado: boolean;
   periodo: string;
 }) {
   const { fluxo, custo, margem, lancamentos, resumoContas, contasEmAberto, categorias } =
     await apiComSessao<PainelFinanceiro>(`/financeiro/painel?${periodo}`);
+
+  // O período que a API de fato usou — o mês corrente dela, quando a URL não
+  // trouxe datas.
+  const { de, ate } = fluxo.periodo;
 
   const saldoNegativo = Number(fluxo.saldo) < 0;
 
@@ -196,7 +199,15 @@ async function CorpoDoPainel({
 
   return (
     <div className="flex flex-col gap-8">
-      <FiltrosFinanceiros de={de} ate={ate} categoriaId={categoriaId} categorias={categorias} />
+      <p className="text-muted-foreground -mb-4 text-sm">{formatarPeriodo(de, ate)}</p>
+
+      <FiltrosFinanceiros
+        de={de}
+        ate={ate}
+        categoriaId={categoriaId}
+        categorias={categorias}
+        ativo={filtrado}
+      />
 
       <FaixaDeIndicadores>
         {/* O detalhe "recebido/pago no período" é o par da legenda da tabela de
@@ -431,7 +442,6 @@ async function CorpoDoPainel({
             </TabelaCorpo>
           </TabelaRolavel>
         )}
-
       </Cartao>
 
       {/*
@@ -461,15 +471,15 @@ function FiltrosFinanceiros({
   ate,
   categoriaId,
   categorias,
+  ativo,
 }: {
   de: string;
   ate: string;
   categoriaId: string;
   categorias: CategoriaFinanceira[];
+  /** A URL trouxe período ou categoria: o filtro abre já aberto. */
+  ativo: boolean;
 }) {
-  const padrao = mesCorrente();
-  const ativo = de !== padrao.de || ate !== padrao.ate || Boolean(categoriaId);
-
   return (
     <BarraFiltros ativo={ativo}>
       <CampoFiltro rotulo="De" type="date" name="de" defaultValue={de} />

@@ -34,18 +34,15 @@ export default async function PaginaComissoes({ searchParams }: Props) {
     redirect('/painel/minhas-comissoes');
   }
 
-  const parametros = await searchParams;
-  const { de, ate, status } = lerFiltrosComissoes(parametros);
-  const usuarioId = parametros.usuarioId ?? '';
-
-  const query = new URLSearchParams({ de, ate });
-  if (usuarioId) query.set('usuarioId', usuarioId);
-  if (status) query.set('status', status);
+  const { query, status, usuarioId, filtrado } = lerFiltrosComissoes(await searchParams);
 
   const [relatorio, pessoas] = await Promise.all([
     apiComSessao<RelatorioComissoes>(`/comissoes?${query.toString()}`),
     apiComSessao<PessoaEquipe[]>('/equipe/pessoas'),
   ]);
+
+  // O período que a API usou (o mês corrente dela, sem datas na URL).
+  const { de, ate } = relatorio.periodo;
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,6 +62,7 @@ export default async function PaginaComissoes({ searchParams }: Props) {
         status={status}
         usuarioId={usuarioId}
         pessoas={pessoas}
+        ativo={filtrado}
       />
 
       <FaixaDeIndicadores>

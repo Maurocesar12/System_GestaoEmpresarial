@@ -2,11 +2,9 @@
 
 import {
   ROTULO_ACAO_AGENDAMENTO,
-  acoesAgendamentoDisponiveis,
   hojeISO,
-  normalizarDinheiro,
-  type RecebimentoExecucaoInput,
-  type StatusAgendamento,
+  type AcaoAgendamento,
+  type RecebimentoExecucaoEntrada,
 } from '@gestao/shared-types';
 import { CircleSlash, Clock, Wallet } from 'lucide-react';
 import { useState, useTransition } from 'react';
@@ -20,7 +18,7 @@ import { Campo } from '@/components/ui/campo';
 import { SeletorSegmentado, type OpcaoSegmentada } from '@/components/ui/seletor-segmentado';
 import { mudarStatusAgendamento } from './acoes';
 
-type EscolhaRecebimento = RecebimentoExecucaoInput['situacao'] | 'nao_lancar';
+type EscolhaRecebimento = RecebimentoExecucaoEntrada['situacao'] | 'nao_lancar';
 
 const OPCOES_RECEBIMENTO: readonly OpcaoSegmentada<EscolhaRecebimento>[] = [
   { valor: 'recebido', rotulo: 'Já recebi', icone: Wallet, tom: 'positivo' },
@@ -37,8 +35,9 @@ const AJUDA_RECEBIMENTO: Record<EscolhaRecebimento, string> = {
 /**
  * Botões de transição de um agendamento.
  *
- * Quais aparecem sai de `acoesAgendamentoDisponiveis`, a mesma tabela que a API
- * usa para validar. A tela nunca oferece uma ação que o servidor recusaria.
+ * Quais aparecem vem pronto da API (`agendamento.acoesDisponiveis`), da mesma
+ * tabela que ela usa para validar. A tela nunca oferece uma ação que o
+ * servidor recusaria.
  *
  * Executar abre antes uma conferência, que junta numa tela só o que antes
  * exigia ir a três: os materiais usados (com `catalogo`) e o dinheiro do
@@ -47,14 +46,15 @@ const AJUDA_RECEBIMENTO: Record<EscolhaRecebimento, string> = {
  */
 export function AcoesAgendamento({
   id,
-  status,
+  acoes,
   catalogo,
   materiaisPadrao = [],
   valorSugerido = null,
   podeLancarReceita = false,
 }: {
   id: string;
-  status: StatusAgendamento;
+  /** As transições permitidas agora, calculadas pela API. */
+  acoes: AcaoAgendamento[];
   catalogo?: MaterialDoCatalogo[];
   materiaisPadrao?: LinhaMaterial[];
   /** Pré-preenche o valor recebido. Vem do orçamento ou do preço do serviço. */
@@ -73,21 +73,19 @@ export function AcoesAgendamento({
   const [valor, setValor] = useState(valorSugerido?.replace('.', ',') ?? '');
   const [vencimento, setVencimento] = useState(hojeISO);
 
-  const acoes = acoesAgendamentoDisponiveis(status);
   const precisaConferir = Boolean(catalogo) || podeLancarReceita;
 
   if (acoes.length === 0) {
     return <span className="text-muted-foreground text-xs">—</span>;
   }
 
-  function montarRecebimento(): RecebimentoExecucaoInput | undefined {
+  // O valor vai como foi digitado ("1.250,00"): a API normaliza e valida.
+  function montarRecebimento(): RecebimentoExecucaoEntrada | undefined {
     if (!podeLancarReceita || escolha === 'nao_lancar') return undefined;
 
-    const valorNormalizado = normalizarDinheiro(valor);
-
     return escolha === 'recebido'
-      ? { situacao: 'recebido', valor: valorNormalizado }
-      : { situacao: 'a_receber', valor: valorNormalizado, vencimento };
+      ? { situacao: 'recebido', valor }
+      : { situacao: 'a_receber', valor, vencimento };
   }
 
   if (conferindo && precisaConferir) {

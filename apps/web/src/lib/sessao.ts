@@ -47,6 +47,11 @@ const usuarioCookieSchema = z.object({
       motivo: z.enum(['trial', 'pago', 'sem_pagamento', 'vencido', 'cancelado']),
       acessoAte: z.string().nullable(),
       diasRestantes: z.number().nullable(),
+      // Decididos pela API. Opcionais pelo mesmo motivo do `acesso`: cookie
+      // anterior não os tem, e sem eles o aviso só não aparece.
+      mensagem: z.string().optional(),
+      exibirAviso: z.boolean().optional(),
+      avisoUrgente: z.boolean().optional(),
     })
     .optional(),
 });

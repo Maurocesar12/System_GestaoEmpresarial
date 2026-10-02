@@ -2,14 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  clienteFormSchema,
-  importacaoClientesSchema,
-  type Cliente,
-  type ClienteFormInput,
-  type ResultadoImportacao,
+import type {
+  Cliente,
+  ClienteFormEntrada,
+  ClienteFormInput,
+  ConferenciaImportacaoClientes,
+  ResultadoImportacao,
 } from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /**
@@ -22,20 +22,12 @@ import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarCliente(
   id: string | null,
-  dados: ClienteFormInput,
+  dados: ClienteFormEntrada,
 ): Promise<ResultadoAcao> {
-  // Valida no servidor também. A validação do formulário é conveniência para
-  // quem digita; esta é a que vale.
-  const validacao = clienteFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Cliente>(id ? `/clientes/${id}` : '/clientes', {
       method: id ? 'PATCH' : 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível salvar. Tente novamente.');
@@ -84,16 +76,10 @@ export async function anonimizarCliente(id: string): Promise<ResultadoAcao> {
 export async function importarClientes(
   clientes: ClienteFormInput[],
 ): Promise<ResultadoAcao & { resultado?: ResultadoImportacao }> {
-  const validacao = importacaoClientesSchema.safeParse({ clientes });
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     const resultado = await apiComSessao<ResultadoImportacao>('/clientes/importar', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({ clientes }),
     });
 
     return { resultado };
@@ -101,6 +87,27 @@ export async function importarClientes(
     // O limite de plano volta como 403 com mensagem explicando quantas vagas
     // restam — vale a pena mostrar o texto da API em vez de um genérico.
     return traduzirErroAcao(erro, 'Não foi possível importar. Tente novamente.');
+  }
+}
+
+/**
+ * Confere um lote de linhas da planilha sem gravar nada.
+ *
+ * As linhas vão como saíram do arquivo; a API devolve, na mesma ordem, se cada
+ * uma é válida, os erros e os dados já normalizados.
+ */
+export async function conferirImportacao(
+  clientes: Record<string, string>[],
+): Promise<ResultadoAcao & { linhas?: ConferenciaImportacaoClientes['linhas'] }> {
+  try {
+    const resposta = await apiComSessao<ConferenciaImportacaoClientes>(
+      '/clientes/importar/conferir',
+      { method: 'POST', body: JSON.stringify({ clientes }) },
+    );
+
+    return { linhas: resposta.linhas };
+  } catch (erro) {
+    return traduzirErroAcao(erro, 'Não foi possível conferir a planilha. Tente novamente.');
   }
 }
 

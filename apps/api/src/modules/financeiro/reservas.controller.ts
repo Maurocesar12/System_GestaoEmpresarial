@@ -12,10 +12,13 @@ import {
 import {
   movimentacaoFormSchema,
   reservaFormSchema,
+  simulacaoReservaSchema,
   type MovimentacaoFormInput,
   type Reserva,
   type ReservaFormInput,
   type ResumoReservas,
+  type SimulacaoReserva,
+  type SimulacaoReservaInput,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../common/decorators/permissoes.decorator';
 import { CorpoValidado } from '../../common/decorators/validado.decorator';
@@ -54,6 +57,16 @@ export class ReservasController {
    * com regra própria — recusa resgate maior que o guardado — e não a edição de
    * um campo.
    */
+  /** Projeção da reserva com o aporte informado. Não grava nada. */
+  @Post(':id/simular')
+  @HttpCode(HttpStatus.OK)
+  simular(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CorpoValidado(simulacaoReservaSchema) dados: SimulacaoReservaInput,
+  ): Promise<SimulacaoReserva> {
+    return this.reservas.simular(id, dados);
+  }
+
   @Post(':id/movimentar')
   @Permissoes('financeiro.editar')
   movimentar(

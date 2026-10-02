@@ -119,7 +119,8 @@ export class OnboardingService {
    * o mesmo e-mail cadastrado, não haveria como saber em qual delas autenticar.
    */
   private async garantirEmailDisponivel(email: string): Promise<void> {
-    const existente = await this.prisma.semTenant(
+    const existente = await this.prisma.comEmailDeLogin(
+      email,
       'verificar e-mail já cadastrado antes de criar a empresa',
       (db) => db.usuario.findFirst({ where: { email }, select: { id: true } }),
     );

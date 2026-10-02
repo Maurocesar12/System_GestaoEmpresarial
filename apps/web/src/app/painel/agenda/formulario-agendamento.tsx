@@ -1,12 +1,9 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  agendamentoFormSchema,
   formatarBRL,
   type Agendamento,
   type AgendamentoFormEntrada,
-  type AgendamentoFormInput,
   type Cliente,
   type Orcamento,
   type PessoaEquipe,
@@ -64,8 +61,7 @@ export function FormularioAgendamento({
     setError,
     control,
     formState: { errors },
-  } = useForm<AgendamentoFormEntrada, unknown, AgendamentoFormInput>({
-    resolver: zodResolver(agendamentoFormSchema),
+  } = useForm<AgendamentoFormEntrada>({
     defaultValues: {
       clienteId: agendamento?.clienteId ?? clienteFixo ?? '',
       servicoId: agendamento?.servicoId ?? servicoInicial ?? '',
@@ -83,7 +79,7 @@ export function FormularioAgendamento({
     (orcamento) => orcamento.clienteId === clienteEscolhido,
   );
 
-  const aoEnviar = (dados: AgendamentoFormInput) => {
+  const aoEnviar = (dados: AgendamentoFormEntrada) => {
     setFalha(undefined);
 
     iniciarEnvio(async () => {

@@ -1,11 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  ROTULO_TIPO_MOVIMENTACAO,
-  formatarBRL,
-  possuiPermissao,
-  type MaterialDetalhe,
-} from '@gestao/shared-types';
+import { ROTULO_TIPO_MOVIMENTACAO, formatarBRL, type MaterialDetalhe } from '@gestao/shared-types';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
@@ -19,6 +14,7 @@ import {
 } from '@/components/ui/tabela';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { formatarDataCurta } from '@/lib/formatacao';
+import { pode } from '@/lib/permissoes';
 import { FormularioAjuste, FormularioEntrada, FormularioMaterial } from '../formularios';
 import { quantidadeBR } from '../quantidade';
 
@@ -34,7 +30,7 @@ export default async function PaginaMaterial({ params }: Props) {
     usuarioAtual(),
     apiComSessao<MaterialDetalhe>(`/estoque/materiais/${id}`),
   ]);
-  const podeGerenciar = possuiPermissao(usuario, 'estoque.gerenciar');
+  const podeGerenciar = pode(usuario, 'estoque.gerenciar');
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +44,7 @@ export default async function PaginaMaterial({ params }: Props) {
         <Indicador
           titulo="Saldo"
           valor={`${quantidadeBR(material.quantidade)} ${material.unidade}`}
-          tom={Number(material.quantidade) < 0 || material.abaixoDoMinimo ? 'negativo' : undefined}
+          tom={material.negativo || material.abaixoDoMinimo ? 'negativo' : undefined}
           detalhe={
             material.estoqueMinimo
               ? `mínimo ${quantidadeBR(material.estoqueMinimo)}`

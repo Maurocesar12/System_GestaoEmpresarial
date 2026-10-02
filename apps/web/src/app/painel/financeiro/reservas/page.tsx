@@ -67,20 +67,13 @@ export default async function PaginaReservas() {
           valor={formatarBRL(resumo.totalDasMetas)}
           detalhe={
             Number(resumo.totalDasMetas) > 0
-              ? `faltam ${formatarBRL(
-                  Math.max(0, Number(resumo.totalDasMetas) - Number(resumo.totalGuardado)).toFixed(
-                    2,
-                  ),
-                )}`
+              ? `faltam ${formatarBRL(resumo.faltaParaMetas)}`
               : 'nenhuma meta definida'
           }
         />
       </FaixaDeIndicadores>
 
-      <GerenciadorReservas
-        reservas={resumo.reservas}
-        custoFixoMensal={resumo.custoFixoMensal}
-      />
+      <GerenciadorReservas reservas={resumo.reservas} />
 
       <section className="text-muted-foreground flex flex-col gap-2 rounded-lg border border-dashed p-4 text-sm">
         <p className="text-foreground font-medium">Por que {COBERTURA_CONFORTAVEL} meses?</p>

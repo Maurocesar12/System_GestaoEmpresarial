@@ -1,16 +1,30 @@
-import { Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+} from '@nestjs/common';
 import {
   ajusteEstoqueSchema,
   entradaEstoqueSchema,
   fichaTecnicaSchema,
   materialFormSchema,
   materiaisQuerySchema,
+  simulacaoCustoMateriaisSchema,
   type AjusteEstoqueInput,
   type EntradaEstoqueInput,
   type FichaTecnica,
   type FichaTecnicaInput,
   type Material,
   type MaterialDetalhe,
+  type ResumoEstoque,
+  type SimulacaoCustoMateriais,
+  type SimulacaoCustoMateriaisInput,
   type MaterialFormInput,
   type MateriaisQuery,
   type Paginado,
@@ -27,6 +41,13 @@ export class EstoqueController {
   @Permissoes('estoque.visualizar')
   listar(@QueryValidada(materiaisQuerySchema) query: MateriaisQuery): Promise<Paginado<Material>> {
     return this.estoque.listar(query);
+  }
+
+  // Antes de `:id`: na ordem inversa, "resumo" seria lido como um id.
+  @Get('estoque/resumo')
+  @Permissoes('estoque.visualizar')
+  resumir(): Promise<ResumoEstoque> {
+    return this.estoque.resumir();
   }
 
   @Get('estoque/materiais/:id')
@@ -74,6 +95,16 @@ export class EstoqueController {
   @Permissoes('servicos.visualizar')
   fichaTecnica(@Param('id', ParseUUIDPipe) id: string): Promise<FichaTecnica> {
     return this.estoque.fichaTecnica(id);
+  }
+
+  /** Prévia do custo de uma lista de materiais, pelo custo médio de agora. */
+  @Post('estoque/simular-custo')
+  @Permissoes('estoque.visualizar')
+  @HttpCode(HttpStatus.OK)
+  simularCusto(
+    @CorpoValidado(simulacaoCustoMateriaisSchema) dados: SimulacaoCustoMateriaisInput,
+  ): Promise<SimulacaoCustoMateriais> {
+    return this.estoque.simularCusto(dados.itens);
   }
 
   @Put('servicos/:id/materiais')

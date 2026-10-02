@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { clienteFormSchema, type Cliente } from '@gestao/shared-types';
-import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { Cliente } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /**
@@ -25,34 +25,25 @@ export async function adicionarLead(dados: {
   email: string;
   origem: string;
 }): Promise<ResultadoAcao> {
-  // O mesmo schema do cadastro completo: é ele que normaliza telefone e
-  // e-mail e converte campo vazio em `null`. Validar aqui, e não só no
-  // navegador, é o que vale — a tela é conveniência para quem digita.
-  const validacao = clienteFormSchema.safeParse({
-    nome: dados.nome,
-    email: dados.email,
-    telefone: dados.telefone,
-    documento: '',
-    observacoes: '',
-    origem: dados.origem,
-    utmSource: '',
-    utmMedium: '',
-    utmCampaign: '',
-    camposPersonalizados: {},
-    etiquetas: [],
-  });
-
-  // Uma mensagem, e não o mapa de erros por campo: o formulário do cartão tem
-  // uma linha para avisos, e "confira os dados" sem dizer qual deixaria a
-  // pessoa procurando.
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
+  // O corpo completo do cadastro, com o que o cartão não pergunta em branco. A
+  // API valida e normaliza telefone e e-mail; um erro volta como a mensagem
+  // do campo (ver `traduzirErroAcao`), que cabe na linha de aviso do cartão.
   try {
     await apiComSessao<Cliente>('/clientes', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({
+        nome: dados.nome,
+        email: dados.email,
+        telefone: dados.telefone,
+        documento: '',
+        observacoes: '',
+        origem: dados.origem,
+        utmSource: '',
+        utmMedium: '',
+        utmCampaign: '',
+        camposPersonalizados: {},
+        etiquetas: [],
+      }),
     });
   } catch (erro) {
     // O limite de clientes do plano volta como 403 com a mensagem explicando

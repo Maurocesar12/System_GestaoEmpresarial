@@ -48,24 +48,28 @@ export class AuthService {
 
   async login({ email, senha }: LoginInput): Promise<SessaoResponse> {
     // Busca fora de escopo de tenant porque é justamente o login que descobre
-    // a qual empresa a pessoa pertence. É o que a política `usuario_login`
-    // permite — e só ela: a tabela `tenant` continua isolada, por isso não há
-    // `include` aqui. A empresa é lida logo abaixo, já dentro do contexto.
-    const usuario = await this.prisma.semTenant('identificar o usuário pelo e-mail', (db) =>
-      db.usuario.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          tenantId: true,
-          nome: true,
-          email: true,
-          senhaHash: true,
-          papel: true,
-          ativo: true,
-          permissoes: true,
-          permissoesPersonalizadas: true,
-        },
-      }),
+    // a qual empresa a pessoa pertence. A política `usuario_login` libera só a
+    // linha do e-mail declarado — e só ela: a tabela `tenant` continua isolada,
+    // por isso não há `include` aqui. A empresa é lida logo abaixo, já dentro
+    // do contexto.
+    const usuario = await this.prisma.comEmailDeLogin(
+      email,
+      'identificar o usuário pelo e-mail',
+      (db) =>
+        db.usuario.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            tenantId: true,
+            nome: true,
+            email: true,
+            senhaHash: true,
+            papel: true,
+            ativo: true,
+            permissoes: true,
+            permissoesPersonalizadas: true,
+          },
+        }),
     );
 
     if (!usuario) {

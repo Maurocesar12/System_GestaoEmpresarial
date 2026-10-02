@@ -73,10 +73,11 @@ export class RecorrenciaAgendador {
       new Date(`${hoje}T00:00:00Z`).getTime() + DIAS_DE_ANTECEDENCIA_RECORRENCIA * DIA_MS,
     );
 
-    // Permitido pela política `recorrencia_varredura`: sem contexto, só moldes
-    // ativos e próximos do vencimento são visíveis (migration
-    // `20260930160000_recorrencia_e_parcelamento`).
-    const moldes = await this.prisma.semTenant(
+    // Permitido pela política `recorrencia_varredura`: só com a varredura
+    // declarada, e só moldes ativos e próximos do vencimento (migration
+    // `20261001120000_politicas_declaradas`).
+    const moldes = await this.prisma.comVarredura(
+      'recorrencias',
       'geração de recorrências: roda fora de requisição e precisa achar os moldes vencendo em todas as empresas',
       (db) =>
         db.lancamentoRecorrente.findMany({

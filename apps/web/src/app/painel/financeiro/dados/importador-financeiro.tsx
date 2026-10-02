@@ -1,6 +1,5 @@
 'use client';
 
-import { importacaoLancamentosSchema, type ImportacaoLancamentosInput } from '@gestao/shared-types';
 import { FileSpreadsheet, Upload } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -10,8 +9,31 @@ import { importarLancamentos } from './acoes';
 
 const COLUNAS = ['tipo', 'natureza', 'descricao', 'valor', 'data', 'vencimento', 'pagoEm'] as const;
 
+/**
+ * Traduz o erro da API para a linha da planilha.
+ *
+ * A API aponta o campo como `lancamentos.3.valor` (posição na lista, a partir
+ * de zero). Quem conserta a planilha procura a linha do Excel: 3 + 2, contando
+ * o cabeçalho.
+ */
+function descreverFalha(erro: string, campos?: Record<string, string[]>): string {
+  const linhas = Object.entries(campos ?? {})
+    .map(([campo, mensagens]) => {
+      const [, posicao, coluna] = /^lancamentos\.(\d+)\.(\w+)/.exec(campo) ?? [];
+      return posicao === undefined
+        ? null
+        : `Linha ${Number(posicao) + 2}, ${coluna}: ${mensagens[0]}`;
+    })
+    .filter((linha): linha is string => linha !== null);
+
+  if (linhas.length === 0) return erro;
+
+  const resto = linhas.length > 5 ? ` (e mais ${linhas.length - 5})` : '';
+  return `A planilha tem dados inválidos. ${linhas.slice(0, 5).join(' · ')}${resto}`;
+}
+
 export function ImportadorFinanceiro() {
-  const [dados, setDados] = useState<ImportacaoLancamentosInput>();
+  const [dados, setDados] = useState<{ lancamentos: Record<string, string>[] }>();
   const [mensagem, setMensagem] = useState<string>();
   const [falha, setFalha] = useState<string>();
   const [enviando, iniciar] = useTransition();
@@ -31,26 +53,13 @@ export function ImportadorFinanceiro() {
       ) as Record<(typeof COLUNAS)[number], number>;
       const celula = (linha: string[], coluna: (typeof COLUNAS)[number]) =>
         linha[indices[coluna]]?.trim() ?? '';
-      const bruto = {
-        lancamentos: planilha.linhas.map((linha) => ({
-          tipo: celula(linha, 'tipo').toLowerCase(),
-          natureza: celula(linha, 'natureza').toLowerCase() || 'empresa',
-          descricao: celula(linha, 'descricao'),
-          valor: celula(linha, 'valor'),
-          data: celula(linha, 'data'),
-          vencimento: celula(linha, 'vencimento') || null,
-          pagoEm: celula(linha, 'pagoEm') || null,
-        })),
-      };
-      const validacao = importacaoLancamentosSchema.safeParse(bruto);
-      if (!validacao.success) {
-        setFalha(
-          `A planilha contém dados inválidos. Confira tipo (entrada/saida), valor e datas. ${validacao.error.issues[0]?.message ?? ''}`,
-        );
-        return;
-      }
-      setDados(validacao.data);
-      setMensagem(`${validacao.data.lancamentos.length} lançamentos prontos para importar.`);
+      // Só leitura do arquivo: cada célula vai como está. Normalizar ("Entrada"
+      // → "entrada") e validar é trabalho da API, que devolve o erro por linha.
+      const lancamentos = planilha.linhas.map((linha) =>
+        Object.fromEntries(COLUNAS.map((coluna) => [coluna, celula(linha, coluna)])),
+      );
+      setDados({ lancamentos });
+      setMensagem(`${lancamentos.length} linhas lidas. A conferência acontece ao importar.`);
     } catch {
       setFalha('Não foi possível ler a planilha. Use o modelo CSV exportado pelo sistema.');
     }
@@ -82,7 +91,7 @@ export function ImportadorFinanceiro() {
           dados &&
           iniciar(async () => {
             const resultado = await importarLancamentos(dados);
-            if (resultado.erro) setFalha(resultado.erro);
+            if (resultado.erro) setFalha(descreverFalha(resultado.erro, resultado.campos));
             else {
               setMensagem(`${resultado.criados} lançamentos importados com sucesso.`);
               setDados(undefined);

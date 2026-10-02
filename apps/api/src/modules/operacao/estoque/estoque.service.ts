@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -9,6 +14,8 @@ import {
   type ItemMaterialInput,
   type Material,
   type MaterialDetalhe,
+  type ResumoEstoque,
+  type SimulacaoCustoMateriais,
   type MaterialFormInput,
   type MateriaisQuery,
   type Paginado,
@@ -67,6 +74,68 @@ export class EstoqueService {
       total,
       query,
     );
+  }
+
+  /**
+   * Custo estimado de uma lista de materiais, pelo custo médio de agora.
+   *
+   * Material que não é da empresa (ou não existe) entra com custo zero, em vez
+   * de derrubar a prévia: é estimativa para orientar quem edita, e a baixa de
+   * verdade recusa o material inválido na hora de gravar.
+   */
+  async simularCusto(itens: ItemMaterialInput[]): Promise<SimulacaoCustoMateriais> {
+    const materiais = await this.prisma.comTenant((tx) =>
+      tx.material.findMany({
+        where: { id: { in: itens.map((item) => item.materialId) } },
+        select: { id: true, custoMedio: true },
+      }),
+    );
+    const custoPorId = new Map(materiais.map((material) => [material.id, material.custoMedio]));
+
+    let total = ZERO;
+    const linhas = itens.map((item) => {
+      const custo = valorMovimentacao(
+        new Prisma.Decimal(item.quantidade),
+        custoPorId.get(item.materialId) ?? ZERO,
+      );
+      total = total.plus(custo);
+      return { materialId: item.materialId, custo: custo.toFixed(2) };
+    });
+
+    return { linhas, custoTotal: total.toFixed(2) };
+  }
+
+  /** Totais do estoque ativo inteiro — ver `ResumoEstoque`. */
+  async resumir(): Promise<ResumoEstoque> {
+    const ativos = await this.prisma.comTenant((tx) =>
+      tx.material.findMany({
+        where: { ativo: true },
+        select: { quantidade: true, custoMedio: true, estoqueMinimo: true },
+      }),
+    );
+
+    let valor = ZERO;
+    let abaixoDoMinimo = 0;
+    let negativos = 0;
+
+    for (const material of ativos) {
+      // A mesma conta de `paraMaterial`: saldo negativo não vira dinheiro
+      // negativo, porque não existe material "devendo" no almoxarifado.
+      valor = valor.plus(
+        valorMovimentacao(Prisma.Decimal.max(material.quantidade, ZERO), material.custoMedio),
+      );
+      if (material.estoqueMinimo !== null && material.quantidade.lte(material.estoqueMinimo)) {
+        abaixoDoMinimo++;
+      }
+      if (material.quantidade.lt(ZERO)) negativos++;
+    }
+
+    return {
+      valorEmEstoque: valor.toFixed(2),
+      materiaisAtivos: ativos.length,
+      abaixoDoMinimo,
+      negativos,
+    };
   }
 
   async buscar(id: string): Promise<MaterialDetalhe> {
@@ -461,6 +530,7 @@ export class EstoqueService {
       estoqueMinimo: registro.estoqueMinimo ? paraQuantidade(registro.estoqueMinimo) : null,
       abaixoDoMinimo:
         registro.estoqueMinimo !== null && registro.quantidade.lte(registro.estoqueMinimo),
+      negativo: registro.quantidade.lt(ZERO),
       ativo: registro.ativo,
       criadoEm: registro.criadoEm.toISOString(),
     };

@@ -12,6 +12,7 @@ import {
 import {
   recorrenciaFormSchema,
   type LancamentoRecorrente,
+  type ResumoRecorrencias,
   type RecorrenciaFormInput,
 } from '@gestao/shared-types';
 import { z } from 'zod';
@@ -29,6 +30,11 @@ export class RecorrenciaController {
   @Get()
   listar(): Promise<LancamentoRecorrente[]> {
     return this.recorrencias.listar();
+  }
+
+  @Get('resumo')
+  resumir(): Promise<ResumoRecorrencias> {
+    return this.recorrencias.resumir();
   }
 
   @Post()

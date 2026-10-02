@@ -1,7 +1,6 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { cadastroSchema, type CadastroInput } from '@gestao/shared-types';
+import { type CadastroInput } from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -30,7 +29,6 @@ export function FormularioCadastro() {
     setError,
     formState: { errors },
   } = useForm<CadastroInput>({
-    resolver: zodResolver(cadastroSchema),
     defaultValues: { nomeEmpresa: '', nomeResponsavel: '', email: '', senha: '' },
   });
 

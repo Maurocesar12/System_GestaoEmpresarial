@@ -1,30 +1,23 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  movimentacaoFormSchema,
-  reservaFormSchema,
-  type MovimentacaoFormEntrada,
-  type Reserva,
-  type ReservaFormEntrada,
+import type {
+  MovimentacaoFormEntrada,
+  Reserva,
+  ReservaFormEntrada,
+  SimulacaoReserva,
 } from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarReserva(
   id: string | null,
   dados: ReservaFormEntrada,
 ): Promise<ResultadoAcao> {
-  const validacao = reservaFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Reserva>(id ? `/financeiro/reservas/${id}` : '/financeiro/reservas', {
       method: id ? 'PATCH' : 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);
@@ -45,16 +38,10 @@ export async function movimentarReserva(
   id: string,
   dados: MovimentacaoFormEntrada,
 ): Promise<ResultadoAcao> {
-  const validacao = movimentacaoFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Reserva>(`/financeiro/reservas/${id}/movimentar`, {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     // A API recusa resgate maior que o guardado e diz quanto há.
@@ -74,4 +61,22 @@ export async function removerReserva(id: string): Promise<ResultadoAcao> {
 
   revalidatePath('/painel/financeiro', 'layout');
   return {};
+}
+
+/** Projeção da reserva, calculada pela API. Erro só some com a prévia. */
+export async function simularReserva(dados: {
+  id: string;
+  aporteMensal: string;
+  meses: string;
+}): Promise<{ dados?: SimulacaoReserva }> {
+  try {
+    return {
+      dados: await apiComSessao<SimulacaoReserva>(`/financeiro/reservas/${dados.id}/simular`, {
+        method: 'POST',
+        body: JSON.stringify({ aporteMensal: dados.aporteMensal, meses: dados.meses }),
+      }),
+    };
+  } catch {
+    return {};
+  }
 }

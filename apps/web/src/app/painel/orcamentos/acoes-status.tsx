@@ -1,21 +1,20 @@
 'use client';
 
-import { ROTULO_ACAO, acoesDisponiveis, type StatusOrcamento } from '@gestao/shared-types';
+import { ROTULO_ACAO, type AcaoOrcamento } from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { mudarStatus } from './acoes';
 
 /**
  * Botões de transição de um orçamento.
  *
- * Quais botões aparecem sai de `acoesDisponiveis`, a mesma tabela de transições
- * que a API usa para validar. Uma tabela só significa que a tela nunca oferece
- * uma ação que o servidor vai recusar — nem esconde uma que ele aceitaria.
+ * Quais botões aparecem vem pronto da API (`orcamento.acoesDisponiveis`), da
+ * mesma tabela de transições que ela usa para validar. A tela não decide nada:
+ * nunca oferece uma ação que o servidor vai recusar, nem esconde uma que ele
+ * aceitaria.
  */
-export function AcoesStatus({ id, status }: { id: string; status: StatusOrcamento }) {
+export function AcoesStatus({ id, acoes }: { id: string; acoes: AcaoOrcamento[] }) {
   const [erro, setErro] = useState<string>();
   const [executando, iniciar] = useTransition();
-
-  const acoes = acoesDisponiveis(status);
 
   if (acoes.length === 0) {
     return <span className="text-muted-foreground text-xs">—</span>;

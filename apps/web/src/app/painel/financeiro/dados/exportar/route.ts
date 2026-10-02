@@ -3,10 +3,16 @@ import { apiComSessao } from '@/lib/api-servidor';
 
 export async function GET(request: Request) {
   const busca = new URL(request.url).searchParams;
-  const de = busca.get('de') ?? '';
-  const ate = busca.get('ate') ?? '';
+
+  // Repassa só as datas que vieram: sem elas, a API exporta o mês corrente.
+  const query = new URLSearchParams({ natureza: 'empresa' });
+  for (const chave of ['de', 'ate']) {
+    const valor = busca.get(chave);
+    if (valor) query.set(chave, valor);
+  }
+
   const arquivo = await apiComSessao<ExportacaoFinanceira>(
-    `/financeiro/dados/exportar?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}&natureza=empresa`,
+    `/financeiro/dados/exportar?${query.toString()}`,
   );
   return new Response(arquivo.conteudo, {
     headers: {

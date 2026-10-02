@@ -9,7 +9,11 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'node:crypto';
 import {
   CODIGOS_ERRO,
+  PAPEIS_USUARIO,
+  PERMISSOES_PADRAO_POR_PAPEL,
   permissoesDoUsuario,
+  type PapelUsuario,
+  type Permissao,
   type AceitarConviteInput,
   type AtualizarFuncionarioInput,
   type ConviteEquipeInput,
@@ -111,6 +115,10 @@ export class EquipeService {
         convitesPendentes: convites.length,
         vagasOcupadas: ocupadas,
         vagasDisponiveis: limite === null ? null : Math.max(0, limite - ocupadas),
+        // A tela só desenha a barra e bloqueia o convite: quem decide é aqui.
+        percentualOcupado:
+          limite === null ? 0 : Math.min(100, Math.round((ocupadas / limite) * 100)),
+        limiteAtingido: limite !== null && ocupadas >= limite,
         usuariosInclusos: tenant.plano.usuariosInclusos,
         usuariosAdicionais: cobranca.usuariosAdicionais,
         precoPorUsuarioAdicional: tenant.plano.precoUsuarioAdicional.toFixed(2),
@@ -128,6 +136,11 @@ export class EquipeService {
             }
           : null,
       },
+      // O ponto de partida ao escolher um papel na tela. A tabela é da API: a
+      // tela não sabe o que cada papel pode, só mostra o que veio.
+      permissoesPadraoPorPapel: Object.fromEntries(
+        PAPEIS_USUARIO.map((papel) => [papel, [...PERMISSOES_PADRAO_POR_PAPEL[papel]]]),
+      ) as Record<PapelUsuario, Permissao[]>,
     };
   }
 
@@ -193,7 +206,8 @@ export class EquipeService {
 
     if (
       contexto.papel !== 'admin' &&
-      (dados.comissaoVendaPercentual !== undefined || dados.comissaoExecucaoPercentual !== undefined)
+      (dados.comissaoVendaPercentual !== undefined ||
+        dados.comissaoExecucaoPercentual !== undefined)
     ) {
       throw new ForbiddenException({
         codigo: CODIGOS_ERRO.SEM_PERMISSAO,
@@ -404,7 +418,8 @@ export class EquipeService {
     return createHash('sha256').update(token).digest('hex');
   }
   private async garantirEmailDisponivel(email: string): Promise<void> {
-    const existente = await this.prisma.semTenant(
+    const existente = await this.prisma.comEmailDeLogin(
+      email,
       'impedir e-mail duplicado ao convidar ou aceitar funcionário',
       (db) => db.usuario.findUnique({ where: { email }, select: { id: true } }),
     );

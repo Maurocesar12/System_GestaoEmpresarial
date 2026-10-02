@@ -42,9 +42,10 @@ export class ExclusaoContasAgendador {
   async excluirVencidas(agora: Date = new Date()): Promise<number> {
     const corte = new Date(agora.getTime() - DIAS_PARA_EXCLUIR_CONTA_CANCELADA * DIA_MS);
 
-    // Permitido pela política `tenant_expurgo`: sem contexto, só empresas
-    // canceladas são visíveis (migration `20260915120000_lgpd`).
-    const vencidas = await this.prisma.semTenant(
+    // Permitido pela política `tenant_expurgo`: só com a varredura declarada,
+    // e só empresas canceladas (migration `20261001120000_politicas_declaradas`).
+    const vencidas = await this.prisma.comVarredura(
+      'expurgo',
       'exclusão de contas canceladas: roda fora de requisição e precisa achar as vencidas',
       (db) =>
         db.tenant.findMany({

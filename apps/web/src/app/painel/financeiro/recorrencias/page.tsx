@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import {
   DIAS_DE_ANTECEDENCIA_RECORRENCIA,
   formatarBRL,
-  somarDinheiro,
   type CategoriaFinanceira,
   type Cliente,
   type LancamentoRecorrente,
   type Paginado,
+  type ResumoRecorrencias,
   type Servico,
 } from '@gestao/shared-types';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
@@ -28,25 +28,14 @@ export const metadata: Metadata = {
  * tem de cabeça: a soma do que sai todo mês antes de qualquer venda acontecer.
  */
 export default async function PaginaRecorrencias() {
-  const [recorrencias, categorias, servicos, clientes] = await Promise.all([
+  const [recorrencias, resumo, categorias, servicos, clientes] = await Promise.all([
     apiComSessao<LancamentoRecorrente[]>('/financeiro/recorrencias'),
+    // O compromisso mensal vem somado pela API (só mensais ativas entram).
+    apiComSessao<ResumoRecorrencias>('/financeiro/recorrencias/resumo'),
     apiComSessao<CategoriaFinanceira[]>('/financeiro/categorias'),
     apiComSessao<Paginado<Servico>>('/servicos?porPagina=100&somenteAtivos=true'),
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),
   ]);
-
-  const ativas = recorrencias.filter((recorrencia) => recorrencia.ativo);
-
-  // Só as mensais entram no compromisso mensal. Somar uma anual junto
-  // multiplicaria por doze o peso de um seguro no mês — e o número existe
-  // justamente para dizer quanto sai **por mês**.
-  const mensais = ativas.filter((recorrencia) => recorrencia.periodicidade === 'mensal');
-  const saidaMensal = somarDinheiro(
-    mensais.filter((r) => r.tipo === 'saida').map((r) => r.valor),
-  );
-  const entradaMensal = somarDinheiro(
-    mensais.filter((r) => r.tipo === 'entrada').map((r) => r.valor),
-  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -59,25 +48,21 @@ export default async function PaginaRecorrencias() {
       <FaixaDeIndicadores>
         <Indicador
           titulo="Sai todo mês"
-          valor={formatarBRL(saidaMensal)}
+          valor={formatarBRL(resumo.saidaMensal)}
           tom="negativo"
           detalhe="antes de qualquer venda acontecer"
           destaque
         />
         <Indicador
           titulo="Entra todo mês"
-          valor={formatarBRL(entradaMensal)}
+          valor={formatarBRL(resumo.entradaMensal)}
           tom="positivo"
           detalhe="mensalidades e contratos"
         />
         <Indicador
           titulo="Recorrências ativas"
-          valor={String(ativas.length)}
-          detalhe={
-            recorrencias.length === ativas.length
-              ? 'nenhuma pausada'
-              : `${recorrencias.length - ativas.length} pausada(s)`
-          }
+          valor={String(resumo.ativas)}
+          detalhe={resumo.pausadas === 0 ? 'nenhuma pausada' : `${resumo.pausadas} pausada(s)`}
         />
       </FaixaDeIndicadores>
 

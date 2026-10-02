@@ -76,16 +76,19 @@ function descreverConexao(url: string): string {
  * Descobre as empresas a partir da tabela `usuario`, com um e-mail de contato.
  *
  * `tenant` não pode ser lida sem contexto, e o contexto é justamente o que
- * queremos descobrir. A saída é a política `usuario_login`, que permite ler
- * `usuario` quando não há tenant definido — o mesmo caminho que o login usa.
+ * queremos descobrir. A saída é a política `usuario_listagem_admin`, que só
+ * libera `usuario` quando a transação declara `app.varredura = 'contas'`.
  *
  * A ordenação por `papel` traz o admin primeiro: no PostgreSQL um enum ordena
  * pela ordem de declaração, e `admin` é o primeiro valor de `papel_usuario`.
  */
 async function descobrirEmpresas(): Promise<Map<string, string>> {
-  const usuarios = await prisma.usuario.findMany({
-    select: { tenantId: true, email: true },
-    orderBy: [{ papel: 'asc' }, { criadoEm: 'asc' }],
+  const usuarios = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.varredura', 'contas', true)`;
+    return tx.usuario.findMany({
+      select: { tenantId: true, email: true },
+      orderBy: [{ papel: 'asc' }, { criadoEm: 'asc' }],
+    });
   });
 
   const porEmpresa = new Map<string, string>();
@@ -105,9 +108,12 @@ async function resolverAlvo(informado: string): Promise<string | undefined> {
     return informado;
   }
 
-  const usuario = await prisma.usuario.findUnique({
-    where: { email: informado.trim().toLowerCase() },
-    select: { tenantId: true },
+  const email = informado.trim().toLowerCase();
+
+  // Declara o e-mail procurado: é o que a política `usuario_login` exige.
+  const usuario = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.login_email', ${email}::text, true)`;
+    return tx.usuario.findUnique({ where: { email }, select: { tenantId: true } });
   });
 
   return usuario?.tenantId;

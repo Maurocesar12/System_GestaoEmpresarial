@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  margemPercentual,
   paginar,
   type Paginado,
   type Servico,
@@ -150,14 +151,18 @@ export class ServicosService {
    * a precisão que o `NUMERIC` existe para preservar (arquitetura §7).
    */
   private paraResposta(registro: ServicoBanco): Servico {
+    const custoBase = registro.custoBase.toFixed(2);
+    const precoPadrao = registro.precoPadrao?.toFixed(2) ?? null;
+
     return {
       id: registro.id,
       nome: registro.nome,
       categoria: registro.categoria,
-      custoBase: registro.custoBase.toFixed(2),
-      precoPadrao: registro.precoPadrao?.toFixed(2) ?? null,
+      custoBase,
+      precoPadrao,
       ativo: registro.ativo,
       criadoEm: registro.criadoEm.toISOString(),
+      margemPercentual: margemPercentual(custoBase, precoPadrao),
     };
   }
 }

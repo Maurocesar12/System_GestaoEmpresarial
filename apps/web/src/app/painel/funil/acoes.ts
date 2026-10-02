@@ -1,13 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  clienteFormSchema,
-  type Cliente,
-  type ClienteFormInput,
-  type MoverClienteInput,
-} from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { Cliente, ClienteFormInput, MoverClienteInput } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /**
@@ -59,18 +54,12 @@ export async function adicionarCartao(
   etapaId: string,
   dados: ClienteFormInput,
 ): Promise<ResultadoAcao> {
-  const validacao = clienteFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   let cliente: Cliente;
 
   try {
     cliente = await apiComSessao<Cliente>('/clientes', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível criar o cliente. Tente novamente.');

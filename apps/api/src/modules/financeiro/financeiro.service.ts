@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  type AnaliseConciliacaoInput,
+  type ConciliacaoAnalisada,
   MIME_TYPES_ANEXO_LANCAMENTO,
   dividirEmParcelas,
   ocorrenciaDoCiclo,
@@ -33,9 +35,20 @@ import { Prisma } from '../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { garantirVinculos } from '../../common/vinculos';
+import { garantirCategoriaDoTipo, tiposQueACategoriaServe } from './categoria-do-tipo';
+import {
+  ColunasNaoEncontradas,
+  extrairMovimentacoes,
+  sugerirVinculos,
+  type ContaEmAberto,
+} from './conciliacao';
+import { conferirAnexo } from './conferencia-anexo';
 import { ZERO } from './decimal';
 import { hojeEmDia, paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
+
+/** Quantas contas em aberto entram na conciliação, das que vencem antes. */
+const LIMITE_CONTAS_CONCILIACAO = 500;
 
 /**
  * Traduz a situação — que é derivada — para um filtro que o banco entende.
@@ -116,6 +129,62 @@ export class FinanceiroService {
     private readonly auditoria: AuditoriaService,
   ) {}
 
+  // --- Conciliação ---------------------------------------------------------
+
+  /**
+   * Lê o extrato e sugere com qual conta em aberto cada movimentação bate.
+   *
+   * Não grava nada: conciliar é dar baixa na conta escolhida, pela rota de
+   * baixa de sempre. As contas vêm do banco aqui mesmo — a tela passava as que
+   * tinha carregado, até cem por situação.
+   */
+  async analisarConciliacao(dados: AnaliseConciliacaoInput): Promise<ConciliacaoAnalisada> {
+    let extraidas: ReturnType<typeof extrairMovimentacoes>;
+
+    try {
+      extraidas = extrairMovimentacoes(dados.cabecalhos, dados.linhas);
+    } catch (erro) {
+      if (erro instanceof ColunasNaoEncontradas) {
+        throw new BadRequestException({
+          codigo: CODIGOS_ERRO.VALIDACAO,
+          mensagem: erro.message,
+          detalhes: { cabecalhos: [erro.message] },
+        });
+      }
+      throw erro;
+    }
+
+    const abertas = await this.prisma.comTenant((tx) =>
+      tx.lancamentoFinanceiro.findMany({
+        where: { pagoEm: null, natureza: 'empresa' },
+        select: {
+          id: true,
+          tipo: true,
+          descricao: true,
+          valor: true,
+          data: true,
+          vencimento: true,
+        },
+        orderBy: [{ vencimento: 'asc' }, { data: 'asc' }],
+        take: LIMITE_CONTAS_CONCILIACAO,
+      }),
+    );
+
+    const contas: ContaEmAberto[] = abertas.map((conta) => ({
+      id: conta.id,
+      tipo: conta.tipo,
+      descricao: conta.descricao,
+      valor: conta.valor,
+      referencia: paraDia(conta.vencimento ?? conta.data)!,
+    }));
+
+    return {
+      movimentacoes: sugerirVinculos(extraidas.movimentacoes, contas),
+      ignoradas: extraidas.ignoradas,
+      contasEmAberto: contas.length,
+    };
+  }
+
   // --- Categorias ----------------------------------------------------------
 
   async listarCategorias(): Promise<CategoriaFinanceira[]> {
@@ -127,6 +196,7 @@ export class FinanceiroService {
       id: categoria.id,
       nome: categoria.nome,
       tipoCusto: categoria.tipoCusto,
+      servePara: tiposQueACategoriaServe(categoria.tipoCusto),
       criadoEm: categoria.criadoEm.toISOString(),
     }));
   }
@@ -154,6 +224,7 @@ export class FinanceiroService {
       id: categoria.id,
       nome: categoria.nome,
       tipoCusto: categoria.tipoCusto,
+      servePara: tiposQueACategoriaServe(categoria.tipoCusto),
       criadoEm: categoria.criadoEm.toISOString(),
     };
   }
@@ -219,6 +290,7 @@ export class FinanceiroService {
 
     const lancamento = await this.prisma.comTenant(async (tx) => {
       await garantirVinculos(tx, dados);
+      await garantirCategoriaDoTipo(tx, dados);
 
       const criado = await tx.lancamentoFinanceiro.create({
         data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBanco(dados) },
@@ -350,6 +422,7 @@ export class FinanceiroService {
 
     const lancamentos = await this.prisma.comTenant(async (tx) => {
       await garantirVinculos(tx, dados);
+      await garantirCategoriaDoTipo(tx, dados);
 
       const base = this.paraBanco(dados);
       const tenantId = tenantAtual();
@@ -420,6 +493,8 @@ export class FinanceiroService {
           mensagem: 'Lançamento não encontrado.',
         });
       }
+
+      await garantirCategoriaDoTipo(tx, dados, anterior.categoriaId);
 
       await tx.lancamentoFinanceiro.update({
         where: { id },
@@ -984,21 +1059,25 @@ export class FinanceiroService {
     lancamentoId: string,
     anexos: LancamentoFormInput['anexos'],
   ): Promise<void> {
+    // Confere todos antes de apagar qualquer um: um arquivo recusado não pode
+    // deixar o lançamento sem os anexos que já tinha.
+    const conferidos = anexos.map((anexo, indice) => conferirAnexo(anexo, indice));
+
     await tx.anexoLancamento.deleteMany({ where: { lancamentoId } });
 
-    if (anexos.length === 0) {
+    if (conferidos.length === 0) {
       return;
     }
 
     await tx.anexoLancamento.createMany({
-      data: anexos.map((anexo) => ({
-        id: anexo.id ?? uuidv7(),
+      // O id é sempre do servidor. O que vinha do corpo era aceito como chave
+      // primária — e um id de outra empresa batia na unicidade e revelava que
+      // aquele anexo existia.
+      data: conferidos.map((anexo) => ({
+        id: uuidv7(),
         tenantId: tenantAtual(),
         lancamentoId,
-        nome: anexo.nome,
-        mimeType: anexo.mimeType,
-        tamanhoBytes: anexo.tamanhoBytes,
-        conteudo: anexo.conteudo,
+        ...anexo,
       })),
     });
   }

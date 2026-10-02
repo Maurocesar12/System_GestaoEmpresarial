@@ -1,13 +1,10 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  clienteFormSchema,
-  type Cliente,
-  type ClienteFormEntrada,
-  type ClienteFormInput,
-  type CampoPersonalizado,
-  type Etiqueta,
+import type {
+  Cliente,
+  ClienteFormEntrada,
+  CampoPersonalizado,
+  Etiqueta,
 } from '@gestao/shared-types';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
@@ -54,8 +51,7 @@ export function FormularioCliente({
     // e o `handleSubmit` entrega `ClienteFormInput` (já normalizado, vazios
     // como null). Sem essa distinção, o TypeScript exigiria valor inicial
     // `null` nos campos opcionais e o input ficaria descontrolado.
-  } = useForm<ClienteFormEntrada, unknown, ClienteFormInput>({
-    resolver: zodResolver(clienteFormSchema),
+  } = useForm<ClienteFormEntrada>({
     defaultValues: {
       nome: cliente?.nome ?? '',
       // Campos nulos viram string vazia: um `<input>` com valor `null` fica
@@ -95,7 +91,7 @@ export function FormularioCliente({
     };
   };
 
-  const aoEnviar = (dados: ClienteFormInput) => {
+  const aoEnviar = (dados: ClienteFormEntrada) => {
     setFalha(undefined);
 
     iniciarEnvio(async () => {

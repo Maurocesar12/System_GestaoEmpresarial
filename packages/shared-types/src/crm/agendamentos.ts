@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dinheiroDigitadoSchema } from '../common/dinheiro';
 import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 import { statusAgendamentoSchema, type StatusAgendamento } from '../enums';
@@ -84,10 +85,12 @@ export const ACOES_AGENDAMENTO = ['confirmar', 'executar', 'cancelar', 'reagenda
 export const acaoAgendamentoSchema = z.enum(ACOES_AGENDAMENTO);
 export type AcaoAgendamento = z.infer<typeof acaoAgendamentoSchema>;
 
-const valorRecebimentoSchema = z
-  .string()
-  .regex(/^\d+(\.\d{1,2})?$/, 'Informe o valor recebido')
-  .refine((valor) => Number(valor) > 0, 'O valor precisa ser maior que zero');
+// Aceita o valor como foi digitado ("1.250,00"): normalizar é trabalho daqui,
+// não da tela.
+const valorRecebimentoSchema = dinheiroDigitadoSchema.refine(
+  (valor) => Number(valor) > 0,
+  'O valor precisa ser maior que zero',
+);
 
 const diaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida');
 
@@ -116,6 +119,8 @@ export const recebimentoExecucaoSchema = z.discriminatedUnion('situacao', [
 ]);
 
 export type RecebimentoExecucaoInput = z.infer<typeof recebimentoExecucaoSchema>;
+/** Como a tela envia: o valor exatamente como foi digitado. */
+export type RecebimentoExecucaoEntrada = z.input<typeof recebimentoExecucaoSchema>;
 
 export const mudarStatusAgendamentoSchema = z.object({
   acao: acaoAgendamentoSchema,
@@ -194,15 +199,27 @@ export interface Agendamento {
    */
   valorSugerido: string | null;
   criadoEm: string;
+  /**
+   * Calculados pela API — a tela só lê. Antes ela derivava isso do `status` e
+   * da hora, e a regra existia em dois lugares.
+   */
+  /** Botões de transição que a máquina de estados permite agora. */
+  acoesDisponiveis: AcaoAgendamento[];
+  /** Ainda não foi executado nem cancelado: aceita edição. */
+  pendente: boolean;
+  /** Pendente e com a hora já passada — precisa de desfecho. */
+  atrasado: boolean;
 }
 
-/** Um compromisso futuro que ainda não foi cancelado nem executado. */
-export function estaPendente(agendamento: Agendamento): boolean {
+type SituacaoAgendamento = Pick<Agendamento, 'status' | 'dataHora'>;
+
+/** Um compromisso que ainda não foi cancelado nem executado. Usado pela API. */
+export function estaPendente(agendamento: Pick<Agendamento, 'status'>): boolean {
   return agendamento.status === 'agendado' || agendamento.status === 'confirmado';
 }
 
-/** Compromisso pendente cuja data já passou — precisa de desfecho. */
-export function estaAtrasado(agendamento: Agendamento): boolean {
+/** Compromisso pendente cuja data já passou — precisa de desfecho. Usado pela API. */
+export function estaAtrasado(agendamento: SituacaoAgendamento): boolean {
   return estaPendente(agendamento) && new Date(agendamento.dataHora) < new Date();
 }
 

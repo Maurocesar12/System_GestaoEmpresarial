@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
+  DIAS_PARA_ALERTA,
+  diasNaEtapa,
   type ColunaFunil,
   type EtapaFormInput,
   type EtapaFunil,
@@ -9,7 +11,7 @@ import {
   type ReordenarEtapasInput,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
-import type { MarcoFunil } from '../../../generated/prisma/client';
+import { Prisma, type MarcoFunil } from '../../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
@@ -111,6 +113,7 @@ export class FunilService {
 
       if (lista.length < this.LIMITE_POR_ETAPA) {
         const orcamento = orcamentoPorCliente.get(posicao.clienteId);
+        const dias = diasNaEtapa(posicao.atualizadoEm.toISOString());
 
         lista.push({
           id: posicao.cliente.id,
@@ -129,18 +132,45 @@ export class FunilService {
                 servicoNome: orcamento.servico?.nome ?? null,
               }
             : null,
+          diasNaEtapa: dias,
+          parado: dias >= DIAS_PARA_ALERTA,
         });
       }
 
       porEtapa.set(posicao.etapaId, lista);
     }
 
-    return {
-      colunas: etapas.map((etapa) => ({
+    // Os totais saem daqui, e não da tela: o "parado" e o valor em negociação
+    // são a leitura de negócio do quadro, e a regra (7 dias) é da API.
+    const colunas = etapas.map((etapa) => {
+      const clientes = porEtapa.get(etapa.id) ?? [];
+      const valor = clientes.reduce(
+        (soma, cliente) => soma.plus(cliente.orcamentoAberto?.valor ?? 0),
+        new Prisma.Decimal(0),
+      );
+
+      return {
         etapa: { id: etapa.id, nome: etapa.nome, ordem: etapa.ordem },
-        clientes: porEtapa.get(etapa.id) ?? [],
-      })),
+        clientes,
+        valorEmAberto: valor.toFixed(2),
+        parados: clientes.filter((cliente) => cliente.parado).length,
+      };
+    });
+
+    return {
+      colunas,
       totalForaDoFunil,
+      totalNoFunil: colunas.reduce((soma, coluna) => soma + coluna.clientes.length, 0),
+      totalParados: colunas.reduce((soma, coluna) => soma + coluna.parados, 0),
+      propostasAbertas: colunas.reduce(
+        (soma, coluna) =>
+          soma + coluna.clientes.filter((cliente) => cliente.orcamentoAberto).length,
+        0,
+      ),
+      valorPipeline: colunas
+        .reduce((soma, coluna) => soma.plus(coluna.valorEmAberto), new Prisma.Decimal(0))
+        .toFixed(2),
+      diasParaAlerta: DIAS_PARA_ALERTA,
     };
   }
 

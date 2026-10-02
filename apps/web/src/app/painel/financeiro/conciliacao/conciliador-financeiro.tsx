@@ -10,7 +10,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useMemo, useState, useTransition, type ChangeEvent } from 'react';
-import { EXTENSOES_ACEITAS, ErroDePlanilha, lerPlanilha, type LinhaPlanilha } from '@/lib/planilha';
+import { EXTENSOES_ACEITAS, ErroDePlanilha, lerPlanilha } from '@/lib/planilha';
 import { formatarDataCurta } from '@/lib/formatacao';
 import { cn } from '@/lib/utils';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -21,64 +21,50 @@ import { EstadoVazio } from '@/components/ui/estado-vazio';
 import {
   ROTULO_TIPO_LANCAMENTO,
   formatarBRL,
-  type Lancamento,
-  type TipoLancamento,
+  type MovimentacaoConciliavel,
 } from '@gestao/shared-types';
 import { darBaixa } from '../acoes';
+import { analisarExtrato } from './acoes';
 
-interface MovimentacaoBancaria {
-  id: string;
-  data: string;
-  descricao: string;
-  tipo: TipoLancamento;
-  valorCentavos: number;
-  status: 'pendente' | 'conciliado';
-}
+type Movimentacao = MovimentacaoConciliavel & { status: 'pendente' | 'conciliado' };
 
-const COLUNAS_DATA = ['data', 'dt', 'date', 'lancamento', 'lançamento'];
-const COLUNAS_DESCRICAO = [
-  'descricao',
-  'descrição',
-  'historico',
-  'histórico',
-  'memo',
-  'detalhe',
-  'documento',
-];
-const COLUNAS_VALOR = ['valor', 'valor r$', 'amount', 'quantia', 'movimento', 'total'];
-
-export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
+/**
+ * Conciliação bancária.
+ *
+ * A tela só lê o arquivo do banco e manda as células para a API, que acha as
+ * colunas, entende datas e valores, busca as contas em aberto e sugere o
+ * vínculo de cada linha — com a diferença de valor já calculada. Conciliar é
+ * dar baixa na conta escolhida, pela rota de baixa de sempre.
+ */
+export function ConciliadorFinanceiro() {
   const [falha, setFalha] = useState<string>();
-  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoBancaria[]>([]);
+  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
+  const [contasEmAberto, setContasEmAberto] = useState(0);
   const [selecionados, setSelecionados] = useState<Record<string, string>>({});
   const [contasConciliadas, setContasConciliadas] = useState<Set<string>>(() => new Set());
+  const [lendo, setLendo] = useState(false);
   const [processando, iniciar] = useTransition();
   const { avisar } = useAvisos();
 
-  const contaPorId = useMemo(() => new Map(contas.map((conta) => [conta.id, conta])), [contas]);
+  /** A opção escolhida para cada movimentação, com a diferença que a API calculou. */
+  const opcaoEscolhida = (movimentacao: Movimentacao) =>
+    movimentacao.opcoes.find((opcao) => opcao.contaId === selecionados[movimentacao.id]);
 
+  // Contagens do que está na tela; os números de dinheiro vêm todos da API.
   const resumo = useMemo(() => {
     const conciliadas = movimentacoes.filter((item) => item.status === 'conciliado').length;
-    const sugeridas = movimentacoes.filter(
-      (item) => item.status === 'pendente' && selecionados[item.id],
-    ).length;
-    const divergencias = movimentacoes.filter((item) => {
-      const conta = contaPorId.get(selecionados[item.id] ?? '');
-      return conta ? diferencaCentavos(item, conta) !== 0 : false;
-    }).length;
 
     return {
       importadas: movimentacoes.length,
-      sugeridas,
+      sugeridas: movimentacoes.filter((item) => item.status === 'pendente' && selecionados[item.id])
+        .length,
       pendentes: movimentacoes.length - conciliadas,
-      divergencias,
+      divergencias: movimentacoes.filter((item) => {
+        const opcao = item.opcoes.find((candidata) => candidata.contaId === selecionados[item.id]);
+        return opcao ? Number(opcao.diferenca) !== 0 : false;
+      }).length,
     };
-  }, [contaPorId, movimentacoes, selecionados]);
-
-  const contasDisponiveis = useMemo(
-    () => contas.filter((conta) => !contasConciliadas.has(conta.id)),
-    [contas, contasConciliadas],
-  );
+  }, [movimentacoes, selecionados]);
 
   const importarExtrato = async (evento: ChangeEvent<HTMLInputElement>) => {
     const arquivo = evento.target.files?.[0];
@@ -89,29 +75,50 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
       return;
     }
 
+    setLendo(true);
+
     try {
       const planilha = await lerPlanilha(arquivo);
-      const importadas = extrairMovimentacoes(planilha.cabecalhos, planilha.linhas);
-      const sugestoes = Object.fromEntries(
-        importadas.flatMap((movimentacao) => {
-          const sugestao = sugerirConta(movimentacao, contasDisponiveis);
-          return sugestao ? [[movimentacao.id, sugestao.id]] : [];
-        }),
+      const resposta = await analisarExtrato({
+        cabecalhos: planilha.cabecalhos,
+        linhas: planilha.linhas,
+      });
+
+      if (resposta.erro || !resposta.analise) {
+        setFalha(resposta.erro ?? 'Não foi possível analisar o extrato.');
+        return;
+      }
+
+      const { analise } = resposta;
+      setMovimentacoes(analise.movimentacoes.map((item) => ({ ...item, status: 'pendente' })));
+      setContasEmAberto(analise.contasEmAberto);
+      setContasConciliadas(new Set());
+      setSelecionados(
+        Object.fromEntries(
+          analise.movimentacoes.flatMap((item) =>
+            item.contaSugeridaId ? [[item.id, item.contaSugeridaId]] : [],
+          ),
+        ),
       );
 
-      setMovimentacoes(importadas);
-      setSelecionados(sugestoes);
-      avisar('sucesso', `${importadas.length} movimentação(s) importada(s).`);
+      avisar(
+        'sucesso',
+        analise.ignoradas > 0
+          ? `${analise.movimentacoes.length} movimentação(s) importada(s); ${analise.ignoradas} linha(s) sem data, descrição ou valor ficaram de fora.`
+          : `${analise.movimentacoes.length} movimentação(s) importada(s).`,
+      );
     } catch (erro) {
       setFalha(
         erro instanceof ErroDePlanilha || erro instanceof Error
           ? erro.message
           : 'Não foi possível ler o extrato.',
       );
+    } finally {
+      setLendo(false);
     }
   };
 
-  const conciliar = (movimentacao: MovimentacaoBancaria) => {
+  const conciliar = (movimentacao: Movimentacao) => {
     const contaId = selecionados[movimentacao.id];
 
     if (!contaId) {
@@ -166,7 +173,9 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
                 <Upload aria-hidden className="size-4 text-muted-foreground" />
               </span>
               <span>
-                <span className="block text-sm font-medium">Selecionar extrato</span>
+                <span className="block text-sm font-medium">
+                  {lendo ? 'Analisando o extrato…' : 'Selecionar extrato'}
+                </span>
                 <span className="text-muted-foreground block text-xs">
                   Use uma planilha com colunas de data, descrição e valor.
                 </span>
@@ -176,6 +185,7 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
               type="file"
               accept={EXTENSOES_ACEITAS.join(',')}
               className="sr-only"
+              disabled={lendo}
               onChange={importarExtrato}
             />
           </label>
@@ -188,9 +198,11 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
             <Link2 aria-hidden className="text-muted-foreground size-4" />
             Vincular movimentações a contas
           </CartaoTitulo>
-          <p className="text-muted-foreground text-xs">
-            {contasDisponiveis.length} conta(s) em aberto.
-          </p>
+          {movimentacoes.length > 0 && (
+            <p className="text-muted-foreground text-xs">
+              {contasEmAberto - contasConciliadas.size} conta(s) em aberto.
+            </p>
+          )}
         </CartaoCabecalho>
 
         {movimentacoes.length === 0 ? (
@@ -205,10 +217,8 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
         ) : (
           <div className="divide-y">
             {movimentacoes.map((movimentacao) => {
-              const contaSelecionada = contaPorId.get(selecionados[movimentacao.id] ?? '');
-              const diferenca = contaSelecionada
-                ? diferencaCentavos(movimentacao, contaSelecionada)
-                : null;
+              const opcao = opcaoEscolhida(movimentacao);
+              const bate = opcao ? Number(opcao.diferenca) === 0 : null;
 
               return (
                 <article
@@ -234,7 +244,7 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
 
                     <p className="mt-2 truncate text-sm font-medium">{movimentacao.descricao}</p>
                     <p className="mt-1 text-lg font-semibold tabular-nums">
-                      {formatarBRL(valorDeCentavos(movimentacao.valorCentavos))}
+                      {formatarBRL(movimentacao.valor)}
                     </p>
                   </div>
 
@@ -255,17 +265,18 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
                       className="h-10 rounded-md border bg-card px-3 text-sm"
                     >
                       <option value="">Escolha uma conta</option>
-                      {contas
+                      {/* As mais prováveis primeiro, na ordem da API. Uma conta
+                          já conciliada nesta sessão não é oferecida de novo. */}
+                      {movimentacao.opcoes
                         .filter(
-                          (conta) =>
-                            conta.tipo === movimentacao.tipo &&
-                            (!contasConciliadas.has(conta.id) ||
-                              conta.id === selecionados[movimentacao.id]),
+                          (candidata) =>
+                            !contasConciliadas.has(candidata.contaId) ||
+                            candidata.contaId === selecionados[movimentacao.id],
                         )
-                        .map((conta) => (
-                          <option key={conta.id} value={conta.id}>
-                            {conta.descricao} · {formatarBRL(conta.valor)} ·{' '}
-                            {formatarDataCurta(conta.vencimento ?? conta.data)}
+                        .map((candidata) => (
+                          <option key={candidata.contaId} value={candidata.contaId}>
+                            {candidata.descricao} · {formatarBRL(candidata.valor)} ·{' '}
+                            {formatarDataCurta(candidata.referencia)}
                           </option>
                         ))}
                     </select>
@@ -273,17 +284,15 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
                     <p
                       className={cn(
                         'flex items-center gap-1.5 text-xs',
-                        diferenca === null || diferenca === 0
-                          ? 'text-muted-foreground'
-                          : 'text-atencao',
+                        bate === false ? 'text-atencao' : 'text-muted-foreground',
                       )}
                     >
-                      {diferenca === null ? (
+                      {bate === null ? (
                         <>
                           <ReceiptText aria-hidden className="size-3.5" />
                           Aguardando vínculo.
                         </>
-                      ) : diferenca === 0 ? (
+                      ) : bate ? (
                         <>
                           <CheckCircle2 aria-hidden className="size-3.5" />
                           Valor bate com a conta selecionada.
@@ -291,7 +300,7 @@ export function ConciliadorFinanceiro({ contas }: { contas: Lancamento[] }) {
                       ) : (
                         <>
                           <AlertTriangle aria-hidden className="size-3.5" />
-                          Diferença de {formatarBRL(valorDeCentavos(Math.abs(diferenca)))}.
+                          Diferença de {formatarBRL(opcao!.diferenca.replace('-', ''))}.
                         </>
                       )}
                     </p>
@@ -346,146 +355,4 @@ function IndicadorConciliacao({
       </p>
     </div>
   );
-}
-
-function extrairMovimentacoes(
-  cabecalhos: string[],
-  linhas: LinhaPlanilha[],
-): MovimentacaoBancaria[] {
-  const indiceData = buscarIndice(cabecalhos, COLUNAS_DATA);
-  const indiceDescricao = buscarIndice(cabecalhos, COLUNAS_DESCRICAO);
-  const indiceValor = buscarIndice(cabecalhos, COLUNAS_VALOR);
-
-  if (indiceData === -1 || indiceDescricao === -1 || indiceValor === -1) {
-    throw new ErroDePlanilha(
-      'Não encontrei as colunas de data, descrição e valor no extrato. Ajuste o cabeçalho e tente novamente.',
-    );
-  }
-
-  return linhas.flatMap((linha, indice) => {
-    const data = normalizarData(linha[indiceData] ?? '');
-    const descricao = (linha[indiceDescricao] ?? '').trim();
-    const valorCentavos = valorParaCentavos(linha[indiceValor] ?? '');
-
-    if (!data || !descricao || valorCentavos === 0) {
-      return [];
-    }
-
-    return [
-      {
-        id: `${data}-${indice}-${Math.abs(valorCentavos)}`,
-        data,
-        descricao,
-        tipo: valorCentavos > 0 ? 'entrada' : 'saida',
-        valorCentavos: Math.abs(valorCentavos),
-        status: 'pendente' as const,
-      },
-    ];
-  });
-}
-
-function buscarIndice(cabecalhos: string[], opcoes: string[]) {
-  const normalizados = cabecalhos.map(normalizarTexto);
-  return normalizados.findIndex((cabecalho) =>
-    opcoes.some(
-      (opcao) => cabecalho === normalizarTexto(opcao) || cabecalho.includes(normalizarTexto(opcao)),
-    ),
-  );
-}
-
-function sugerirConta(movimentacao: MovimentacaoBancaria, contas: Lancamento[]) {
-  const candidatos = contas
-    .filter((conta) => conta.tipo === movimentacao.tipo)
-    .map((conta) => ({ conta, score: pontuarConta(movimentacao, conta) }))
-    .filter((item) => item.score >= 55)
-    .sort((a, b) => b.score - a.score);
-
-  return candidatos[0]?.conta ?? null;
-}
-
-function pontuarConta(movimentacao: MovimentacaoBancaria, conta: Lancamento) {
-  const diferenca = Math.abs(diferencaCentavos(movimentacao, conta));
-  const dias = Math.abs(diasEntre(movimentacao.data, conta.vencimento ?? conta.data));
-  const palavrasBanco = new Set(palavrasChave(movimentacao.descricao));
-  const palavrasConta = palavrasChave(conta.descricao);
-  const palavrasEmComum = palavrasConta.filter((palavra) => palavrasBanco.has(palavra)).length;
-
-  let score = 0;
-  score += Math.max(0, 45 - diferenca / 100);
-  score += Math.max(0, 30 - dias * 4);
-  score += Math.min(25, palavrasEmComum * 8);
-
-  return score;
-}
-
-function diferencaCentavos(movimentacao: MovimentacaoBancaria, conta: Lancamento) {
-  return movimentacao.valorCentavos - valorParaCentavos(conta.valor);
-}
-
-function valorParaCentavos(valor: string) {
-  const texto = valor.trim();
-  if (!texto) {
-    return 0;
-  }
-
-  const negativo = texto.startsWith('-') || /^\(.*\)$/.test(texto);
-  const limpo = texto.replace(/[^\d,.-]/g, '').replace(/[()]/g, '');
-  const virgulaDecimal = limpo.lastIndexOf(',') > limpo.lastIndexOf('.');
-  const normalizado = virgulaDecimal
-    ? limpo.replace(/\./g, '').replace(',', '.')
-    : limpo.replace(/,/g, '');
-  const numero = Number(normalizado);
-
-  if (!Number.isFinite(numero)) {
-    return 0;
-  }
-
-  return Math.round(Math.abs(numero) * 100) * (negativo ? -1 : 1);
-}
-
-function valorDeCentavos(centavos: number) {
-  return (centavos / 100).toFixed(2);
-}
-
-function normalizarData(valor: string) {
-  const texto = valor.trim();
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
-    return texto;
-  }
-
-  const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (br) {
-    const dia = br[1] ?? '';
-    const mes = br[2] ?? '';
-    const ano = br[3] ?? '';
-    return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-  }
-
-  if (/^\d{5}$/.test(texto)) {
-    const data = new Date(Date.UTC(1899, 11, Number(texto) - 1));
-    return data.toISOString().slice(0, 10);
-  }
-
-  const data = new Date(texto);
-  return Number.isNaN(data.getTime()) ? null : data.toISOString().slice(0, 10);
-}
-
-function diasEntre(a: string, b: string) {
-  const umDia = 24 * 60 * 60 * 1000;
-  return Math.round((Date.parse(a) - Date.parse(b)) / umDia);
-}
-
-function palavrasChave(texto: string) {
-  return normalizarTexto(texto)
-    .split(/\s+/)
-    .filter((palavra) => palavra.length >= 4);
-}
-
-function normalizarTexto(texto: string) {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
 }

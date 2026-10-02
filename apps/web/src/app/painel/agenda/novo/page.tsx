@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  possuiPermissao,
   type Cliente,
   type Orcamento,
   type Paginado,
@@ -10,6 +9,7 @@ import {
 } from '@gestao/shared-types';
 import { ApiRequestError } from '@/lib/api';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
+import { pode } from '@/lib/permissoes';
 import { FormularioAgendamento } from '../formulario-agendamento';
 
 export const metadata: Metadata = {
@@ -25,7 +25,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export default async function PaginaNovoAgendamento({ searchParams }: Props) {
   const { cliente, orcamento: orcamentoId } = await searchParams;
   const usuario = await usuarioAtual();
-  const podeVerOrcamentos = possuiPermissao(usuario, 'orcamentos.visualizar');
+  const podeVerOrcamentos = pode(usuario, 'orcamentos.visualizar');
 
   const [clientes, servicos, pessoas, orcamentos, deOrigem] = await Promise.all([
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),

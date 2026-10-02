@@ -6,7 +6,6 @@ import {
   ROTULO_STATUS_AGENDAMENTO,
   formatarBRL,
   formatarDataHora,
-  possuiPermissao,
   type Agendamento,
   type Cliente,
   type Orcamento,
@@ -17,6 +16,7 @@ import {
 import { estilosBotao } from '@/components/ui/botao';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { formatarDataCompleta } from '@/lib/formatacao';
+import { pode } from '@/lib/permissoes';
 import { AcoesStatus } from '../acoes-status';
 import { FormularioOrcamento } from '../formulario-orcamento';
 
@@ -39,13 +39,12 @@ export default async function PaginaOrcamento({ params }: Props) {
     usuarioAtual(),
   ]);
 
-  const editavel = orcamento.status === 'aberto';
+  const editavel = orcamento.editavel;
 
   // Orçamento aprovado tem um próximo passo óbvio: marcar o serviço. Se já
   // existe um agendamento ligado a ele (e não cancelado), o atalho leva até
   // esse agendamento em vez de oferecer criar um segundo.
-  const ofereceAgendar =
-    orcamento.status === 'aprovado' && possuiPermissao(usuario, 'agenda.gerenciar');
+  const ofereceAgendar = orcamento.status === 'aprovado' && pode(usuario, 'agenda.gerenciar');
 
   const agendamentoExistente = ofereceAgendar
     ? (
@@ -77,7 +76,7 @@ export default async function PaginaOrcamento({ params }: Props) {
 
       <section className="flex flex-wrap items-center gap-3 rounded-lg border p-4">
         <span className="text-sm font-medium">Resposta do cliente:</span>
-        <AcoesStatus id={orcamento.id} status={orcamento.status} />
+        <AcoesStatus id={orcamento.id} acoes={orcamento.acoesDisponiveis} />
       </section>
 
       {ofereceAgendar && (

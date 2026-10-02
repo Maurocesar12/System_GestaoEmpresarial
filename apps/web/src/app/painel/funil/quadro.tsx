@@ -15,11 +15,8 @@ import {
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  DIAS_PARA_ALERTA,
-  diasNaEtapa,
   formatarBRL,
   formatarTelefone,
-  somarDinheiro,
   type ClienteNoFunil,
   type Etiqueta,
   type QuadroFunil,
@@ -229,7 +226,15 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
 
   const rolagem = useArrastarParaRolar<HTMLDivElement>();
 
-  const metricas = useMemo(() => calcularMetricas(colunas), [colunas]);
+  // Os números do quadro vêm somados pela API. Durante um movimento otimista
+  // eles seguem os do servidor e se acertam quando a API confirma.
+  const metricas = {
+    valorPipeline: quadro.valorPipeline,
+    propostas: quadro.propostasAbertas,
+    clientes: quadro.totalNoFunil,
+    parados: quadro.totalParados,
+    etapasComClientes: colunas.filter((coluna) => coluna.clientes.length > 0).length,
+  };
   const colunasVisiveis = useMemo(
     () => filtrarColunas(colunas, busca, filtro),
     [busca, colunas, filtro],
@@ -257,7 +262,7 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
           icone={Clock}
           rotulo="Parados"
           valor={String(metricas.parados)}
-          detalhe={`A partir de ${DIAS_PARA_ALERTA} dias na etapa`}
+          detalhe={`A partir de ${quadro.diasParaAlerta} dias na etapa`}
           alerta={metricas.parados > 0}
         />
         <Metrica
@@ -337,6 +342,7 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
                 nome={coluna.etapa.nome}
                 indice={indice}
                 clientes={coluna.clientes}
+                total={coluna.valorEmAberto}
                 etapas={colunas.map((c) => c.etapa)}
                 etiquetas={etiquetas}
                 aoTrocarEtapa={mover}
@@ -391,30 +397,13 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
 type FiltroRapido = 'todos' | 'atrasados' | 'propostas';
 
 type AcaoOtimistaFunil =
-  | { tipo: 'mover'; clienteId: string; etapaId: string }
-  | { tipo: 'remover'; clienteId: string };
+  { tipo: 'mover'; clienteId: string; etapaId: string } | { tipo: 'remover'; clienteId: string };
 
 const FILTROS_RAPIDOS: { valor: FiltroRapido; rotulo: string }[] = [
   { valor: 'todos', rotulo: 'Todos' },
   { valor: 'atrasados', rotulo: 'Parados' },
   { valor: 'propostas', rotulo: 'Com proposta' },
 ];
-
-function calcularMetricas(colunas: QuadroFunil['colunas']) {
-  const clientes = colunas.flatMap((coluna) => coluna.clientes);
-  const valorPipeline = somarDinheiro(
-    clientes.map((cliente) => cliente.orcamentoAberto?.valor ?? '0.00'),
-  );
-
-  return {
-    clientes: clientes.length,
-    propostas: clientes.filter((cliente) => cliente.orcamentoAberto).length,
-    parados: clientes.filter((cliente) => diasNaEtapa(cliente.atualizadoEm) >= DIAS_PARA_ALERTA)
-      .length,
-    etapasComClientes: colunas.filter((coluna) => coluna.clientes.length > 0).length,
-    valorPipeline,
-  };
-}
 
 function filtrarColunas(
   colunas: QuadroFunil['colunas'],
@@ -426,7 +415,7 @@ function filtrarColunas(
   return colunas.map((coluna) => ({
     ...coluna,
     clientes: coluna.clientes.filter((cliente) => {
-      if (filtro === 'atrasados' && diasNaEtapa(cliente.atualizadoEm) < DIAS_PARA_ALERTA) {
+      if (filtro === 'atrasados' && !cliente.parado) {
         return false;
       }
 
@@ -513,6 +502,7 @@ function Coluna({
   nome,
   indice,
   clientes,
+  total,
   etapas,
   etiquetas,
   aoTrocarEtapa,
@@ -523,6 +513,8 @@ function Coluna({
   /** Posição da etapa no funil — define a cor do marcador. */
   indice: number;
   clientes: ClienteNoFunil[];
+  /** Valor em negociação da etapa, somado pela API. */
+  total: string;
   etapas: { id: string; nome: string }[];
   etiquetas: Etiqueta[];
   aoTrocarEtapa: (clienteId: string, etapaId: string, chaveDeFoco?: string) => void;
@@ -533,7 +525,6 @@ function Coluna({
   // Quanto há em negociação nesta etapa. É o número que transforma o quadro de
   // lista de nomes em leitura de negócio: "tenho R$ 18 mil parados em
   // orçamento enviado".
-  const total = somarDinheiro(clientes.map((cliente) => cliente.orcamentoAberto?.valor ?? '0.00'));
 
   return (
     <section
@@ -625,11 +616,8 @@ function CartaoDoFunil({
     id: cliente.id,
   });
 
-  const dias = diasNaEtapa(cliente.atualizadoEm);
-
-  // Uma semana sem sair do lugar é o sinal de negociação esquecida — o mesmo
-  // corte que o painel inicial usa para listar "paradas".
-  const parado = dias >= DIAS_PARA_ALERTA;
+  // Dias na etapa e "parado" (o corte de uma semana) vêm calculados da API.
+  const { diasNaEtapa: dias, parado } = cliente;
 
   // As etapas vizinhas alimentam as setas do rodapé. `undefined` nas pontas do
   // funil: na primeira etapa não há para onde voltar, na última não há para

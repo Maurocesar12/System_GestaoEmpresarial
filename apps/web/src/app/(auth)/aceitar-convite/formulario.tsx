@@ -1,7 +1,6 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { aceitarConviteSchema, type AceitarConviteInput } from '@gestao/shared-types';
+import { type AceitarConviteInput } from '@gestao/shared-types';
 import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -21,7 +20,6 @@ export function FormularioAceitarConvite() {
     handleSubmit,
     formState: { errors },
   } = useForm<CamposConvite>({
-    resolver: zodResolver(aceitarConviteSchema.omit({ token: true })),
     defaultValues: { nome: '', senha: '' },
   });
 

@@ -6,6 +6,8 @@ import {
   type PeriodoQuery,
   type ProLabore,
   type ProLaboreFormInput,
+  type SimulacaoProLabore,
+  type SimulacaoProLaboreInput,
   type SugestaoProLabore,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
@@ -49,7 +51,11 @@ export class ProLaboreService {
       tx.proLabore.findMany({ orderBy: { vigenciaInicio: 'desc' } }),
     );
 
-    return registros.map((registro) => this.paraResposta(registro));
+    // A lista vem do mais recente para o mais antigo: a vigência anterior de
+    // cada uma é a seguinte na lista.
+    return registros.map((registro, indice) =>
+      this.paraResposta(registro, registros[indice + 1]?.valor ?? null),
+    );
   }
 
   /**
@@ -283,17 +289,30 @@ export class ProLaboreService {
       aporteReservaSugerido: aporteReservaSugerido.toFixed(2),
       tetoSugerido: tetoSugerido.toFixed(2),
       folga: tetoSugerido.minus(vigente?.valor ?? ZERO).toFixed(2),
+      acimaDoTeto: tetoSugerido.lessThan(vigente?.valor ?? ZERO),
       mesesAnalisados,
     };
   }
 
-  private paraResposta(registro: Prisma.ProLaboreGetPayload<object>): ProLabore {
+  /** Este valor cabe no teto da janela informada? Não grava nada. */
+  async simular(dados: SimulacaoProLaboreInput): Promise<SimulacaoProLabore> {
+    const { tetoSugerido } = await this.sugerir(dados.meses);
+    const sobra = new Prisma.Decimal(tetoSugerido).minus(dados.valor);
+
+    return { tetoSugerido, sobra: sobra.toFixed(2), cabeNoTeto: sobra.greaterThanOrEqualTo(ZERO) };
+  }
+
+  private paraResposta(
+    registro: Prisma.ProLaboreGetPayload<object>,
+    valorAnterior: Prisma.Decimal | null = null,
+  ): ProLabore {
     return {
       id: registro.id,
       valor: registro.valor.toFixed(2),
       vigenciaInicio: paraDia(registro.vigenciaInicio)!,
       vigenciaFim: paraDia(registro.vigenciaFim),
       criadoEm: registro.criadoEm.toISOString(),
+      variacao: valorAnterior ? registro.valor.minus(valorAnterior).toFixed(2) : null,
     };
   }
 }

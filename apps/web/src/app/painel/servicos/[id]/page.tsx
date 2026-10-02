@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   formatarBRL,
-  possuiPermissao,
   type FichaTecnica,
   type Material,
   type Paginado,
@@ -10,6 +9,7 @@ import {
 } from '@gestao/shared-types';
 import type { MaterialDoCatalogo } from '@/components/painel/editor-materiais';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
+import { pode } from '@/lib/permissoes';
 import { FormularioServico } from '../formulario-servico';
 import { BotaoDesativar } from './botao-desativar';
 import { EditorFichaTecnica } from './editor-ficha-tecnica';
@@ -26,7 +26,7 @@ export default async function PaginaServico({ params }: Props) {
   const { id } = await params;
   const usuario = await usuarioAtual();
   const podeEditarLista =
-    possuiPermissao(usuario, 'servicos.gerenciar') && possuiPermissao(usuario, 'estoque.visualizar');
+    pode(usuario, 'servicos.gerenciar') && pode(usuario, 'estoque.visualizar');
 
   const [servico, ficha, materiais] = await Promise.all([
     apiComSessao<Servico>(`/servicos/${id}`),
@@ -69,8 +69,8 @@ export default async function PaginaServico({ params }: Props) {
         <div className="flex flex-col gap-1">
           <h2 className="text-sm font-medium">Materiais usados</h2>
           <p className="text-muted-foreground text-sm">
-            A lista padrão de cada execução. Ao marcar um agendamento como executado, as
-            quantidades podem ser ajustadas, o estoque baixa e o custo entra na margem do serviço.
+            A lista padrão de cada execução. Ao marcar um agendamento como executado, as quantidades
+            podem ser ajustadas, o estoque baixa e o custo entra na margem do serviço.
           </p>
         </div>
 
@@ -98,7 +98,10 @@ export default async function PaginaServico({ params }: Props) {
         ) : (
           <ul className="flex flex-col text-sm">
             {ficha.itens.map((item) => (
-              <li key={item.materialId} className="flex justify-between gap-4 border-t py-2 first:border-t-0">
+              <li
+                key={item.materialId}
+                className="flex justify-between gap-4 border-t py-2 first:border-t-0"
+              >
                 <span>{item.materialNome}</span>
                 <span className="text-muted-foreground tabular-nums">
                   {item.quantidade.replace('.', ',')} {item.unidade} ·{' '}

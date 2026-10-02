@@ -58,6 +58,12 @@ export interface Reserva {
    */
   percentualDaMeta: number | null;
 
+  /**
+   * O aporte mensal que a simulação sugere de partida: o que falta para a
+   * meta dividido em 12 meses, ou R$ 500 sem meta. Calculado pela API.
+   */
+  aporteSugerido: string;
+
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -74,6 +80,32 @@ export interface ResumoReservas {
   reservas: Reserva[];
   totalGuardado: string;
   totalDasMetas: string;
+  /** Quanto falta para todas as metas juntas. Nunca negativo. */
+  faltaParaMetas: string;
   custoFixoMensal: string;
+  mesesDeCobertura: number | null;
+}
+
+/**
+ * "Se eu guardar X por mês durante N meses, onde chego?"
+ *
+ * A conta era feita na tela. Agora a API faz, com o saldo, a meta e o custo
+ * fixo lidos do banco — e não os números que a tela tinha na mão.
+ */
+export const simulacaoReservaSchema = z.object({
+  aporteMensal: dinheiroDigitadoSchema,
+  meses: z.coerce.number().int().min(1, 'Ao menos 1 mês').max(120, 'No máximo 120 meses'),
+});
+
+export type SimulacaoReservaInput = z.infer<typeof simulacaoReservaSchema>;
+
+export interface SimulacaoReserva {
+  totalAportado: string;
+  saldoPrevisto: string;
+  /** `null` sem meta. "0.00" quando a meta é alcançada no período. */
+  faltaParaMeta: string | null;
+  /** No ritmo informado, quantos meses até a meta. `null` sem meta ou sem aporte. */
+  mesesParaMeta: number | null;
+  /** Quantos meses de custo fixo o saldo previsto cobre. `null` sem custo fixo. */
   mesesDeCobertura: number | null;
 }

@@ -1,13 +1,10 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   formatarBRL,
-  orcamentoFormSchema,
   type Cliente,
   type Orcamento,
   type OrcamentoFormEntrada,
-  type OrcamentoFormInput,
   type PessoaEquipe,
   type Servico,
 } from '@gestao/shared-types';
@@ -52,8 +49,7 @@ export function FormularioOrcamento({
     setError,
     setValue,
     formState: { errors },
-  } = useForm<OrcamentoFormEntrada, unknown, OrcamentoFormInput>({
-    resolver: zodResolver(orcamentoFormSchema),
+  } = useForm<OrcamentoFormEntrada>({
     defaultValues: {
       clienteId: orcamento?.clienteId ?? clienteFixo ?? '',
       servicoId: orcamento?.servicoId ?? '',
@@ -74,7 +70,7 @@ export function FormularioOrcamento({
     }
   };
 
-  const aoEnviar = (dados: OrcamentoFormInput) => {
+  const aoEnviar = (dados: OrcamentoFormEntrada) => {
     setFalha(undefined);
 
     iniciarEnvio(async () => {
@@ -183,7 +179,9 @@ export function FormularioOrcamento({
         <p className="text-muted-foreground text-xs">
           Recebe a comissão de venda quando o orçamento for aprovado.
         </p>
-        {errors.vendedorId && <p className="text-destructive text-xs">{errors.vendedorId.message}</p>}
+        {errors.vendedorId && (
+          <p className="text-destructive text-xs">{errors.vendedorId.message}</p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5">

@@ -110,6 +110,20 @@ export interface LancamentoRecorrente {
 }
 
 /**
+ * O compromisso mensal, somado pela API.
+ *
+ * Só as recorrências **mensais e ativas** entram: somar uma anual junto
+ * multiplicaria por doze o peso de um seguro no mês — e o número existe
+ * justamente para dizer quanto sai por mês.
+ */
+export interface ResumoRecorrencias {
+  saidaMensal: string;
+  entradaMensal: string;
+  ativas: number;
+  pausadas: number;
+}
+
+/**
  * Onde cai a ocorrência número `indice` de um ciclo, contando do zero.
  *
  * Vive no contrato compartilhado porque a API usa para gerar a ocorrência e a

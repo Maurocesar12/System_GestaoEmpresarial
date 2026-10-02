@@ -16,7 +16,7 @@ export default async function PaginaFunil() {
     apiComSessao<ConfiguracoesEmpresa>('/configuracoes'),
   ]);
 
-  const totalNoFunil = quadro.colunas.reduce((soma, coluna) => soma + coluna.clientes.length, 0);
+  const { totalNoFunil } = quadro;
 
   return (
     <div className="flex flex-col gap-6">

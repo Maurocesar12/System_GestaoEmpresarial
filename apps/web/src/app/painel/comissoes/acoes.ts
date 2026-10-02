@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { fechamentoComissaoSchema, type FechamentoComissao } from '@gestao/shared-types';
-import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { FechamentoComissao } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function fecharComissoes(dados: {
@@ -11,13 +11,10 @@ export async function fecharComissoes(dados: {
   ate: string;
   vencimento: string;
 }): Promise<ResultadoAcao & { fechamento?: FechamentoComissao }> {
-  const validacao = fechamentoComissaoSchema.safeParse(dados);
-  if (!validacao.success) return primeiroErro(validacao.error.issues);
-
   try {
     const fechamento = await apiComSessao<FechamentoComissao>('/comissoes/fechar', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
 
     revalidatePath('/painel/comissoes');

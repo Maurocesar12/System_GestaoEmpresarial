@@ -8,8 +8,9 @@ import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import { SeletorSegmentado } from '@/components/ui/seletor-segmentado';
 import type { ResultadoAcao } from '@/lib/acoes';
+import { useSimulacao } from '@/lib/simulacao';
 import { cn } from '@/lib/utils';
-import { definirProLabore } from './acoes';
+import { definirProLabore, simularProLabore } from './acoes';
 
 /** Quando o novo valor passa a valer. "Outra" abre o campo de data. */
 type Inicio = 'proximoMes' | 'esteMes' | 'outra';
@@ -28,23 +29,6 @@ function rotularMes(dia: string): string {
   return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(
     new Date(ano!, mes! - 1, 1),
   );
-}
-
-/**
- * Converte o valor digitado em centavos, do jeito que o schema converte.
- *
- * Serve só para a prévia — quem valida de verdade é o `dinheiroDigitadoSchema`
- * no servidor. Devolve `null` enquanto a digitação não formar um número, para
- * a prévia ficar quieta em vez de piscar "R$ 0,00" a cada tecla.
- */
-function interpretarValor(digitado: string): number | null {
-  const limpo = digitado
-    .replace(/[^\d,.-]/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.');
-  const numero = Number(limpo);
-
-  return limpo === '' || Number.isNaN(numero) || numero <= 0 ? null : numero;
 }
 
 /**
@@ -68,11 +52,14 @@ function interpretarValor(digitado: string): number | null {
 export function FormularioProLabore({
   tetoSugerido,
   valorVigente,
+  meses,
 }: {
   /** Teto em decimal (`"5000.00"`), como a API devolve. */
   tetoSugerido: string;
   /** Retirada atual, ou `null` se nunca foi definida. */
   valorVigente: string | null;
+  /** A janela da média escolhida na página — a prévia usa a mesma. */
+  meses: string;
 }) {
   const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
@@ -80,9 +67,8 @@ export function FormularioProLabore({
   const [inicio, setInicio] = useState<Inicio>('proximoMes');
   const [dataEscolhida, setDataEscolhida] = useState(primeiroDiaDoMes(1));
 
-  const teto = Number(tetoSugerido);
-  const digitado = interpretarValor(valor);
-  const sobra = digitado === null ? null : teto - digitado;
+  // "Cabe no teto?" é a API que responde, com o valor como foi digitado.
+  const previa = useSimulacao(valor ? { valor, meses } : null, simularProLabore);
 
   const vigenciaInicio =
     inicio === 'outra' ? dataEscolhida : primeiroDiaDoMes(inicio === 'esteMes' ? 0 : 1);
@@ -167,7 +153,7 @@ export function FormularioProLabore({
         </div>
       </div>
 
-      {sobra !== null && <Previa sobra={sobra} />}
+      {previa && <Previa sobra={previa.sobra} cabeNoTeto={previa.cabeNoTeto} />}
 
       {falha?.erro && <AvisoErro mensagem={falha.erro} detalhes={falha.campos} />}
 
@@ -184,9 +170,9 @@ export function FormularioProLabore({
  * Mostra a folga que resultaria — o mesmo número do indicador no topo da
  * página, só que enquanto ainda dá para mudar de ideia.
  */
-function Previa({ sobra }: { sobra: number }) {
-  const acimaDoTeto = sobra < 0;
-  const Icone = acimaDoTeto ? TrendingDown : sobra === 0 ? Check : TrendingUp;
+function Previa({ sobra, cabeNoTeto }: { sobra: string; cabeNoTeto: boolean }) {
+  const acimaDoTeto = !cabeNoTeto;
+  const Icone = acimaDoTeto ? TrendingDown : Number(sobra) === 0 ? Check : TrendingUp;
 
   return (
     <p
@@ -199,14 +185,14 @@ function Previa({ sobra }: { sobra: number }) {
       {acimaDoTeto ? (
         <span>
           <strong className="font-semibold">
-            {formatarBRL(Math.abs(sobra).toFixed(2))} acima do teto.
+            {formatarBRL(sobra.replace('-', ''))} acima do teto.
           </strong>{' '}
           Dá para retirar, mas consome o que o negócio precisaria guardar.
         </span>
       ) : (
         <span>
-          Cabe no teto, com folga de{' '}
-          <strong className="font-semibold">{formatarBRL(sobra.toFixed(2))}</strong> por mês.
+          Cabe no teto, com folga de <strong className="font-semibold">{formatarBRL(sobra)}</strong>{' '}
+          por mês.
         </span>
       )}
     </p>

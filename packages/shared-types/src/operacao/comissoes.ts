@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { opcional } from '../common/opcional';
+import { dataFinalSchema, dataInicialSchema } from '../financeiro/lancamentos';
 
 /**
  * Contrato de comissões.
@@ -54,8 +55,9 @@ export const percentualComissaoOpcionalSchema = opcional(percentualComissaoSchem
 const diaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida');
 
 export const comissoesQuerySchema = z.object({
-  de: diaSchema,
-  ate: diaSchema,
+  // Ausentes, valem o mês corrente em São Paulo — decidido pela API.
+  de: dataInicialSchema,
+  ate: dataFinalSchema,
   usuarioId: z.uuid().optional(),
   status: statusComissaoSchema.optional(),
 });

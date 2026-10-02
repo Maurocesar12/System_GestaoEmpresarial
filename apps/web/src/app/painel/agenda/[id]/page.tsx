@@ -2,10 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ROTULO_STATUS_AGENDAMENTO,
-  estaPendente,
   formatarBRL,
   formatarDataHora,
-  possuiPermissao,
   type Agendamento,
   type Cliente,
   type FichaTecnica,
@@ -17,6 +15,7 @@ import {
 } from '@gestao/shared-types';
 import type { MaterialDoCatalogo } from '@/components/painel/editor-materiais';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
+import { pode } from '@/lib/permissoes';
 import { AcoesAgendamento } from '../acoes-agendamento';
 import { FormularioAgendamento } from '../formulario-agendamento';
 
@@ -37,20 +36,20 @@ export default async function PaginaAgendamento({ params }: Props) {
     apiComSessao<Paginado<Cliente>>('/clientes?porPagina=100'),
     apiComSessao<Paginado<Servico>>('/servicos?porPagina=100&somenteAtivos=true'),
     apiComSessao<PessoaEquipe[]>('/equipe/pessoas'),
-    possuiPermissao(usuario, 'orcamentos.visualizar')
+    pode(usuario, 'orcamentos.visualizar')
       ? apiComSessao<Paginado<Orcamento>>('/orcamentos?status=aprovado&porPagina=100')
       : null,
   ]);
 
-  const editavel = estaPendente(agendamento);
+  const editavel = agendamento.pendente;
 
   // A conferência de materiais só existe antes da execução.
   const [ficha, materiais] = editavel
     ? await Promise.all([
-        agendamento.servicoId && possuiPermissao(usuario, 'servicos.visualizar')
+        agendamento.servicoId && pode(usuario, 'servicos.visualizar')
           ? apiComSessao<FichaTecnica>(`/servicos/${agendamento.servicoId}/materiais`)
           : null,
-        possuiPermissao(usuario, 'estoque.visualizar')
+        pode(usuario, 'estoque.visualizar')
           ? apiComSessao<Paginado<Material>>('/estoque/materiais?somenteAtivos=true&porPagina=100')
           : null,
       ])
@@ -105,14 +104,14 @@ export default async function PaginaAgendamento({ params }: Props) {
         <span className="text-sm font-medium">Situação:</span>
         <AcoesAgendamento
           id={agendamento.id}
-          status={agendamento.status}
+          acoes={agendamento.acoesDisponiveis}
           catalogo={conferirMateriais ? catalogo : undefined}
           materiaisPadrao={(ficha?.itens ?? []).map((item) => ({
             materialId: item.materialId,
             quantidade: item.quantidade.replace('.', ','),
           }))}
           valorSugerido={agendamento.valorSugerido}
-          podeLancarReceita={possuiPermissao(usuario, 'financeiro.criar')}
+          podeLancarReceita={pode(usuario, 'financeiro.criar')}
         />
       </section>
 

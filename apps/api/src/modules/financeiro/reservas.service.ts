@@ -10,6 +10,8 @@ import {
   type Reserva,
   type ReservaFormInput,
   type ResumoReservas,
+  type SimulacaoReserva,
+  type SimulacaoReservaInput,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
 import { Prisma } from '../../generated/prisma/client';
@@ -22,6 +24,9 @@ import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 
 /** Quantos meses fechados entram na média do custo fixo mensal. */
 const MESES_DA_MEDIA = 3;
+
+/** Aporte de partida da simulação quando a reserva não tem meta. */
+const APORTE_SUGERIDO_SEM_META = '500.00';
 
 /**
  * Reserva financeira — o fundo de emergência.
@@ -46,24 +51,19 @@ export class ReservasService {
    * uma cobertura de centenas de meses.
    */
   async resumir(): Promise<ResumoReservas> {
-    const [registros, fluxo] = await Promise.all([
+    const [registros, custoFixoMensal] = await Promise.all([
       this.prisma.comTenant((tx) => tx.reservaFinanceira.findMany({ orderBy: { nome: 'asc' } })),
-      this.financeiro.fluxoDeCaixa({
-        de: primeiroDiaDeMesesAtras(MESES_DA_MEDIA),
-        ate: ultimoDiaDoMesPassado(),
-        natureza: 'empresa',
-      }),
+      this.custoFixoMensal(),
     ]);
 
     const totalGuardado = registros.reduce((soma, r) => soma.plus(r.valorAtual), ZERO);
     const totalDasMetas = registros.reduce((soma, r) => soma.plus(r.meta ?? ZERO), ZERO);
 
-    const custoFixoMensal = new Prisma.Decimal(fluxo.custoFixo).dividedBy(MESES_DA_MEDIA);
-
     return {
       reservas: registros.map((registro) => this.paraResposta(registro)),
       totalGuardado: totalGuardado.toFixed(2),
       totalDasMetas: totalDasMetas.toFixed(2),
+      faltaParaMetas: Prisma.Decimal.max(totalDasMetas.minus(totalGuardado), ZERO).toFixed(2),
       custoFixoMensal: custoFixoMensal.toFixed(2),
 
       // Sem custo fixo registrado não há como responder — e "infinito" seria
@@ -72,6 +72,63 @@ export class ReservasService {
         ? null
         : Number(totalGuardado.dividedBy(custoFixoMensal).toFixed(1)),
     };
+  }
+
+  /**
+   * "Guardando X por mês durante N meses, onde chego?" — ver `SimulacaoReserva`.
+   * Não grava nada; saldo, meta e custo fixo vêm do banco.
+   */
+  async simular(id: string, dados: SimulacaoReservaInput): Promise<SimulacaoReserva> {
+    const [reserva, custoFixoMensal] = await Promise.all([
+      this.prisma.comTenant((tx) =>
+        tx.reservaFinanceira.findUnique({
+          where: { id },
+          select: { valorAtual: true, meta: true },
+        }),
+      ),
+      this.custoFixoMensal(),
+    ]);
+
+    if (!reserva) {
+      throw new NotFoundException({
+        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+        mensagem: 'Reserva não encontrada.',
+      });
+    }
+
+    // Aporte negativo não é aporte: seria uma retirada, que tem fluxo próprio.
+    const aporte = Prisma.Decimal.max(new Prisma.Decimal(dados.aporteMensal), ZERO);
+    const totalAportado = aporte.times(dados.meses);
+    const saldoPrevisto = reserva.valorAtual.plus(totalAportado);
+    const meta = reserva.meta;
+
+    return {
+      totalAportado: totalAportado.toFixed(2),
+      saldoPrevisto: saldoPrevisto.toFixed(2),
+      faltaParaMeta: meta ? Prisma.Decimal.max(meta.minus(saldoPrevisto), ZERO).toFixed(2) : null,
+      mesesParaMeta:
+        meta && aporte.greaterThan(ZERO) && reserva.valorAtual.lessThan(meta)
+          ? meta.minus(reserva.valorAtual).dividedBy(aporte).ceil().toNumber()
+          : null,
+      mesesDeCobertura: custoFixoMensal.isZero()
+        ? null
+        : Number(saldoPrevisto.dividedBy(custoFixoMensal).toFixed(1)),
+    };
+  }
+
+  /**
+   * Custo fixo médio dos últimos meses fechados, não do mês corrente: no dia 2
+   * o mês mal começou, e dividir por um custo quase zero devolveria uma
+   * cobertura de centenas de meses.
+   */
+  private async custoFixoMensal(): Promise<Prisma.Decimal> {
+    const fluxo = await this.financeiro.fluxoDeCaixa({
+      de: primeiroDiaDeMesesAtras(MESES_DA_MEDIA),
+      ate: ultimoDiaDoMesPassado(),
+      natureza: 'empresa',
+    });
+
+    return new Prisma.Decimal(fluxo.custoFixo).dividedBy(MESES_DA_MEDIA);
   }
 
   async criar(dados: ReservaFormInput): Promise<Reserva> {
@@ -261,6 +318,17 @@ export class ReservasService {
         registro.meta && !registro.meta.isZero()
           ? Number(registro.valorAtual.dividedBy(registro.meta).times(100).toFixed(0))
           : null,
+
+      // O que falta, dividido em um ano, arredondado para cima no centavo —
+      // seguir a sugestão nunca deixa a meta a um centavo de distância.
+      aporteSugerido:
+        registro.meta && registro.meta.greaterThan(registro.valorAtual)
+          ? registro.meta
+              .minus(registro.valorAtual)
+              .dividedBy(12)
+              .toDecimalPlaces(2, Prisma.Decimal.ROUND_UP)
+              .toFixed(2)
+          : APORTE_SUGERIDO_SEM_META,
 
       criadoEm: registro.criadoEm.toISOString(),
       atualizadoEm: registro.atualizadoEm.toISOString(),

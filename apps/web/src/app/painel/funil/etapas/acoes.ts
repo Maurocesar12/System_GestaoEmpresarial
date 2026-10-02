@@ -1,26 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  etapaFormSchema,
-  reordenarEtapasSchema,
-  type EtapaFormInput,
-  type EtapaFunil,
-} from '@gestao/shared-types';
-import { primeiroErro, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { EtapaFormInput, EtapaFunil } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function criarEtapa(dados: EtapaFormInput): Promise<ResultadoAcao> {
-  const validacao = etapaFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<EtapaFunil>('/funil/etapas', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);
@@ -31,16 +20,10 @@ export async function criarEtapa(dados: EtapaFormInput): Promise<ResultadoAcao> 
 }
 
 export async function renomearEtapa(id: string, nome: string): Promise<ResultadoAcao> {
-  const validacao = etapaFormSchema.safeParse({ nome });
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<EtapaFunil>(`/funil/etapas/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({ nome }),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);
@@ -64,16 +47,10 @@ export async function excluirEtapa(id: string): Promise<ResultadoAcao> {
 }
 
 export async function reordenarEtapas(etapaIds: string[]): Promise<ResultadoAcao> {
-  const validacao = reordenarEtapasSchema.safeParse({ etapaIds });
-
-  if (!validacao.success) {
-    return primeiroErro(validacao.error.issues, 'Ordem inválida.');
-  }
-
   try {
     await apiComSessao<EtapaFunil[]>('/funil/etapas/ordem', {
       method: 'PUT',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({ etapaIds }),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);

@@ -3,6 +3,7 @@ import {
   CODIGOS_ERRO,
   ocorrenciaDoCiclo,
   type LancamentoRecorrente,
+  type ResumoRecorrencias,
   type RecorrenciaFormInput,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
@@ -10,6 +11,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { garantirVinculos } from '../../common/vinculos';
+import { garantirCategoriaDoTipo } from './categoria-do-tipo';
 import { paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 
@@ -36,6 +38,34 @@ export class RecorrenciaService {
     private readonly auditoria: AuditoriaService,
   ) {}
 
+  /** Ver `ResumoRecorrencias`. */
+  async resumir(): Promise<ResumoRecorrencias> {
+    const registros = await this.prisma.comTenant((tx) =>
+      tx.lancamentoRecorrente.findMany({
+        select: { tipo: true, valor: true, periodicidade: true, ativo: true },
+      }),
+    );
+
+    let saida = new Prisma.Decimal(0);
+    let entrada = new Prisma.Decimal(0);
+    let ativas = 0;
+
+    for (const registro of registros) {
+      if (!registro.ativo) continue;
+      ativas++;
+      if (registro.periodicidade !== 'mensal') continue;
+      if (registro.tipo === 'saida') saida = saida.plus(registro.valor);
+      else entrada = entrada.plus(registro.valor);
+    }
+
+    return {
+      saidaMensal: saida.toFixed(2),
+      entradaMensal: entrada.toFixed(2),
+      ativas,
+      pausadas: registros.length - ativas,
+    };
+  }
+
   async listar(): Promise<LancamentoRecorrente[]> {
     const registros = await this.prisma.comTenant((tx) =>
       tx.lancamentoRecorrente.findMany({
@@ -52,6 +82,7 @@ export class RecorrenciaService {
   async criar(dados: RecorrenciaFormInput): Promise<LancamentoRecorrente> {
     const registro = await this.prisma.comTenant(async (tx) => {
       await garantirVinculos(tx, dados);
+      await garantirCategoriaDoTipo(tx, dados);
 
       const criado = await tx.lancamentoRecorrente.create({
         data: {

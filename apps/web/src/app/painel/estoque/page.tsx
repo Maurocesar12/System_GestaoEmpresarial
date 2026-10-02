@@ -3,10 +3,9 @@ import Link from 'next/link';
 import { Boxes } from 'lucide-react';
 import {
   formatarBRL,
-  possuiPermissao,
-  somarDinheiro,
   type Material,
   type Paginado,
+  type ResumoEstoque,
 } from '@gestao/shared-types';
 import { estilosBotao } from '@/components/ui/botao';
 import { CabecalhoPagina } from '@/components/ui/cabecalho-pagina';
@@ -24,6 +23,7 @@ import {
   TabelaRolavel,
 } from '@/components/ui/tabela';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
+import { pode } from '@/lib/permissoes';
 import { quantidadeBR } from './quantidade';
 
 export const metadata: Metadata = { title: 'Estoque' };
@@ -38,14 +38,14 @@ export default async function PaginaEstoque({ searchParams }: Props) {
   if (busca) query.set('busca', busca);
   if (repor) query.set('abaixoDoMinimo', 'true');
 
-  const [usuario, materiais, paraRepor] = await Promise.all([
+  const [usuario, materiais, resumo] = await Promise.all([
     usuarioAtual(),
     apiComSessao<Paginado<Material>>(`/estoque/materiais?${query.toString()}`),
-    apiComSessao<Paginado<Material>>('/estoque/materiais?abaixoDoMinimo=true&porPagina=1'),
+    // Totais do estoque inteiro, somados pela API — não da página filtrada.
+    apiComSessao<ResumoEstoque>('/estoque/resumo'),
   ]);
 
-  const podeGerenciar = possuiPermissao(usuario, 'estoque.gerenciar');
-  const valorTotal = somarDinheiro(materiais.dados.map((material) => material.valorEmEstoque));
+  const podeGerenciar = pode(usuario, 'estoque.gerenciar');
   const filtroAtivo = Boolean(busca || repor);
 
   return (
@@ -66,13 +66,13 @@ export default async function PaginaEstoque({ searchParams }: Props) {
         <Indicador titulo="Materiais" valor={String(materiais.meta.total)} />
         <Indicador
           titulo="Valor em estoque"
-          valor={formatarBRL(valorTotal)}
+          valor={formatarBRL(resumo.valorEmEstoque)}
           detalhe="saldo × custo médio"
         />
         <Indicador
           titulo="Para repor"
-          valor={String(paraRepor.meta.total)}
-          tom={paraRepor.meta.total > 0 ? 'negativo' : undefined}
+          valor={String(resumo.abaixoDoMinimo)}
+          tom={resumo.abaixoDoMinimo > 0 ? 'negativo' : undefined}
           detalhe="no mínimo ou abaixo"
         />
       </FaixaDeIndicadores>
@@ -123,7 +123,7 @@ export default async function PaginaEstoque({ searchParams }: Props) {
                       {material.nome}
                     </Link>
                     <div className="mt-1 flex gap-1.5">
-                      {Number(material.quantidade) < 0 ? (
+                      {material.negativo ? (
                         <Selo tom="perigo">Saldo negativo</Selo>
                       ) : (
                         material.abaixoDoMinimo && <Selo tom="atencao">Repor</Selo>

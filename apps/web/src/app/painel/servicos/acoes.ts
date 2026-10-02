@@ -2,35 +2,23 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  fichaTecnicaSchema,
-  servicoFormSchema,
-  type FichaTecnica,
-  type Servico,
-  type ServicoFormInput,
+import type {
+  FichaTecnica,
+  Servico,
+  ServicoFormEntrada,
+  SimulacaoMargem,
 } from '@gestao/shared-types';
-import {
-  erroDeValidacao,
-  primeiroErro,
-  traduzirErroAcao,
-  type ResultadoAcao,
-} from '@/lib/acoes';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarServico(
   id: string | null,
-  dados: ServicoFormInput,
+  dados: ServicoFormEntrada,
 ): Promise<ResultadoAcao> {
-  const validacao = servicoFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<Servico>(id ? `/servicos/${id}` : '/servicos', {
       method: id ? 'PATCH' : 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível salvar. Tente novamente.');
@@ -44,13 +32,10 @@ export async function salvarFichaTecnica(
   servicoId: string,
   itens: Array<{ materialId: string; quantidade: string }>,
 ): Promise<ResultadoAcao> {
-  const validacao = fichaTecnicaSchema.safeParse({ itens });
-  if (!validacao.success) return primeiroErro(validacao.error.issues);
-
   try {
     await apiComSessao<FichaTecnica>(`/servicos/${servicoId}/materiais`, {
       method: 'PUT',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify({ itens }),
     });
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível salvar a lista de materiais.');
@@ -70,4 +55,21 @@ export async function desativarServico(id: string): Promise<ResultadoAcao> {
 
   revalidatePath('/painel/servicos');
   return {};
+}
+
+/** Prévia da margem, calculada pela API. Erro só some com a prévia. */
+export async function simularMargem(dados: {
+  custoBase: string;
+  precoPadrao: string;
+}): Promise<{ dados?: SimulacaoMargem }> {
+  try {
+    return {
+      dados: await apiComSessao<SimulacaoMargem>('/servicos/simular-margem', {
+        method: 'POST',
+        body: JSON.stringify(dados),
+      }),
+    };
+  } catch {
+    return {};
+  }
 }

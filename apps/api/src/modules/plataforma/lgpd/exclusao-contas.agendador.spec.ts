@@ -11,7 +11,7 @@ function montar(contas: Array<{ id: string; canceladoEm: Date | null }>, apagada
   const create = jest.fn().mockResolvedValue({});
 
   const prisma = {
-    semTenant: (_motivo: string, operacao: (db: unknown) => unknown) =>
+    comVarredura: (_varredura: string, _motivo: string, operacao: (db: unknown) => unknown) =>
       operacao({ tenant: { findMany } }),
     comTenantExplicito: (_tenantId: string, operacao: (tx: unknown) => unknown) =>
       operacao({ tenant: { deleteMany }, registroExclusaoConta: { create } }),

@@ -1,25 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  recorrenciaFormSchema,
-  type LancamentoRecorrente,
-  type RecorrenciaFormEntrada,
-} from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { LancamentoRecorrente, RecorrenciaFormEntrada } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function criarRecorrencia(dados: RecorrenciaFormEntrada): Promise<ResultadoAcao> {
-  const validacao = recorrenciaFormSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     await apiComSessao<LancamentoRecorrente>('/financeiro/recorrencias', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
   } catch (erro) {
     return traduzirErroAcao(erro);

@@ -49,6 +49,12 @@ export interface CategoriaFinanceira {
   id: string;
   nome: string;
   tipoCusto: TipoCusto;
+  /**
+   * Para quais tipos de lançamento a categoria serve, calculado pela API — a
+   * mesma regra que ela usa para recusar uma entrada classificada como custo.
+   * O seletor da tela só filtra por este campo.
+   */
+  servePara: TipoLancamento[];
   criadoEm: string;
 }
 
@@ -171,18 +177,35 @@ export type LancamentoFormInput = z.infer<typeof lancamentoFormSchema>;
 export type LancamentoFormEntrada = z.input<typeof lancamentoFormSchema>;
 
 /** Importação financeira deliberadamente limitada aos dados do lançamento. */
+/** Célula de planilha comparada sem caixa nem espaço: "Entrada " vale "entrada". */
+const celulaEmMinusculas = (valor: unknown) =>
+  typeof valor === 'string' ? valor.trim().toLowerCase() : valor;
+
+/**
+ * Uma linha da planilha financeira, como saiu do arquivo.
+ *
+ * A normalização mora aqui, e não na tela que lê o arquivo: `tipo` e
+ * `natureza` aceitam qualquer caixa, e a natureza vazia vale `empresa` — o
+ * mesmo padrão do formulário. Assim a API decide sozinha o que a planilha
+ * quis dizer.
+ */
+const linhaImportacaoLancamentoSchema = lancamentoFormSchema
+  .omit({
+    categoriaId: true,
+    servicoId: true,
+    clienteId: true,
+    anexos: true,
+  })
+  .extend({
+    tipo: z.preprocess(celulaEmMinusculas, tipoLancamentoSchema),
+    natureza: z.preprocess(
+      (valor) => celulaEmMinusculas(valor) || undefined,
+      naturezaLancamentoSchema.default('empresa'),
+    ),
+  });
+
 export const importacaoLancamentosSchema = z.object({
-  lancamentos: z
-    .array(
-      lancamentoFormSchema.omit({
-        categoriaId: true,
-        servicoId: true,
-        clienteId: true,
-        anexos: true,
-      }),
-    )
-    .min(1)
-    .max(500),
+  lancamentos: z.array(linhaImportacaoLancamentoSchema).min(1).max(500),
 });
 export type ImportacaoLancamentosInput = z.infer<typeof importacaoLancamentosSchema>;
 
@@ -330,6 +353,28 @@ export function dividirEmParcelas(total: string, parcelas: number): string[] {
   });
 }
 
+/**
+ * Prévia do parcelamento enquanto a pessoa digita.
+ *
+ * A tela mostrava "3x de R$ 333,33" calculando sozinha. Agora pergunta à API,
+ * que divide com a mesma `dividirEmParcelas` usada ao gravar — o valor
+ * prometido na prévia é, por construção, o valor salvo.
+ */
+export const simulacaoParcelasSchema = z.object({
+  valor: dinheiroDigitadoSchema,
+  parcelas: z.coerce.number().int().min(2).max(MAX_PARCELAS),
+});
+
+export type SimulacaoParcelasInput = z.infer<typeof simulacaoParcelasSchema>;
+
+export interface SimulacaoParcelas {
+  quantidade: number;
+  /** Valor de cada parcela, menos talvez a última. */
+  valorParcela: string;
+  /** A última, quando a sobra de centavos a faz diferente. `null` se igual. */
+  ultimaParcela: string | null;
+}
+
 /** Dar baixa: registrar que o dinheiro entrou ou saiu. */
 export const baixaFormSchema = z.object({
   /**
@@ -436,30 +481,56 @@ export interface RelatorioMargem {
   periodo: { de: string; ate: string };
 }
 
+/**
+ * Primeiro e último dia do mês corrente **em São Paulo**.
+ *
+ * O fuso importa: o servidor roda em UTC, e entre 21h e meia-noite do último
+ * dia do mês o UTC já está no mês seguinte — o relatório "deste mês" abriria
+ * o mês errado justamente no fechamento. Usado pela API como período padrão;
+ * a tela não calcula datas, mostra o período que a resposta trouxer.
+ */
+export function mesCorrente(agora: Date = new Date()): { de: string; ate: string } {
+  const [ano, mes] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+  })
+    .format(agora)
+    .split('-')
+    .map(Number) as [number, number];
+
+  // Dia zero do mês seguinte é o último dia deste mês — evita a tabela de
+  // quantos dias tem cada mês, e acerta fevereiro bissexto de graça.
+  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  const p = (n: number) => String(n).padStart(2, '0');
+
+  return { de: `${ano}-${p(mes)}-01`, ate: `${ano}-${p(mes)}-${p(ultimoDia)}` };
+}
+
+/**
+ * Datas de um relatório por período. Ausentes, valem o mês corrente — a
+ * função roda a cada validação, então "corrente" é o de agora, e não o do
+ * momento em que o servidor subiu.
+ */
+export const dataInicialSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inicial inválida')
+  .default(() => mesCorrente().de);
+
+export const dataFinalSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data final inválida')
+  .default(() => mesCorrente().ate);
+
 export const periodoQuerySchema = z.object({
-  de: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inicial inválida'),
-  ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data final inválida'),
+  de: dataInicialSchema,
+  ate: dataFinalSchema,
   /** Por padrão o relatório ignora o que é pessoal. */
   natureza: naturezaLancamentoSchema.optional(),
   categoriaId: z.uuid().optional(),
 });
 
 export type PeriodoQuery = z.infer<typeof periodoQuerySchema>;
-
-/** Primeiro e último dia do mês corrente, para o período padrão das telas. */
-export function mesCorrente(): { de: string; ate: string } {
-  const agora = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-
-  const primeiro = `${agora.getFullYear()}-${p(agora.getMonth() + 1)}-01`;
-
-  // Dia zero do mês seguinte é o último dia deste mês — evita a tabela de
-  // quantos dias tem cada mês, e acerta fevereiro bissexto de graça.
-  const ultimoDia = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
-  const ultimo = `${ultimoDia.getFullYear()}-${p(ultimoDia.getMonth() + 1)}-${p(ultimoDia.getDate())}`;
-
-  return { de: primeiro, ate: ultimo };
-}
 
 export const ROTULO_TIPO_LANCAMENTO: Record<TipoLancamento, string> = {
   entrada: 'Entrada',

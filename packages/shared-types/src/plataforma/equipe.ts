@@ -79,6 +79,10 @@ export interface EquipeResponse {
     convitesPendentes: number;
     vagasOcupadas: number;
     vagasDisponiveis: number | null;
+    /** Vagas ocupadas sobre o limite, de 0 a 100. Zero quando o plano não tem limite. */
+    percentualOcupado: number;
+    /** Sem vaga para convidar mais ninguém — a API recusa o convite. */
+    limiteAtingido: boolean;
     usuariosInclusos: number | null;
     usuariosAdicionais: number;
     precoPorUsuarioAdicional: string;
@@ -94,4 +98,6 @@ export interface EquipeResponse {
       precoPorUsuarioAdicional: string;
     } | null;
   };
+  /** O ponto de partida de cada papel ao convidar ou editar alguém. Vem da API. */
+  permissoesPadraoPorPapel: Record<PapelUsuario, Permissao[]>;
 }

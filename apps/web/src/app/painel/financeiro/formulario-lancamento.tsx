@@ -1,22 +1,16 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   MAX_PARCELAS,
   ROTULO_NATUREZA,
   ROTULO_TIPO_LANCAMENTO,
-  TIPOS_CUSTO_POR_LANCAMENTO,
-  dividirEmParcelas,
   formatarBRL,
   hojeISO,
-  lancamentoFormSchema,
-  normalizarDinheiro,
   type AnexoLancamentoInput,
   type CategoriaFinanceira,
   type Cliente,
   type Lancamento,
   type LancamentoFormEntrada,
-  type LancamentoFormInput,
   type NaturezaLancamento,
   type Servico,
   type TipoLancamento,
@@ -31,7 +25,8 @@ import { Campo } from '@/components/ui/campo';
 import { Selecao } from '@/components/ui/selecao';
 import { SeletorSegmentado, type OpcaoSegmentada } from '@/components/ui/seletor-segmentado';
 import type { ResultadoAcao } from '@/lib/acoes';
-import { salvarLancamento } from './acoes';
+import { useSimulacao } from '@/lib/simulacao';
+import { salvarLancamento, simularParcelas } from './acoes';
 import { CampoAnexos } from './campo-anexos';
 
 const CAMPOS = [
@@ -121,8 +116,7 @@ export function FormularioLancamento({
     setValue,
     setError,
     formState: { errors },
-  } = useForm<LancamentoFormEntrada, unknown, LancamentoFormInput>({
-    resolver: zodResolver(lancamentoFormSchema),
+  } = useForm<LancamentoFormEntrada>({
     defaultValues: {
       tipo: lancamento?.tipo ?? 'entrada',
       natureza: lancamento?.natureza ?? 'empresa',
@@ -161,37 +155,24 @@ export function FormularioLancamento({
   const parcelasDigitadas = useWatch({ control, name: 'parcelas' });
 
   /**
-   * A prévia da divisão, com a mesma função que a API usa para dividir.
-   *
-   * Compartilhar `dividirEmParcelas` não é economia de código: é o que garante
-   * que o valor prometido na tela seja o valor gravado. Reimplementar a divisão
-   * aqui daria "3x de R$ 333,34" na prévia e R$ 333,33 no banco — e a diferença
-   * apareceria como um centavo teimoso na conciliação.
+   * A prévia da divisão, calculada pela API com a mesma função da gravação:
+   * o valor prometido na tela é, por construção, o valor salvo. Entrada que a
+   * API recusa (parcela 1, valor vazio) simplesmente não mostra prévia.
    */
-  const previaParcelas = useMemo(() => {
-    const quantidade = Number(parcelasDigitadas);
+  const simulacao = useSimulacao(
+    valorDigitado && parcelasDigitadas
+      ? { valor: String(valorDigitado), parcelas: String(parcelasDigitadas) }
+      : null,
+    simularParcelas,
+  );
 
-    // `normalizarDinheiro` é a mesma função por onde o valor passa no envio
-    // (via `dinheiroDigitadoSchema`). Assim "1.500,00" vira "1500.00" aqui
-    // exatamente como vira lá, e a prévia não pode discordar do que será salvo.
-    const total = valorDigitado ? normalizarDinheiro(valorDigitado) : '';
-
-    if (!Number.isInteger(quantidade) || quantidade < 2 || !Number(total)) {
-      return null;
-    }
-
-    const partes = dividirEmParcelas(total, quantidade);
-    const primeira = partes[0]!;
-    const ultima = partes[partes.length - 1]!;
-
-    return {
-      quantidade,
-      valor: formatarBRL(primeira),
-      // Só mostra a última quando ela difere — dizer "3x de R$ 100, a última de
-      // R$ 100" seria ruído que faz duvidar de um número que está certo.
-      ultima: ultima === primeira ? null : formatarBRL(ultima),
-    };
-  }, [parcelasDigitadas, valorDigitado]);
+  const previaParcelas = simulacao && {
+    quantidade: simulacao.quantidade,
+    valor: formatarBRL(simulacao.valorParcela),
+    // Só mostra a última quando ela difere — a API já devolve `null` quando é
+    // igual, e "a última de R$ 100" seria ruído.
+    ultima: simulacao.ultimaParcela ? formatarBRL(simulacao.ultimaParcela) : null,
+  };
 
   /**
    * Só as categorias que servem ao tipo escolhido.
@@ -206,13 +187,14 @@ export function FormularioLancamento({
    * apagar o vínculo — perda de dado silenciosa ao abrir a tela para mexer em
    * outra coisa.
    */
-  const categoriasDoTipo = useMemo(() => {
-    const servem: readonly string[] = TIPOS_CUSTO_POR_LANCAMENTO[tipo];
-
-    return categorias.filter(
-      (categoria) => servem.includes(categoria.tipoCusto) || categoria.id === categoriaEscolhida,
-    );
-  }, [categorias, tipo, categoriaEscolhida]);
+  const categoriasDoTipo = useMemo(
+    () =>
+      // `servePara` vem da API, que é quem recusa a combinação errada.
+      categorias.filter(
+        (categoria) => categoria.servePara.includes(tipo) || categoria.id === categoriaEscolhida,
+      ),
+    [categorias, tipo, categoriaEscolhida],
+  );
 
   /**
    * Troca o tipo e descarta a categoria que deixou de fazer sentido.
@@ -224,10 +206,9 @@ export function FormularioLancamento({
   const trocarTipo = (proximo: TipoLancamento) => {
     tipoCampo.field.onChange(proximo);
 
-    const servem: readonly string[] = TIPOS_CUSTO_POR_LANCAMENTO[proximo];
     const atual = categorias.find((categoria) => categoria.id === categoriaEscolhida);
 
-    if (atual && !servem.includes(atual.tipoCusto)) {
+    if (atual && !atual.servePara.includes(proximo)) {
       setValue('categoriaId', '', { shouldValidate: true });
     }
   };
@@ -239,7 +220,7 @@ export function FormularioLancamento({
     setValue('pagoEm', proxima === 'liquidado' ? hojeISO() : '', { shouldValidate: true });
   };
 
-  const aoEnviar = (dados: LancamentoFormInput) => {
+  const aoEnviar = (dados: LancamentoFormEntrada) => {
     setFalha(undefined);
 
     iniciarEnvio(async () => {
@@ -403,8 +384,7 @@ export function FormularioLancamento({
                 <strong className="font-semibold">{previaParcelas.valor}</strong>
                 {previaParcelas.ultima && (
                   <>
-                    , a última de{' '}
-                    <strong className="font-semibold">{previaParcelas.ultima}</strong>
+                    , a última de <strong className="font-semibold">{previaParcelas.ultima}</strong>
                   </>
                 )}
               </p>

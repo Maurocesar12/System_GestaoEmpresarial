@@ -4,9 +4,7 @@ import { AlertTriangle, CalendarDays } from 'lucide-react';
 import {
   ROTULO_STATUS_AGENDAMENTO,
   STATUS_AGENDAMENTO,
-  estaAtrasado,
   formatarTelefone,
-  possuiPermissao,
   type Agendamento,
   type Paginado,
   type StatusAgendamento,
@@ -20,6 +18,7 @@ import { Selo } from '@/components/ui/selo';
 import { agruparPorDia } from '@/lib/agrupamento';
 import { apiComSessao, usuarioAtual } from '@/lib/api-servidor';
 import { formatarDiaAgenda, formatarHora } from '@/lib/formatacao';
+import { pode } from '@/lib/permissoes';
 import { AcoesAgendamento } from './acoes-agendamento';
 
 export const metadata: Metadata = {
@@ -64,9 +63,9 @@ export default async function PaginaAgenda({ searchParams }: Props) {
     apiComSessao<Paginado<Agendamento>>(`/agendamentos?${query.toString()}`),
     usuarioAtual(),
   ]);
-  const podeLancarReceita = possuiPermissao(usuario, 'financeiro.criar');
+  const podeLancarReceita = pode(usuario, 'financeiro.criar');
 
-  const atrasados = agenda.dados.filter(estaAtrasado);
+  const atrasados = agenda.dados.filter((agendamento) => agendamento.atrasado);
   const porDia = agruparPorDia(agenda.dados, (agendamento) => agendamento.dataHora);
 
   return (
@@ -171,7 +170,7 @@ export default async function PaginaAgenda({ searchParams }: Props) {
                               {ROTULO_STATUS_AGENDAMENTO[agendamento.status]}
                             </Selo>
 
-                            {estaAtrasado(agendamento) && (
+                            {agendamento.atrasado && (
                               <span className="text-destructive text-xs font-medium">
                                 passou da data
                               </span>
@@ -182,7 +181,7 @@ export default async function PaginaAgenda({ searchParams }: Props) {
 
                       <AcoesAgendamento
                         id={agendamento.id}
-                        status={agendamento.status}
+                        acoes={agendamento.acoesDisponiveis}
                         valorSugerido={agendamento.valorSugerido}
                         podeLancarReceita={podeLancarReceita}
                       />

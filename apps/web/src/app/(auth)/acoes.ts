@@ -1,14 +1,8 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import {
-  cadastroSchema,
-  loginSchema,
-  type CadastroInput,
-  type LoginInput,
-  type SessaoResponse,
-} from '@gestao/shared-types';
-import { erroDeValidacao, traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import type { CadastroInput, LoginInput, SessaoResponse } from '@gestao/shared-types';
+import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiFetch } from '@/lib/api';
 import { gravarSessao, lerRefreshToken, limparSessao } from '@/lib/sessao';
 
@@ -24,18 +18,12 @@ import { gravarSessao, lerRefreshToken, limparSessao } from '@/lib/sessao';
  */
 
 export async function entrar(dados: LoginInput): Promise<ResultadoAcao> {
-  // Valida no servidor também, e não só no formulário: validação de cliente é
-  // conveniência para quem digita, nunca uma garantia.
-  const validacao = loginSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
+  // Sem validação aqui: quem valida é a API, e os erros por campo voltam em
+  // `campos`. Ver `lib/acoes.ts`.
   try {
     const sessao = await apiFetch<SessaoResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
 
     await gravarSessao(sessao);
@@ -49,16 +37,10 @@ export async function entrar(dados: LoginInput): Promise<ResultadoAcao> {
 }
 
 export async function cadastrar(dados: CadastroInput): Promise<ResultadoAcao> {
-  const validacao = cadastroSchema.safeParse(dados);
-
-  if (!validacao.success) {
-    return erroDeValidacao(validacao.error.issues);
-  }
-
   try {
     const sessao = await apiFetch<SessaoResponse>('/onboarding/cadastro', {
       method: 'POST',
-      body: JSON.stringify(validacao.data),
+      body: JSON.stringify(dados),
     });
 
     await gravarSessao(sessao);

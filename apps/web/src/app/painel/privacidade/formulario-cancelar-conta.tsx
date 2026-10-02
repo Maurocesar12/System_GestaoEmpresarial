@@ -1,7 +1,6 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { cancelamentoContaSchema, type CancelamentoContaInput } from '@gestao/shared-types';
+import { type CancelamentoContaInput } from '@gestao/shared-types';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { AvisoErro } from '@/components/ui/aviso-erro';
@@ -27,7 +26,6 @@ export function FormularioCancelarConta({ nomeEmpresa }: { nomeEmpresa: string }
     setError,
     formState: { errors },
   } = useForm<CancelamentoContaInput>({
-    resolver: zodResolver(cancelamentoContaSchema),
     defaultValues: { nomeEmpresa: '', senha: '' },
   });
 

@@ -33,6 +33,11 @@ export interface ProLabore {
   /** `null` significa vigência em aberto: é o valor atual. */
   vigenciaFim: string | null;
   criadoEm: string;
+  /**
+   * Diferença para a vigência anterior, calculada pela API. Positiva é
+   * reajuste para cima. `null` na primeira vigência (e fora da listagem).
+   */
+  variacao: string | null;
 }
 
 /**
@@ -77,6 +82,9 @@ export interface SugestaoProLabore {
    */
   folga: string;
 
+  /** A retirada atual passa do teto (folga negativa). Decidido pela API. */
+  acimaDoTeto: boolean;
+
   /** Quantos meses entraram na média. Menos de 3 torna a sugestão frágil. */
   mesesAnalisados: number;
 }
@@ -87,3 +95,23 @@ export const sugestaoQuerySchema = z.object({
 });
 
 export type SugestaoQuery = z.infer<typeof sugestaoQuerySchema>;
+
+/**
+ * Prévia do formulário: "este valor cabe no teto?".
+ *
+ * O valor vai como foi digitado; a API converte, calcula o teto com a mesma
+ * janela da tela e devolve a sobra. A tela tinha um conversor próprio de
+ * dinheiro, diferente do usado ao gravar.
+ */
+export const simulacaoProLaboreSchema = sugestaoQuerySchema.extend({
+  valor: dinheiroDigitadoSchema,
+});
+
+export type SimulacaoProLaboreInput = z.infer<typeof simulacaoProLaboreSchema>;
+
+export interface SimulacaoProLabore {
+  tetoSugerido: string;
+  /** Teto menos o valor digitado. Negativo quando passa do teto. */
+  sobra: string;
+  cabeNoTeto: boolean;
+}

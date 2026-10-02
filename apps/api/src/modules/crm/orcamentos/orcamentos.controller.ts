@@ -15,12 +15,14 @@ import {
   mudarStatusSchema,
   orcamentoFormSchema,
   orcamentosQuerySchema,
+  resumoOrcamentosQuerySchema,
   type MudarStatusInput,
   type Orcamento,
   type OrcamentoFormInput,
   type OrcamentosQuery,
   type Paginado,
   type ResumoOrcamentos,
+  type ResumoOrcamentosQuery,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
@@ -41,8 +43,10 @@ export class OrcamentosController {
   // Antes de `:id` de propósito: na ordem inversa, "resumo" seria interpretado
   // como um id e o ParseUUIDPipe recusaria a requisição.
   @Get('resumo')
-  resumir(): Promise<ResumoOrcamentos> {
-    return this.orcamentos.resumir();
+  resumir(
+    @Query(new ZodValidationPipe(resumoOrcamentosQuerySchema)) query: ResumoOrcamentosQuery,
+  ): Promise<ResumoOrcamentos> {
+    return this.orcamentos.resumir(query.clienteId);
   }
 
   @Get(':id')

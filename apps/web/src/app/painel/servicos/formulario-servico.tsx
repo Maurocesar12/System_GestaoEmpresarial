@@ -1,13 +1,6 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  margemPercentual,
-  servicoFormSchema,
-  type Servico,
-  type ServicoFormEntrada,
-  type ServicoFormInput,
-} from '@gestao/shared-types';
+import type { Servico, ServicoFormEntrada } from '@gestao/shared-types';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -15,7 +8,8 @@ import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import type { ResultadoAcao } from '@/lib/acoes';
-import { salvarServico } from './acoes';
+import { useSimulacao } from '@/lib/simulacao';
+import { salvarServico, simularMargem } from './acoes';
 
 const CAMPOS = ['nome', 'categoria', 'custoBase', 'precoPadrao'] as const;
 
@@ -36,8 +30,7 @@ export function FormularioServico({ servico }: { servico?: Servico }) {
     setError,
     control,
     formState: { errors },
-  } = useForm<ServicoFormEntrada, unknown, ServicoFormInput>({
-    resolver: zodResolver(servicoFormSchema),
+  } = useForm<ServicoFormEntrada>({
     defaultValues: {
       nome: servico?.nome ?? '',
       categoria: servico?.categoria ?? '',
@@ -53,9 +46,14 @@ export function FormularioServico({ servico }: { servico?: Servico }) {
   const custo = useWatch({ control, name: 'custoBase' });
   const preco = useWatch({ control, name: 'precoPadrao' });
 
-  const margem = calcularMargemPrevia(custo, preco);
+  // A margem vem da API, calculada sobre os valores como foram digitados.
+  const simulacao = useSimulacao(
+    custo && preco ? { custoBase: custo, precoPadrao: preco } : null,
+    simularMargem,
+  );
+  const margem = simulacao?.margemPercentual ?? null;
 
-  const aoEnviar = (dados: ServicoFormInput) => {
+  const aoEnviar = (dados: ServicoFormEntrada) => {
     setFalha(undefined);
 
     iniciarEnvio(async () => {
@@ -120,11 +118,13 @@ export function FormularioServico({ servico }: { servico?: Servico }) {
       {margem !== null && (
         <p
           className={`rounded-md border px-3 py-2 text-sm ${
-            margem < 0 ? 'border-destructive/40 bg-destructive/10 text-destructive' : 'bg-muted/30'
+            simulacao?.abaixoDoCusto
+              ? 'border-destructive/40 bg-destructive/10 text-destructive'
+              : 'bg-muted/30'
           }`}
         >
           Margem: <strong className="tabular-nums">{margem.toFixed(1)}%</strong>
-          {margem < 0 && ' — o preço está abaixo do custo.'}
+          {simulacao?.abaixoDoCusto && ' — o preço está abaixo do custo.'}
         </p>
       )}
 
@@ -142,24 +142,4 @@ export function FormularioServico({ servico }: { servico?: Servico }) {
       </div>
     </form>
   );
-}
-
-/**
- * Margem a partir do que está digitado no formulário.
- *
- * Os valores ainda estão no formato brasileiro e podem estar incompletos —
- * alguém no meio de digitar "1.2" não deve ver um erro. Devolve `null` sempre
- * que a conta não faz sentido ainda.
- */
-function calcularMargemPrevia(custo?: string, preco?: string | null): number | null {
-  if (!custo || !preco) return null;
-
-  const normalizar = (valor: string) => valor.replace(/\./g, '').replace(',', '.');
-
-  const custoNumero = Number(normalizar(custo));
-  const precoNumero = Number(normalizar(preco));
-
-  if (!Number.isFinite(custoNumero) || !Number.isFinite(precoNumero)) return null;
-
-  return margemPercentual(custoNumero.toFixed(2), precoNumero.toFixed(2));
 }
