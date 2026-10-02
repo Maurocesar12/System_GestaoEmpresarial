@@ -19,6 +19,11 @@ import { Notificador } from './notificador';
  * rajada, e sem o pool cada mensagem abre e fecha uma conexão SMTP nova —
  * lento, e o caminho mais rápido para um provedor começar a recusar por
  * excesso de conexões.
+ *
+ * Vão no **mesmo objeto** da URL (`{ url, ...OPCOES_SMTP }`). Passadas como
+ * segundo argumento de `createTransport`, como estava, elas viravam os
+ * padrões das *mensagens* — e a conexão seguia com os timeouts de dez minutos
+ * e sem pool. Os tipos do nodemailer 10 passaram a recusar a forma errada.
  */
 const OPCOES_SMTP = {
   pool: true,
@@ -60,7 +65,7 @@ const OPCOES_SMTP = {
         }
 
         return new NotificadorEmail(
-          createTransport(smtpUrl, OPCOES_SMTP),
+          createTransport({ url: smtpUrl, ...OPCOES_SMTP }),
           config.get('EMAIL_REMETENTE', { infer: true }),
         );
       },

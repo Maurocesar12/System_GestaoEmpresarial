@@ -14,3 +14,15 @@ allowBuilds:
   unrs-resolver: true
   '@prisma/engines': true
   prisma: true
+
+# Versões mínimas de dependências indiretas com vulnerabilidade conhecida
+# (pnpm audit, 2026-10-02). Nenhuma é usada diretamente pelo código: vêm do
+# Express/NestJS (qs, multer) e do CLI do Prisma (deepmerge-ts, fast-uri,
+# mysql2). Remova uma linha quando o pacote que a puxa já trouxer a versão
+# corrigida — `pnpm audit --prod` diz quando.
+overrides:
+  deepmerge-ts: '>=8.0.0'
+  fast-uri: '>=3.1.8'
+  multer: '>=2.4.0'
+  mysql2: '>=3.23.1'
+  qs: '>=6.16.0'

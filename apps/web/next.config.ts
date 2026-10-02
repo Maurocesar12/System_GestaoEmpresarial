@@ -46,6 +46,9 @@ function politicaDeConteudo(): string {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // O `next dev` gerava AGENTS.md e CLAUDE.md na pasta do app a cada subida, e
+  // eles acabavam entrando nos commits sem ninguém pedir.
+  agentRules: false,
 
   /**
    * Origens autorizadas a carregar os recursos do servidor de desenvolvimento.
