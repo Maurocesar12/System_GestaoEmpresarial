@@ -563,7 +563,8 @@ function Coluna({
         )}
       </header>
 
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
+      {/* `relative`: os rótulos `sr-only` dos cartões ficam presos à coluna, sem esticar a página. */}
+      <div className="relative flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
         {clientes.map((cliente) => (
           <CartaoDoFunil
             key={cliente.id}

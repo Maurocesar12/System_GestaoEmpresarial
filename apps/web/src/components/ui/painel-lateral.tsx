@@ -47,7 +47,8 @@ export function PainelLateral({
       className={cn(
         'painel-lateral bg-card text-card-foreground border-l p-0 shadow-[var(--sombra-media)]',
         // Encostado à direita, altura inteira; no celular ocupa a tela toda.
-        'fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-dvh w-full max-w-xl',
+        // `overflow-hidden`: quem rola é só o corpo, nunca o painel inteiro.
+        'fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-dvh w-full max-w-xl overflow-hidden',
         'backdrop:bg-black/45 backdrop:backdrop-blur-[2px]',
       )}
     >
@@ -67,8 +68,13 @@ export function PainelLateral({
           </button>
         </header>
 
-        {/* `overscroll-contain`: no fim do formulário, a rolagem não vaza para a página de trás. */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+        {/*
+          `overscroll-contain`: no fim do formulário, a rolagem não vaza para a página de trás.
+          `relative`: os inputs invisíveis dos seletores (`sr-only` é `position: absolute`)
+          passam a se posicionar aqui dentro. Sem isso eles se prendiam ao `<dialog>`,
+          esticavam o painel e criavam uma segunda barra de rolagem com espaço vazio embaixo.
+        */}
+        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
           {children}
         </div>
 
