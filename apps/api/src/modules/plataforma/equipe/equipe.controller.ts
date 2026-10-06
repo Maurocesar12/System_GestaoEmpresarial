@@ -63,7 +63,7 @@ export class EquipeController {
     return this.equipe.atualizar(id, dados);
   }
 
-  /** Para quem perdeu o celular e os códigos de recuperação. Só o admin. */
+  /** Para quem perdeu ou trocou de celular. Só o admin. */
   @Post('funcionarios/:id/redefinir-2fa')
   @Papeis('admin')
   @HttpCode(HttpStatus.NO_CONTENT)

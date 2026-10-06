@@ -1,10 +1,8 @@
 import type {
-  AtivacaoDoisFatores,
   ConfiguracaoDoisFatores,
   DesafioDoisFatores,
   SessaoResponse,
 } from '@gestao/shared-types';
-
 import request from 'supertest';
 import { codigoDoPasso, passoAtual } from '../modules/auth/dois-fatores/totp';
 
@@ -15,13 +13,16 @@ type Servidor = Parameters<typeof request>[0];
  *
  * Login, cadastro e aceite de convite não devolvem mais sessão. Este helper
  * configura o app na primeira vez (lendo o segredo da resposta e calculando o
- * código, como o celular faria) e, nos logins seguintes, usa os códigos de
- * recuperação. Recuperação, e não TOTP, porque o mesmo código de 30 s não pode
- * ser usado duas vezes — e a suíte faz vários logins seguidos da mesma pessoa.
+ * código, como o celular faria) e calcula o código nos logins seguintes.
+ *
+ * O mesmo código de 30 s não vale duas vezes. Se o atual já foi usado, o
+ * helper tenta o do passo seguinte, que o servidor aceita como tolerância de
+ * relógio. Isso cobre dois logins da mesma pessoa a cada 30 s; uma suíte que
+ * faça mais que isso zera `doisFatoresUltimoPasso` entre os testes.
  *
  * O estado é por arquivo de teste: o Jest isola os módulos de cada arquivo.
  */
-const recuperacaoPorUsuario = new Map<string, string[]>();
+const segredoPorUsuario = new Map<string, string>();
 
 function usuarioDoDesafio(desafio: string): string {
   const payload = JSON.parse(Buffer.from(desafio.split('.')[1]!, 'base64url').toString()) as {
@@ -45,29 +46,36 @@ export async function concluirDoisFatores(
     ).body as ConfiguracaoDoisFatores;
 
     const segredo = configuracao.segredo.replace(/\s/g, '');
-    const ativacao = (
-      await request(servidor)
-        .post('/api/auth/2fa/ativar')
-        .send({ desafio: configuracao.desafio, codigo: codigoDoPasso(segredo, passoAtual()) })
-        .expect(200)
-    ).body as AtivacaoDoisFatores;
+    const ativacao = await request(servidor)
+      .post('/api/auth/2fa/ativar')
+      .send({ desafio: configuracao.desafio, codigo: codigoDoPasso(segredo, passoAtual()) })
+      .expect(200);
 
-    recuperacaoPorUsuario.set(usuarioId, [...ativacao.codigosRecuperacao]);
-    return ativacao.sessao;
+    segredoPorUsuario.set(usuarioId, segredo);
+    return ativacao.body as SessaoResponse;
   }
 
-  const codigo = recuperacaoPorUsuario.get(usuarioId)?.shift();
-  if (!codigo) {
-    throw new Error(
-      'Sem código de recuperação para este usuário no teste — ele foi criado fora do helper ou já usou os 10.',
-    );
+  const segredo = segredoPorUsuario.get(usuarioId);
+  if (!segredo) {
+    throw new Error('Usuário sem segredo de 2FA no teste: ele foi configurado fora do helper.');
   }
 
-  const verificacao = await request(servidor)
-    .post('/api/auth/2fa/verificar')
-    .send({ desafio: resposta.desafio, codigo })
-    .expect(200);
-  return verificacao.body as SessaoResponse;
+  for (const desvio of [0, 1]) {
+    const verificacao = await request(servidor)
+      .post('/api/auth/2fa/verificar')
+      .send({ desafio: resposta.desafio, codigo: codigoDoPasso(segredo, passoAtual() + desvio) });
+
+    if (verificacao.status === 200) return verificacao.body as SessaoResponse;
+
+    const mensagem = String((verificacao.body as { mensagem?: string }).mensagem ?? '');
+    if (!mensagem.includes('já foi usado')) {
+      throw new Error(`2FA recusado no teste (${verificacao.status}): ${mensagem}`);
+    }
+  }
+
+  throw new Error(
+    'Os códigos deste intervalo de 30 s já foram usados. Zere doisFatoresUltimoPasso entre os testes.',
+  );
 }
 
 /** Login completo, senha e segundo fator. */

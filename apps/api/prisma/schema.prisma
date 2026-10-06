@@ -336,8 +336,6 @@ model Usuario {
   doisFatoresAtivadoEm   DateTime? @map("dois_fatores_ativado_em")
   /// Último passo de 30 s aceito. Impede reusar um código já digitado.
   doisFatoresUltimoPasso Int?      @map("dois_fatores_ultimo_passo")
-  /// SHA-256 de cada código de recuperação ainda não usado.
-  doisFatoresRecuperacao String[]  @default([]) @map("dois_fatores_recuperacao")
   /// Erros seguidos; ao chegar no limite, a conta fica bloqueada por um tempo.
   doisFatoresFalhas      Int       @default(0) @map("dois_fatores_falhas")
   doisFatoresBloqueadoAte DateTime? @map("dois_fatores_bloqueado_ate")

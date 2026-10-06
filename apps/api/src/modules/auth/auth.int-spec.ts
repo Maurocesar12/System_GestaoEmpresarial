@@ -62,6 +62,17 @@ describe('autenticação (HTTP)', () => {
     await app.close();
   });
 
+  // Esta suíte faz muitos logins da mesma pessoa em poucos segundos, e o mesmo
+  // código de 30 s não vale duas vezes. Zerar o último passo usado deixa o
+  // helper calcular o código atual de novo a cada teste.
+  beforeEach(async () => {
+    for (const tenantId of tenantsCriados) {
+      await prisma.comTenantExplicito(tenantId, (tx) =>
+        tx.usuario.updateMany({ data: { doisFatoresUltimoPasso: null } }),
+      );
+    }
+  });
+
   const cadastrar = (dados?: Partial<Record<string, string>>) =>
     request(app.getHttpServer())
       .post('/api/onboarding/cadastro')
@@ -261,7 +272,7 @@ describe('autenticação (HTTP)', () => {
     const email2fa = `dois-fatores+${marca}@exemplo.com`;
 
     /** Conta própria: os testes de erro bloqueiam o 2FA, e não podem travar a conta principal. */
-    async function contaConfigurada(): Promise<{ segredo: string; recuperacao: string[] }> {
+    async function contaConfigurada(): Promise<{ segredo: string }> {
       const { body: desafio } = await cadastrar({ email: email2fa }).expect(201);
       const { body: configuracao } = await request(app.getHttpServer())
         .post('/api/auth/2fa/configuracao')
@@ -271,14 +282,14 @@ describe('autenticação (HTTP)', () => {
       expect(configuracao.qrCode).toMatch(/^data:image\/png;base64,/);
       const segredo = String(configuracao.segredo).replace(/\s/g, '');
 
-      const { body: ativacao } = await request(app.getHttpServer())
+      const { body: sessao } = await request(app.getHttpServer())
         .post('/api/auth/2fa/ativar')
         .send({ desafio: configuracao.desafio, codigo: codigoDoPasso(segredo, passoAtual()) })
         .expect(200);
 
-      tenantsCriados.push(ativacao.sessao.usuario.tenantId);
-      expect(ativacao.codigosRecuperacao).toHaveLength(10);
-      return { segredo, recuperacao: ativacao.codigosRecuperacao };
+      tenantsCriados.push(sessao.usuario.tenantId);
+      expect(sessao.accessToken).toEqual(expect.any(String));
+      return { segredo };
     }
 
     async function desafioDeLogin(): Promise<string> {
@@ -292,7 +303,7 @@ describe('autenticação (HTTP)', () => {
     const verificar = (desafio: string, codigo: string) =>
       request(app.getHttpServer()).post('/api/auth/2fa/verificar').send({ desafio, codigo });
 
-    let conta: { segredo: string; recuperacao: string[] };
+    let conta: { segredo: string };
 
     beforeAll(async () => {
       conta = await contaConfigurada();
@@ -316,20 +327,22 @@ describe('autenticação (HTTP)', () => {
         .expect(409);
     });
 
-    it('não aceita de novo um código do app já usado', async () => {
-      // O passo da ativação já foi consumido; repetir o código é o que faria
-      // quem o viu por cima do ombro.
-      const desafio = await desafioDeLogin();
-      await verificar(desafio, codigoDoPasso(conta.segredo, passoAtual() - 1)).expect(401);
-    });
-
-    it('cada código de recuperação entra uma vez só', async () => {
-      const codigo = conta.recuperacao[0]!;
+    it('entra com o código do app, e o mesmo código não vale de novo', async () => {
+      // Repetir um código já usado é o que faria quem o viu por cima do ombro.
+      const codigo = codigoDoPasso(conta.segredo, passoAtual());
 
       const { body: sessao } = await verificar(await desafioDeLogin(), codigo).expect(200);
       expect(sessao.accessToken).toEqual(expect.any(String));
 
-      await verificar(await desafioDeLogin(), codigo).expect(401);
+      const repetido = await verificar(await desafioDeLogin(), codigo).expect(401);
+      expect(repetido.body.mensagem).toContain('já foi usado');
+    });
+
+    it('recusa código com letras ou tamanho errado antes de conferir', async () => {
+      const desafio = await desafioDeLogin();
+
+      await verificar(desafio, 'abcd-efgh').expect(400);
+      await verificar(desafio, '12345').expect(400);
     });
 
     it('recusa desafio adulterado', async () => {
@@ -352,7 +365,7 @@ describe('autenticação (HTTP)', () => {
       }
       await verificar(desafio, '000000').expect(429);
 
-      await verificar(desafio, conta.recuperacao[1]!).expect(429);
+      await verificar(desafio, codigoDoPasso(conta.segredo, passoAtual() + 1)).expect(429);
     });
   });
 

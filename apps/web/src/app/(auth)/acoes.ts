@@ -2,7 +2,6 @@
 
 import { redirect } from 'next/navigation';
 import type {
-  AtivacaoDoisFatores,
   CadastroInput,
   ConfiguracaoDoisFatores,
   DesafioDoisFatores,
@@ -96,38 +95,23 @@ export async function prepararConfiguracao(): Promise<ResultadoConfiguracao> {
   }
 }
 
-export type ResultadoAtivacao = ResultadoAcao & { codigosRecuperacao?: string[] };
-
-/**
- * Confirma o primeiro código e abre a sessão.
- *
- * Não redireciona: a tela ainda precisa mostrar os códigos de recuperação,
- * que a API entrega uma única vez. O botão "Continuar" é que leva ao painel.
- */
-export async function ativarDoisFatores(codigo: string): Promise<ResultadoAtivacao> {
-  const desafio = await lerDesafio();
-  if (!desafio) return { erro: SEM_DESAFIO };
-
-  try {
-    const { sessao, codigosRecuperacao } = await apiFetch<AtivacaoDoisFatores>('/auth/2fa/ativar', {
-      method: 'POST',
-      body: JSON.stringify({ desafio, codigo }),
-    });
-    await gravarSessao(sessao);
-    await limparDesafio();
-    return { codigosRecuperacao };
-  } catch (erro) {
-    return traduzirErroAcao(erro);
-  }
+/** Primeiro acesso: confirma o código do app recém-configurado e entra no painel. */
+export async function ativarDoisFatores(codigo: string): Promise<ResultadoAcao> {
+  return concluirDoisFatores('/auth/2fa/ativar', codigo);
 }
 
-/** Login de quem já tem o app: código de 6 dígitos ou de recuperação. */
+/** Logins seguintes: o código de 6 dígitos do app. */
 export async function verificarDoisFatores(codigo: string): Promise<ResultadoAcao> {
+  return concluirDoisFatores('/auth/2fa/verificar', codigo);
+}
+
+/** Troca desafio + código pela sessão. Não exportada: não vira ação chamável. */
+async function concluirDoisFatores(rota: string, codigo: string): Promise<ResultadoAcao> {
   const desafio = await lerDesafio();
   if (!desafio) return { erro: SEM_DESAFIO };
 
   try {
-    const sessao = await apiFetch<SessaoResponse>('/auth/2fa/verificar', {
+    const sessao = await apiFetch<SessaoResponse>(rota, {
       method: 'POST',
       body: JSON.stringify({ desafio, codigo }),
     });

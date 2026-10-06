@@ -4,9 +4,7 @@ import {
   codigoDoPasso,
   conferirCodigo,
   decodificarBase32,
-  gerarCodigosRecuperacao,
   gerarSegredo,
-  hashCodigoRecuperacao,
   passoAtual,
   urlOtpauth,
 } from './totp';
@@ -68,26 +66,6 @@ describe('TOTP', () => {
     expect(url.searchParams.get('secret')).toBe(SEGREDO_RFC);
     expect(url.searchParams.get('digits')).toBe('6');
     expect(decodeURIComponent(url.pathname)).toContain('maria@empresa.com');
-  });
-});
-
-describe('códigos de recuperação', () => {
-  it('gera dez códigos únicos no formato xxxx-xxxx, sem caracteres ambíguos', () => {
-    const codigos = gerarCodigosRecuperacao();
-
-    expect(codigos).toHaveLength(10);
-    expect(new Set(codigos).size).toBe(10);
-    for (const codigo of codigos)
-      expect(codigo).toMatch(/^[a-hj-km-np-z2-9]{4}-[a-hj-km-np-z2-9]{4}$/);
-  });
-
-  it('o hash ignora maiúsculas, hífen e espaços', () => {
-    const hash = hashCodigoRecuperacao('abcd-efgh');
-
-    expect(hashCodigoRecuperacao('ABCD-EFGH')).toBe(hash);
-    expect(hashCodigoRecuperacao('abcd efgh')).toBe(hash);
-    expect(hashCodigoRecuperacao('abcdefgh')).toBe(hash);
-    expect(hashCodigoRecuperacao('abcd-efgi')).not.toBe(hash);
   });
 });
 

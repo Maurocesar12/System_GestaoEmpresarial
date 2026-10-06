@@ -415,7 +415,7 @@ export class EquipeService {
   }
 
   /**
-   * Apaga o 2FA de alguém que perdeu o celular e os códigos de recuperação.
+   * Apaga o 2FA de alguém que perdeu ou trocou de celular.
    *
    * Só o administrador: quem tem apenas `equipe.gerenciar` poderia, de outro
    * modo, tirar o segundo fator de um admin e ficar a uma senha da conta dele.
@@ -437,7 +437,6 @@ export class EquipeService {
           doisFatoresSegredo: null,
           doisFatoresAtivadoEm: null,
           doisFatoresUltimoPasso: null,
-          doisFatoresRecuperacao: [],
           doisFatoresFalhas: 0,
           doisFatoresBloqueadoAte: null,
         },

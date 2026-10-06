@@ -7,7 +7,6 @@ import {
   emailSchema,
   loginSchema,
   refreshTokenSchema,
-  type AtivacaoDoisFatores,
   type CodigoDoisFatoresInput,
   type ConfiguracaoDoisFatores,
   type DesafioDoisFatores,
@@ -96,11 +95,11 @@ export class AuthController {
   @Throttle(LIMITE_LOGIN)
   ativarDoisFatores(
     @Body(new ZodValidationPipe(codigoDoisFatoresSchema)) dados: CodigoDoisFatoresInput,
-  ): Promise<AtivacaoDoisFatores> {
+  ): Promise<SessaoResponse> {
     return this.doisFatores.ativar(dados.desafio, dados.codigo);
   }
 
-  /** Segunda etapa dos logins seguintes: código do app ou de recuperação. */
+  /** Segunda etapa dos logins seguintes: o código do app. */
   @Publico()
   @Post('2fa/verificar')
   @HttpCode(HttpStatus.OK)

@@ -7,7 +7,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
  *
  * Pela interface, quem redefine é o administrador da empresa (Equipe → Editar
  * acesso). Este comando é para quando não há quem faça isso: o único admin
- * perdeu o celular **e** os códigos de recuperação. Confira a identidade da
+ * perdeu ou trocou de celular. Confira a identidade da
  * pessoa por outro canal antes de rodar — é exatamente o pedido que um
  * golpista faria.
  *
@@ -57,7 +57,6 @@ async function main(): Promise<void> {
           doisFatoresSegredo: null,
           doisFatoresAtivadoEm: null,
           doisFatoresUltimoPasso: null,
-          doisFatoresRecuperacao: [],
           doisFatoresFalhas: 0,
           doisFatoresBloqueadoAte: null,
         },

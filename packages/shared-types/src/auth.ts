@@ -111,12 +111,11 @@ export type DesafioDoisFatoresInput = z.infer<typeof desafioDoisFatoresSchema>;
 
 export const codigoDoisFatoresSchema = z.object({
   desafio: desafioCampo,
-  /** Os 6 dígitos do app ou, na verificação, um código de recuperação `xxxx-xxxx`. */
+  /** Os 6 dígitos que o app autenticador mostra. */
   codigo: z
     .string()
     .trim()
-    .min(6, 'Digite o código de 6 dígitos do app')
-    .max(20, 'Código inválido'),
+    .regex(/^\d{6}$/, 'Digite os 6 números que aparecem no app autenticador'),
 });
 export type CodigoDoisFatoresInput = z.infer<typeof codigoDoisFatoresSchema>;
 
@@ -128,12 +127,6 @@ export interface ConfiguracaoDoisFatores {
   segredo: string;
   /** Imagem do QR code em `data:` URL. */
   qrCode: string;
-}
-
-export interface AtivacaoDoisFatores {
-  sessao: SessaoResponse;
-  /** Mostrados uma única vez: a API guarda só o hash. */
-  codigosRecuperacao: string[];
 }
 
 /**

@@ -4,7 +4,7 @@ import { lerDesafio } from '@/lib/sessao';
 import { FormularioVerificacao } from './formulario-verificacao';
 
 export const metadata: Metadata = {
-  title: 'Verificação em duas etapas',
+  title: 'Código do celular',
 };
 
 export default async function PaginaVerificacao() {
@@ -14,9 +14,11 @@ export default async function PaginaVerificacao() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Verificação em duas etapas</h1>
-        <p className="text-muted-foreground text-sm">
-          Abra o app autenticador no celular e digite o código de 6 dígitos.
+        <h1 className="text-2xl font-semibold tracking-tight">Digite o código do celular</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Abra o app autenticador (por exemplo, o Google Authenticator) e procure{' '}
+          <strong className="text-foreground">Gestão Empresarial</strong>. Digite os 6 números que
+          aparecem ali.
         </p>
       </header>
 

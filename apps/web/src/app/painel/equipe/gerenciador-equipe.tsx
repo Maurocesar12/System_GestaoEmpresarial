@@ -511,7 +511,7 @@ function DoisFatoresDoFuncionario({
             </span>
             <span className="text-muted-foreground text-xs">
               {funcionario.doisFatoresAtivo
-                ? 'Perdeu o celular e os códigos de recuperação? Redefina para configurar de novo.'
+                ? 'Se a pessoa perdeu ou trocou de celular, redefina: no próximo login ela configura o app de novo.'
                 : 'A configuração é pedida no próximo login.'}
             </span>
           </span>

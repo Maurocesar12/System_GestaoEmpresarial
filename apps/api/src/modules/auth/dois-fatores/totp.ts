@@ -1,11 +1,9 @@
 import {
   createCipheriv,
   createDecipheriv,
-  createHash,
   createHmac,
   hkdfSync,
   randomBytes,
-  randomInt,
   timingSafeEqual,
 } from 'node:crypto';
 
@@ -124,27 +122,6 @@ export function urlOtpauth(segredo: string, conta: string, emissor: string): str
     period: String(PERIODO_SEGUNDOS),
   });
   return `otpauth://totp/${rotulo}?${parametros.toString()}`;
-}
-
-/** Sem 0/o, 1/l/i: o código é lido de um papel e digitado à mão. */
-const ALFABETO_RECUPERACAO = 'abcdefghjkmnpqrstuvwxyz23456789';
-export const QUANTIDADE_CODIGOS_RECUPERACAO = 10;
-
-/** Códigos `xxxx-xxxx`, ~39 bits cada — com o bloqueio por erros, sobra. */
-export function gerarCodigosRecuperacao(quantidade = QUANTIDADE_CODIGOS_RECUPERACAO): string[] {
-  return Array.from({ length: quantidade }, () => {
-    const caracteres = Array.from(
-      { length: 8 },
-      () => ALFABETO_RECUPERACAO[randomInt(ALFABETO_RECUPERACAO.length)],
-    ).join('');
-    return `${caracteres.slice(0, 4)}-${caracteres.slice(4)}`;
-  });
-}
-
-/** Igual para `ABCD-EFGH`, `abcd efgh` e `abcdefgh`: a pessoa digita como quiser. */
-export function hashCodigoRecuperacao(codigo: string): string {
-  const normalizado = codigo.toLowerCase().replace(/[^a-z0-9]/g, '');
-  return createHash('sha256').update(normalizado).digest('hex');
 }
 
 /**

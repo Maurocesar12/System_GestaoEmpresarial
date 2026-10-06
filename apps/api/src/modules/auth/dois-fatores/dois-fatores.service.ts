@@ -8,7 +8,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   CODIGOS_ERRO,
-  type AtivacaoDoisFatores,
   type ConfiguracaoDoisFatores,
   type SessaoResponse,
 } from '@gestao/shared-types';
@@ -16,14 +15,7 @@ import { toDataURL } from 'qrcode';
 import type { Env } from '../../../config/env.schema';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { AuthService } from '../auth.service';
-import {
-  CifraSegredo,
-  conferirCodigo,
-  gerarCodigosRecuperacao,
-  gerarSegredo,
-  hashCodigoRecuperacao,
-  urlOtpauth,
-} from './totp';
+import { CifraSegredo, conferirCodigo, gerarSegredo, urlOtpauth } from './totp';
 
 /** Nome que aparece no app autenticador, acima do e-mail. */
 const EMISSOR = 'Gestão Empresarial';
@@ -33,6 +25,10 @@ const BLOQUEIO_MS = 15 * 60 * 1000;
 
 /**
  * Segunda etapa de todo login: o código do app autenticador.
+ *
+ * Não há códigos de recuperação: quem perde o celular pede ao administrador da
+ * empresa para redefinir o 2FA (Equipe → Editar acesso), e o único admin usa
+ * o comando `2fa:redefinir`.
  *
  * O rate limit por IP do controller não basta sozinho: quem distribui as
  * tentativas por vários IPs passaria. Por isso os erros também contam por
@@ -76,7 +72,7 @@ export class DoisFatoresService {
   }
 
   /** Confirma o primeiro código, grava o segredo e abre a sessão. */
-  async ativar(desafio: string, codigo: string): Promise<AtivacaoDoisFatores> {
+  async ativar(desafio: string, codigo: string): Promise<SessaoResponse> {
     const token = this.auth.lerDesafio(desafio);
     if (!token.segredo) throw this.desafioInvalido();
 
@@ -84,11 +80,9 @@ export class DoisFatoresService {
     const passo = conferirCodigo(segredo, codigo.replace(/\s/g, ''));
     if (passo === null) {
       throw this.codigoInvalido(
-        'Código incorreto. Confira o app e digite o código que aparece agora.',
+        'Código incorreto. Confira se escaneou o QR code desta tela e digite o código que aparece agora no app.',
       );
     }
-
-    const codigosRecuperacao = gerarCodigosRecuperacao();
 
     const gravados = await this.prisma.comTenantExplicito(token.tenantId, (tx) =>
       tx.usuario.updateMany({
@@ -99,7 +93,6 @@ export class DoisFatoresService {
           doisFatoresSegredo: this.cifra.cifrar(segredo),
           doisFatoresAtivadoEm: new Date(),
           doisFatoresUltimoPasso: passo,
-          doisFatoresRecuperacao: codigosRecuperacao.map(hashCodigoRecuperacao),
           doisFatoresFalhas: 0,
           doisFatoresBloqueadoAte: null,
         },
@@ -108,13 +101,10 @@ export class DoisFatoresService {
 
     if (gravados.count === 0) this.garantirNaoConfigurado(new Date());
 
-    return {
-      sessao: await this.auth.abrirSessao(token.sub, token.tenantId),
-      codigosRecuperacao,
-    };
+    return this.auth.abrirSessao(token.sub, token.tenantId);
   }
 
-  /** Login de quem já tem o app: código de 6 dígitos ou de recuperação. */
+  /** Login de quem já tem o app: o código de 6 dígitos. */
   async verificar(desafio: string, codigo: string): Promise<SessaoResponse> {
     const token = this.auth.lerDesafio(desafio);
     const usuario = await this.buscar(token.sub, token.tenantId);
@@ -130,29 +120,17 @@ export class DoisFatoresService {
       throw this.bloqueado();
     }
 
-    const limpo = codigo.replace(/\s/g, '');
-    const aceito = /^\d+$/.test(limpo)
-      ? await this.aceitarCodigoDoApp(usuario, limpo, token.tenantId)
-      : await this.aceitarCodigoDeRecuperacao(usuario, limpo, token.tenantId);
-
-    if (!aceito) {
-      await this.registrarFalha(usuario.id, usuario.doisFatoresFalhas, token.tenantId);
+    const passo = conferirCodigo(
+      this.decifrar(usuario.doisFatoresSegredo),
+      codigo.replace(/\s/g, ''),
+    );
+    if (passo === null) {
+      return this.registrarFalha(usuario.id, usuario.doisFatoresFalhas, token.tenantId);
     }
-
-    return this.auth.abrirSessao(token.sub, token.tenantId);
-  }
-
-  private async aceitarCodigoDoApp(
-    usuario: UsuarioDoisFatores,
-    codigo: string,
-    tenantId: string,
-  ): Promise<boolean> {
-    const passo = conferirCodigo(this.decifrar(usuario.doisFatoresSegredo!), codigo);
-    if (passo === null) return false;
 
     // Grava o passo só se for posterior ao último aceito — no mesmo `UPDATE`,
     // para que duas requisições com o mesmo código não passem juntas.
-    const { count } = await this.prisma.comTenantExplicito(tenantId, (tx) =>
+    const { count } = await this.prisma.comTenantExplicito(token.tenantId, (tx) =>
       tx.usuario.updateMany({
         where: {
           id: usuario.id,
@@ -169,31 +147,8 @@ export class DoisFatoresService {
     if (count === 0) {
       throw this.codigoInvalido('Este código já foi usado. Espere o próximo aparecer no app.');
     }
-    return true;
-  }
 
-  private async aceitarCodigoDeRecuperacao(
-    usuario: UsuarioDoisFatores,
-    codigo: string,
-    tenantId: string,
-  ): Promise<boolean> {
-    const hash = hashCodigoRecuperacao(codigo);
-    if (!usuario.doisFatoresRecuperacao.includes(hash)) return false;
-
-    // Cada código vale uma vez. Tirado no mesmo `UPDATE` que confere que ele
-    // ainda está lá, para que não seja usado duas vezes em paralelo.
-    const { count } = await this.prisma.comTenantExplicito(tenantId, (tx) =>
-      tx.usuario.updateMany({
-        where: { id: usuario.id, doisFatoresRecuperacao: { has: hash } },
-        data: {
-          doisFatoresRecuperacao: usuario.doisFatoresRecuperacao.filter((item) => item !== hash),
-          doisFatoresFalhas: 0,
-          doisFatoresBloqueadoAte: null,
-        },
-      }),
-    );
-
-    return count > 0;
+    return this.auth.abrirSessao(token.sub, token.tenantId);
   }
 
   private async registrarFalha(
@@ -233,7 +188,6 @@ export class DoisFatoresService {
           ativo: true,
           doisFatoresSegredo: true,
           doisFatoresAtivadoEm: true,
-          doisFatoresRecuperacao: true,
           doisFatoresFalhas: true,
           doisFatoresBloqueadoAte: true,
         },
@@ -293,7 +247,6 @@ interface UsuarioDoisFatores {
   ativo: boolean;
   doisFatoresSegredo: string | null;
   doisFatoresAtivadoEm: Date | null;
-  doisFatoresRecuperacao: string[];
   doisFatoresFalhas: number;
   doisFatoresBloqueadoAte: Date | null;
 }

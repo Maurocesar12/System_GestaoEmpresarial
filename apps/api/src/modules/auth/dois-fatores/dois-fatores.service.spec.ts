@@ -3,13 +3,7 @@ import type { Env } from '../../../config/env.schema';
 import type { AuthService } from '../auth.service';
 import type { PrismaService } from '../../../infra/prisma/prisma.service';
 import { DoisFatoresService } from './dois-fatores.service';
-import {
-  CifraSegredo,
-  codigoDoPasso,
-  gerarSegredo,
-  hashCodigoRecuperacao,
-  passoAtual,
-} from './totp';
+import { CifraSegredo, codigoDoPasso, gerarSegredo, passoAtual } from './totp';
 
 const SEGREDO_MESTRE = 'segredo-mestre-de-teste-com-mais-de-32-caracteres';
 const SESSAO = { accessToken: 'acesso', refreshToken: 'refresh', expiraEm: 900 };
@@ -18,8 +12,8 @@ const SESSAO = { accessToken: 'acesso', refreshToken: 'refresh', expiraEm: 900 }
  * Regras do segundo fator com o banco simulado em memória.
  *
  * O `updateMany` do simulador aplica os mesmos filtros que o serviço usa
- * (`ultimoPasso < passo`, `recuperacao has hash`, `ativadoEm: null`), porque é
- * neles que mora a proteção contra replay e contra uso duplo.
+ * (`ultimoPasso < passo` e `ativadoEm: null`), porque é neles que mora a
+ * proteção contra reuso de código e contra ativação dupla.
  */
 function montar(estado: Record<string, unknown>) {
   const usuario = {
@@ -30,7 +24,6 @@ function montar(estado: Record<string, unknown>) {
     doisFatoresSegredo: null as string | null,
     doisFatoresAtivadoEm: null as Date | null,
     doisFatoresUltimoPasso: null as number | null,
-    doisFatoresRecuperacao: [] as string[],
     doisFatoresFalhas: 0,
     doisFatoresBloqueadoAte: null as Date | null,
     ...estado,
@@ -38,8 +31,6 @@ function montar(estado: Record<string, unknown>) {
 
   const confere = (where: FiltroUsuario): boolean => {
     if (where.doisFatoresAtivadoEm === null && usuario.doisFatoresAtivadoEm !== null) return false;
-    const hash = where.doisFatoresRecuperacao?.has;
-    if (hash && !usuario.doisFatoresRecuperacao.includes(hash)) return false;
     const limite = where.OR?.[1]?.doisFatoresUltimoPasso?.lt;
     if (
       limite !== undefined &&
@@ -95,7 +86,6 @@ function montar(estado: Record<string, unknown>) {
 /** O recorte do `where` do Prisma que o serviço usa nos `updateMany`. */
 interface FiltroUsuario {
   doisFatoresAtivadoEm?: null;
-  doisFatoresRecuperacao?: { has?: string };
   OR?: Array<{ doisFatoresUltimoPasso?: { lt?: number } | null }>;
 }
 
@@ -123,16 +113,13 @@ describe('DoisFatoresService', () => {
       expect(usuario.doisFatoresSegredo).toBeNull();
 
       const segredo = configuracao.segredo.replace(/\s/g, '');
-      const ativacao = await servico.ativar('desafio', codigoDoPasso(segredo, passoAtual()));
-
-      expect(ativacao.sessao).toBe(SESSAO);
-      expect(ativacao.codigosRecuperacao).toHaveLength(10);
-      expect(usuario.doisFatoresAtivadoEm).toBeInstanceOf(Date);
-      // Gravado cifrado, e os códigos de recuperação só como hash.
-      expect(usuario.doisFatoresSegredo).not.toContain(segredo);
-      expect(usuario.doisFatoresRecuperacao).toEqual(
-        ativacao.codigosRecuperacao.map(hashCodigoRecuperacao),
+      await expect(servico.ativar('desafio', codigoDoPasso(segredo, passoAtual()))).resolves.toBe(
+        SESSAO,
       );
+
+      expect(usuario.doisFatoresAtivadoEm).toBeInstanceOf(Date);
+      // Gravado cifrado, nunca o segredo em texto.
+      expect(usuario.doisFatoresSegredo).not.toContain(segredo);
     });
 
     it('recusa ativar com código errado, sem abrir sessão', async () => {
@@ -167,21 +154,6 @@ describe('DoisFatoresService', () => {
       await servico.verificar('desafio', codigo);
       await expect(servico.verificar('desafio', codigo)).rejects.toMatchObject({ status: 401 });
       expect(abrirSessao).toHaveBeenCalledTimes(1);
-    });
-
-    it('código de recuperação vale uma vez', async () => {
-      const { servico, usuario } = configurado({
-        doisFatoresRecuperacao: [
-          hashCodigoRecuperacao('abcd-efgh'),
-          hashCodigoRecuperacao('jkmn-pqrs'),
-        ],
-      });
-
-      await expect(servico.verificar('desafio', 'ABCD-EFGH')).resolves.toBe(SESSAO);
-      expect(usuario.doisFatoresRecuperacao).toEqual([hashCodigoRecuperacao('jkmn-pqrs')]);
-      await expect(servico.verificar('desafio', 'abcd-efgh')).rejects.toMatchObject({
-        status: 401,
-      });
     });
 
     it('bloqueia na quinta falha, e o bloqueio vale até para o código certo', async () => {
