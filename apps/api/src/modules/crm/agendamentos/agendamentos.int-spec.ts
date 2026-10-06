@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { concluirDoisFatores } from '../../../testes/dois-fatores';
 import { AppModule } from '../../../app.module';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 
@@ -36,15 +37,20 @@ describe('agendamentos (HTTP)', () => {
   });
 
   async function criarEmpresa(sufixo: string): Promise<string> {
-    const { body } = await request(app.getHttpServer())
-      .post('/api/onboarding/cadastro')
-      .send({
-        nomeEmpresa: `Agenda ${sufixo} ${marca}`,
-        nomeResponsavel: 'Responsável',
-        email: `agenda-${sufixo}+${marca}@exemplo.com`,
-        senha: 'senhaSegura123',
-      })
-      .expect(201);
+    const body = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/onboarding/cadastro')
+          .send({
+            nomeEmpresa: `Agenda ${sufixo} ${marca}`,
+            nomeResponsavel: 'Responsável',
+            email: `agenda-${sufixo}+${marca}@exemplo.com`,
+            senha: 'senhaSegura123',
+          })
+          .expect(201)
+      ).body,
+    );
 
     tenantsCriados.push(body.usuario.tenantId);
     return body.accessToken;

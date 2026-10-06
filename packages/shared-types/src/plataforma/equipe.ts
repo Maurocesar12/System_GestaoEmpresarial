@@ -54,6 +54,8 @@ export interface Funcionario {
   permissoesPersonalizadas: boolean;
   /** As permissões lidas como nível por área, para o editor de acesso. */
   acessos: MapaAcessos;
+  /** Já configurou o app autenticador. Sem isso, o próximo login pede a configuração. */
+  doisFatoresAtivo: boolean;
   comissaoVendaPercentual: string | null;
   comissaoExecucaoPercentual: string | null;
   ultimoLoginEm: string | null;

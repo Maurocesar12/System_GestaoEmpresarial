@@ -13,6 +13,7 @@ import {
   calcularAcesso,
   mensagemDeAcesso,
   type DadosDeAcesso,
+  type DesafioDoisFatores,
   type JwtPayload,
   type LoginInput,
   type SessaoResponse,
@@ -25,6 +26,18 @@ import type { Env } from '../../config/env.schema';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { SenhaService } from './senha.service';
+
+/** Tempo para pegar o celular e digitar o código — ou escanear o QR na primeira vez. */
+const VALIDADE_DESAFIO = '10m';
+
+/** Claims do desafio do 2FA. Nunca é aceito como sessão (`tipo` ≠ `acesso`). */
+export interface TokenDesafio {
+  tipo: 'desafio-2fa';
+  sub: string;
+  tenantId: string;
+  /** Na configuração: o segredo novo, cifrado, até a pessoa confirmar o primeiro código. */
+  segredo?: string;
+}
 
 /**
  * Login, renovação de sessão e logout.
@@ -46,7 +59,13 @@ export class AuthService {
     private readonly config: ConfigService<Env, true>,
   ) {}
 
-  async login({ email, senha }: LoginInput): Promise<SessaoResponse> {
+  /**
+   * Primeira etapa do login: confere a senha e devolve o desafio do 2FA.
+   *
+   * Não abre sessão. Toda sessão nasce em `abrirSessao`, chamado só depois do
+   * segundo fator (veja `DoisFatoresService`).
+   */
+  async login({ email, senha }: LoginInput): Promise<DesafioDoisFatores> {
     // Busca fora de escopo de tenant porque é justamente o login que descobre
     // a qual empresa a pessoa pertence. A política `usuario_login` libera só a
     // linha do e-mail declarado — e só ela: a tabela `tenant` continua isolada,
@@ -66,8 +85,7 @@ export class AuthService {
             senhaHash: true,
             papel: true,
             ativo: true,
-            permissoes: true,
-            permissoesPersonalizadas: true,
+            doisFatoresAtivadoEm: true,
           },
         }),
     );
@@ -95,29 +113,105 @@ export class AuthService {
       });
     }
 
-    const tenant = await this.buscarTenantDoLogin(usuario.tenantId);
-    const acesso = this.garantirAcessoEmDia(tenant);
+    // Conferido já aqui, e de novo ao abrir a sessão: quem está bloqueado por
+    // pagamento fica sabendo antes de pegar o celular para digitar o código.
+    this.garantirAcessoEmDia(await this.buscarTenantDoLogin(usuario.tenantId));
 
+    return this.emitirDesafio(usuario, usuario.doisFatoresAtivadoEm !== null);
+  }
+
+  /**
+   * O comprovante de que a senha foi conferida, válido por 10 minutos.
+   *
+   * Login, cadastro e aceite de convite terminam aqui — nenhum deles abre
+   * sessão. O `tipo` diferente de `acesso` faz o `TenantMiddleware` ignorar este
+   * token se alguém tentar usá-lo como Bearer.
+   */
+  emitirDesafio(
+    usuario: { id: string; tenantId: string },
+    configurado: boolean,
+    segredoCifrado?: string,
+  ): DesafioDoisFatores {
+    const payload: TokenDesafio = {
+      tipo: 'desafio-2fa',
+      sub: usuario.id,
+      tenantId: usuario.tenantId,
+      ...(segredoCifrado ? { segredo: segredoCifrado } : {}),
+    };
+
+    return {
+      etapa: 'dois_fatores',
+      desafio: this.jwt.sign(payload, { expiresIn: VALIDADE_DESAFIO }),
+      configurar: !configurado,
+    };
+  }
+
+  /** Lê um desafio, recusando expirado, adulterado ou de outro tipo. */
+  lerDesafio(desafio: string): TokenDesafio {
+    try {
+      const payload = this.jwt.verify<TokenDesafio>(desafio);
+      if (payload.tipo === 'desafio-2fa' && payload.sub && payload.tenantId) return payload;
+    } catch {
+      // Cai na mesma mensagem abaixo: expirado e adulterado se resolvem igual.
+    }
+
+    throw new UnauthorizedException({
+      codigo: CODIGOS_ERRO.NAO_AUTENTICADO,
+      mensagem: 'A verificação expirou. Entre com e-mail e senha de novo.',
+    });
+  }
+
+  /**
+   * Abre a sessão — só depois do segundo fator.
+   *
+   * Relê usuário e empresa em vez de confiar no que veio antes: entre a senha e
+   * o código podem ter passado minutos, e a pessoa pode ter sido desativada ou
+   * a empresa bloqueada nesse meio-tempo.
+   */
+  async abrirSessao(usuarioId: string, tenantId: string): Promise<SessaoResponse> {
+    const usuario = await this.prisma.comTenantExplicito(tenantId, (tx) =>
+      tx.usuario.findUnique({
+        where: { id: usuarioId },
+        select: {
+          id: true,
+          tenantId: true,
+          nome: true,
+          email: true,
+          papel: true,
+          ativo: true,
+          permissoes: true,
+          permissoesPersonalizadas: true,
+        },
+      }),
+    );
+
+    if (!usuario || !usuario.ativo) {
+      throw this.credenciaisInvalidas();
+    }
+
+    const tenant = await this.buscarTenantDoLogin(tenantId);
+    const acesso = this.garantirAcessoEmDia(tenant);
     const permissoes = permissoesDoUsuario(
       usuario.papel,
       usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
     );
-    const refreshToken = await this.refreshTokens.emitir(usuario.tenantId, usuario.id);
-    this.registrarUltimoLogin(usuario.tenantId, usuario.id);
+    const refreshToken = await this.refreshTokens.emitir(tenantId, usuario.id);
+    this.registrarUltimoLogin(tenantId, usuario.id);
 
-    return this.montarSessao(
-      {
+    return {
+      ...this.montarTokens({ id: usuario.id, papel: usuario.papel, permissoes, tenantId }),
+      refreshToken,
+      usuario: {
         id: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
         papel: usuario.papel,
         permissoes,
-        tenantId: usuario.tenantId,
+        tenantId,
         nomeEmpresa: tenant.nome,
+        acesso,
       },
-      refreshToken,
-      acesso,
-    );
+    };
   }
 
   /** Troca um refresh token por uma sessão nova. */
@@ -174,36 +268,6 @@ export class AuthService {
 
   async logout(refreshToken: string): Promise<void> {
     await this.refreshTokens.revogar(refreshToken);
-  }
-
-  /**
-   * Emite os tokens e monta a resposta de sessão.
-   *
-   * O `acesso` é calculado aqui quando quem chama não tem o dado em mãos —
-   * cadastro novo e aceite de convite, por exemplo. Deixar o campo por conta
-   * do chamador significaria, mais cedo ou mais tarde, uma sessão nascendo sem
-   * prazo de vencimento e um painel sem aviso nenhum.
-   */
-  async montarSessao(
-    usuario: Omit<UsuarioAutenticado, 'acesso'>,
-    refreshToken?: string,
-    acesso?: SituacaoDeAcesso,
-  ): Promise<SessaoResponse> {
-    const situacao = acesso ?? calcularAcesso(await this.buscarTenantDoLogin(usuario.tenantId));
-
-    const tokenAtual =
-      refreshToken ?? (await this.refreshTokens.emitir(usuario.tenantId, usuario.id));
-
-    return {
-      ...this.montarTokens({
-        id: usuario.id,
-        papel: usuario.papel,
-        permissoes: usuario.permissoes,
-        tenantId: usuario.tenantId,
-      }),
-      refreshToken: tokenAtual,
-      usuario: { ...usuario, acesso: situacao },
-    };
   }
 
   private async buscarTenantDoLogin(

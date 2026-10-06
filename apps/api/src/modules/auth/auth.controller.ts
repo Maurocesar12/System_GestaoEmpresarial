@@ -2,9 +2,16 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/commo
 import { Throttle } from '@nestjs/throttler';
 import {
   calcularAcesso,
+  codigoDoisFatoresSchema,
+  desafioDoisFatoresSchema,
   emailSchema,
   loginSchema,
   refreshTokenSchema,
+  type AtivacaoDoisFatores,
+  type CodigoDoisFatoresInput,
+  type ConfiguracaoDoisFatores,
+  type DesafioDoisFatores,
+  type DesafioDoisFatoresInput,
   type LoginInput,
   type RefreshTokenInput,
   type SessaoResponse,
@@ -21,6 +28,7 @@ import type { TenantContext } from '../../infra/tenant/tenant-context';
 import { LIMITE_LOGIN, LIMITE_REFRESH } from './auth.rate-limit';
 import { RecuperacaoSenhaService } from './recuperacao-senha.service';
 import { AuthService } from './auth.service';
+import { DoisFatoresService } from './dois-fatores/dois-fatores.service';
 
 const solicitarSchema = z.object({ email: emailSchema });
 const redefinirSchema = z.object({ token: z.string().min(1).max(2048), senha: senhaSchema });
@@ -38,6 +46,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly prisma: PrismaService,
     private readonly recuperacao: RecuperacaoSenhaService,
+    private readonly doisFatores: DoisFatoresService,
   ) {}
 
   @Publico()
@@ -60,12 +69,46 @@ export class AuthController {
     await this.recuperacao.redefinir(dados.token, dados.senha);
   }
 
+  /** Primeira etapa: senha. Devolve o desafio do 2FA, nunca a sessão. */
   @Publico()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle(LIMITE_LOGIN)
-  login(@Body(new ZodValidationPipe(loginSchema)) dados: LoginInput): Promise<SessaoResponse> {
+  login(@Body(new ZodValidationPipe(loginSchema)) dados: LoginInput): Promise<DesafioDoisFatores> {
     return this.auth.login(dados);
+  }
+
+  /** Primeiro acesso: gera o QR code do app autenticador. */
+  @Publico()
+  @Post('2fa/configuracao')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(LIMITE_LOGIN)
+  configurarDoisFatores(
+    @Body(new ZodValidationPipe(desafioDoisFatoresSchema)) dados: DesafioDoisFatoresInput,
+  ): Promise<ConfiguracaoDoisFatores> {
+    return this.doisFatores.prepararConfiguracao(dados.desafio);
+  }
+
+  /** Primeiro acesso: confirma o código, liga o 2FA e abre a sessão. */
+  @Publico()
+  @Post('2fa/ativar')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(LIMITE_LOGIN)
+  ativarDoisFatores(
+    @Body(new ZodValidationPipe(codigoDoisFatoresSchema)) dados: CodigoDoisFatoresInput,
+  ): Promise<AtivacaoDoisFatores> {
+    return this.doisFatores.ativar(dados.desafio, dados.codigo);
+  }
+
+  /** Segunda etapa dos logins seguintes: código do app ou de recuperação. */
+  @Publico()
+  @Post('2fa/verificar')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(LIMITE_LOGIN)
+  verificarDoisFatores(
+    @Body(new ZodValidationPipe(codigoDoisFatoresSchema)) dados: CodigoDoisFatoresInput,
+  ): Promise<SessaoResponse> {
+    return this.doisFatores.verificar(dados.desafio, dados.codigo);
   }
 
   @Publico()

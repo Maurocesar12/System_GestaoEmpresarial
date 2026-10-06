@@ -90,6 +90,53 @@ export interface SessaoResponse {
 }
 
 /**
+ * Verificação em duas etapas — obrigatória para todo login.
+ *
+ * Senha certa não abre sessão: login, cadastro e aceite de convite devolvem um
+ * `DesafioDoisFatores`. A sessão só nasce em `/auth/2fa/verificar` (quem já tem
+ * o app configurado) ou `/auth/2fa/ativar` (quem configura agora).
+ */
+export interface DesafioDoisFatores {
+  etapa: 'dois_fatores';
+  /** Token curto (10 min) que prova que a senha já foi conferida. Não abre rota nenhuma. */
+  desafio: string;
+  /** `true`: a pessoa ainda não tem o app configurado e precisa ver o QR code. */
+  configurar: boolean;
+}
+
+const desafioCampo = z.string().min(1).max(4096);
+
+export const desafioDoisFatoresSchema = z.object({ desafio: desafioCampo });
+export type DesafioDoisFatoresInput = z.infer<typeof desafioDoisFatoresSchema>;
+
+export const codigoDoisFatoresSchema = z.object({
+  desafio: desafioCampo,
+  /** Os 6 dígitos do app ou, na verificação, um código de recuperação `xxxx-xxxx`. */
+  codigo: z
+    .string()
+    .trim()
+    .min(6, 'Digite o código de 6 dígitos do app')
+    .max(20, 'Código inválido'),
+});
+export type CodigoDoisFatoresInput = z.infer<typeof codigoDoisFatoresSchema>;
+
+/** O que a tela de configuração mostra. */
+export interface ConfiguracaoDoisFatores {
+  /** Desafio novo, que carrega o segredo cifrado até a ativação. */
+  desafio: string;
+  /** Para digitar à mão quando a câmera não lê o QR, em grupos de 4. */
+  segredo: string;
+  /** Imagem do QR code em `data:` URL. */
+  qrCode: string;
+}
+
+export interface AtivacaoDoisFatores {
+  sessao: SessaoResponse;
+  /** Mostrados uma única vez: a API guarda só o hash. */
+  codigosRecuperacao: string[];
+}
+
+/**
  * Claims do JWT.
  *
  * `tenantId` aqui é a origem do contexto de tenant no servidor (§4.2) — é o que

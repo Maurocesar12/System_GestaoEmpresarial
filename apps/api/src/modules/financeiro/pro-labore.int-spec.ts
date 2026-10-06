@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { concluirDoisFatores } from '../../testes/dois-fatores';
 import { AppModule } from '../../app.module';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { primeiroDiaDeMesesAtras, ultimoDiaDoMesPassado } from './datas';
@@ -37,15 +38,20 @@ describe('pró-labore e reservas (HTTP)', () => {
   });
 
   async function criarEmpresa(sufixo: string): Promise<string> {
-    const { body } = await request(app.getHttpServer())
-      .post('/api/onboarding/cadastro')
-      .send({
-        nomeEmpresa: `Prolab ${sufixo} ${marca}`,
-        nomeResponsavel: 'Responsável',
-        email: `prolab-${sufixo}+${marca}@exemplo.com`,
-        senha: 'senhaSegura123',
-      })
-      .expect(201);
+    const body = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/onboarding/cadastro')
+          .send({
+            nomeEmpresa: `Prolab ${sufixo} ${marca}`,
+            nomeResponsavel: 'Responsável',
+            email: `prolab-${sufixo}+${marca}@exemplo.com`,
+            senha: 'senhaSegura123',
+          })
+          .expect(201)
+      ).body,
+    );
 
     tenantsCriados.push(body.usuario.tenantId);
     return body.accessToken;
@@ -333,10 +339,15 @@ describe('pró-labore e reservas (HTTP)', () => {
         tx.usuario.updateMany({ where: { tenantId }, data: { papel: 'atendente' } }),
       );
 
-      const { body: sessao } = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email: `prolab-a+${marca}@exemplo.com`, senha: 'senhaSegura123' })
-        .expect(200);
+      const sessao = await concluirDoisFatores(
+        app.getHttpServer(),
+        (
+          await request(app.getHttpServer())
+            .post('/api/auth/login')
+            .send({ email: `prolab-a+${marca}@exemplo.com`, senha: 'senhaSegura123' })
+            .expect(200)
+        ).body,
+      );
 
       await request(app.getHttpServer())
         .get('/api/financeiro/pro-labore')

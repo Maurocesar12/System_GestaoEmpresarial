@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { concluirDoisFatores } from '../../../testes/dois-fatores';
 import {
   CODIGOS_ERRO,
   DIAS_PARA_EXCLUIR_CONTA_CANCELADA,
@@ -38,10 +39,15 @@ describe('LGPD (HTTP)', () => {
     const nome = `Empresa ${sufixo} ${marca}`;
     const email = `${sufixo}+${marca}@exemplo.com`;
 
-    const { body } = await request(app.getHttpServer())
-      .post('/api/onboarding/cadastro')
-      .send({ nomeEmpresa: nome, nomeResponsavel: 'Responsável', email, senha })
-      .expect(201);
+    const body = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/onboarding/cadastro')
+          .send({ nomeEmpresa: nome, nomeResponsavel: 'Responsável', email, senha })
+          .expect(201)
+      ).body,
+    );
 
     tenantsCriados.push(body.usuario.tenantId);
     return { accessToken: body.accessToken, tenantId: body.usuario.tenantId, email, nome };

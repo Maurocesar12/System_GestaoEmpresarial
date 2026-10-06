@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { concluirDoisFatores } from '../../../testes/dois-fatores';
 import { AppModule } from '../../../app.module';
 import { Notificador, type MensagemNotificacao } from '../../../infra/notificacoes/notificador';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
@@ -49,9 +50,10 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
         senha,
       })
       .expect(201);
+    const sessao = await concluirDoisFatores(app.getHttpServer(), resposta.body);
 
-    tenantsCriados.push(resposta.body.usuario.tenantId);
-    return resposta.body.accessToken;
+    tenantsCriados.push(sessao.usuario.tenantId);
+    return sessao.accessToken;
   }
 
   beforeAll(async () => {
@@ -158,10 +160,15 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
 
   it('aceita o convite e cria uma conta com apenas as ações concedidas', async () => {
     const tokenConvite = extrairTokenDoConvite(enviar.mock.calls[0]![0]);
-    const { body: sessao } = await request(app.getHttpServer())
-      .post('/api/equipe/convites/aceitar')
-      .send({ token: tokenConvite, nome: 'Maria da Equipe', senha })
-      .expect(201);
+    const sessao = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/equipe/convites/aceitar')
+          .send({ token: tokenConvite, nome: 'Maria da Equipe', senha })
+          .expect(201)
+      ).body,
+    );
 
     expect(sessao.usuario.permissoes).toEqual(['clientes.visualizar']);
     expect(sessao.usuario.tenantId).toBe(tenantA);
@@ -225,10 +232,15 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
       })
       .expect(200);
 
-    const { body: sessao } = await request(app.getHttpServer())
-      .post('/api/auth/login')
-      .send({ email: emailFuncionario, senha })
-      .expect(200);
+    const sessao = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/auth/login')
+          .send({ email: emailFuncionario, senha })
+          .expect(200)
+      ).body,
+    );
 
     const { body: cliente } = await autenticado(sessao.accessToken)
       .post('/api/clientes')

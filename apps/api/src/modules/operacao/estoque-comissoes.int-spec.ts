@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { concluirDoisFatores } from '../../testes/dois-fatores';
 import { PERMISSOES } from '@gestao/shared-types';
 import { AppModule } from '../../app.module';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -27,27 +28,35 @@ describe('estoque e comissões (HTTP)', () => {
   let orcamentoId: string;
 
   async function cadastrarEmpresa(sufixo: string) {
-    const { body } = await request(app.getHttpServer())
-      .post('/api/onboarding/cadastro')
-      .send({
-        nomeEmpresa: `Empresa ${sufixo} ${marca}`,
-        nomeResponsavel: 'Responsável',
-        email: `${sufixo}+${marca}@exemplo.com`,
-        senha: 'senhaSegura123',
-      })
-      .expect(201);
+    const body = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/onboarding/cadastro')
+          .send({
+            nomeEmpresa: `Empresa ${sufixo} ${marca}`,
+            nomeResponsavel: 'Responsável',
+            email: `${sufixo}+${marca}@exemplo.com`,
+            senha: 'senhaSegura123',
+          })
+          .expect(201)
+      ).body,
+    );
 
     tenantsCriados.push(body.usuario.tenantId);
-    return { accessToken: body.accessToken as string, usuarioId: body.usuario.id as string };
+    return { accessToken: body.accessToken, usuarioId: body.usuario.id };
   }
 
   const api = (metodo: 'get' | 'post' | 'put' | 'patch', rota: string, comToken = token) =>
     request(app.getHttpServer())[metodo](rota).set('Authorization', `Bearer ${comToken}`);
 
-  const material = async () => (await api('get', `/api/estoque/materiais/${materialId}`).expect(200)).body;
+  const material = async () =>
+    (await api('get', `/api/estoque/materiais/${materialId}`).expect(200)).body;
 
   beforeAll(async () => {
-    const modulo: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const modulo: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
 
     app = modulo.createNestApplication();
     app.setGlobalPrefix('api', { exclude: ['health'] });
@@ -77,7 +86,8 @@ describe('estoque e comissões (HTTP)', () => {
       })
       .expect(200);
 
-    clienteId = (await api('post', '/api/clientes').send({ nome: 'Cliente Obra' }).expect(201)).body.id;
+    clienteId = (await api('post', '/api/clientes').send({ nome: 'Cliente Obra' }).expect(201)).body
+      .id;
     servicoId = (
       await api('post', '/api/servicos')
         .send({ nome: `Instalação ${marca}`, custoBase: '0,00', precoPadrao: '200,00' })
@@ -87,7 +97,9 @@ describe('estoque e comissões (HTTP)', () => {
 
   afterAll(async () => {
     for (const tenantId of tenantsCriados) {
-      await prisma.comTenantExplicito(tenantId, (tx) => tx.tenant.deleteMany({ where: { id: tenantId } }));
+      await prisma.comTenantExplicito(tenantId, (tx) =>
+        tx.tenant.deleteMany({ where: { id: tenantId } }),
+      );
     }
     await app.close();
   });
@@ -146,7 +158,8 @@ describe('estoque e comissões (HTTP)', () => {
     });
 
     it('recusa ligar o agendamento a orçamento de outro cliente', async () => {
-      const outroCliente = (await api('post', '/api/clientes').send({ nome: 'Outro' }).expect(201)).body.id;
+      const outroCliente = (await api('post', '/api/clientes').send({ nome: 'Outro' }).expect(201))
+        .body.id;
 
       await api('post', '/api/agendamentos')
         .send({ clienteId: outroCliente, servicoId, dataHora: '2026-09-10T10:00', orcamentoId })
@@ -156,7 +169,13 @@ describe('estoque e comissões (HTTP)', () => {
     it('executar baixa os materiais conferidos e gera a comissão do técnico', async () => {
       const agendamento = (
         await api('post', '/api/agendamentos')
-          .send({ clienteId, servicoId, dataHora: '2026-09-10T10:00', tecnicoId: usuarioId, orcamentoId })
+          .send({
+            clienteId,
+            servicoId,
+            dataHora: '2026-09-10T10:00',
+            tecnicoId: usuarioId,
+            orcamentoId,
+          })
           .expect(201)
       ).body;
 

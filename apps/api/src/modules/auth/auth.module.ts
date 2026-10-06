@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { SenhaService } from './senha.service';
 import { RecuperacaoSenhaService } from './recuperacao-senha.service';
+import { DoisFatoresService } from './dois-fatores/dois-fatores.service';
 import { NotificacoesModule } from '../../infra/notificacoes/notificacoes.module';
 
 /**
@@ -30,7 +31,13 @@ import { NotificacoesModule } from '../../infra/notificacoes/notificacoes.module
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SenhaService, RefreshTokenService, RecuperacaoSenhaService],
+  providers: [
+    AuthService,
+    SenhaService,
+    RefreshTokenService,
+    RecuperacaoSenhaService,
+    DoisFatoresService,
+  ],
   exports: [AuthService, SenhaService, RefreshTokenService, JwtModule],
 })
 export class AuthModule {}

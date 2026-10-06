@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { concluirDoisFatores, entrarComDoisFatores } from '../../testes/dois-fatores';
+import { codigoDoPasso, passoAtual } from './dois-fatores/totp';
 
 /**
  * Fluxo de autenticação, ponta a ponta.
@@ -72,16 +74,25 @@ describe('autenticação (HTTP)', () => {
       });
 
   describe('cadastro', () => {
-    it('cria empresa, usuário admin e devolve a sessão pronta', async () => {
+    it('cria empresa e usuário admin, e só abre a sessão depois do 2FA', async () => {
       const resposta = await cadastrar().expect(201);
 
-      tenantsCriados.push(resposta.body.usuario.tenantId);
+      // Conta nova também passa pelo segundo fator: o cadastro devolve o
+      // desafio para configurar o app, nunca a sessão.
+      expect(resposta.body).toEqual({
+        etapa: 'dois_fatores',
+        desafio: expect.any(String),
+        configurar: true,
+      });
 
-      expect(resposta.body.usuario.email).toBe(email);
+      const sessao = await concluirDoisFatores(app.getHttpServer(), resposta.body);
+      tenantsCriados.push(sessao.usuario.tenantId);
+
+      expect(sessao.usuario.email).toBe(email);
       // O primeiro usuário precisa ser admin: é ele quem vai convidar a equipe.
-      expect(resposta.body.usuario.papel).toBe('admin');
-      expect(resposta.body.accessToken).toEqual(expect.any(String));
-      expect(resposta.body.refreshToken).toEqual(expect.any(String));
+      expect(sessao.usuario.papel).toBe('admin');
+      expect(sessao.accessToken).toEqual(expect.any(String));
+      expect(sessao.refreshToken).toEqual(expect.any(String));
     });
 
     it('cria as sete etapas do funil para a empresa nova', async () => {
@@ -115,14 +126,21 @@ describe('autenticação (HTTP)', () => {
   });
 
   describe('login', () => {
-    it('autentica com as credenciais corretas', async () => {
+    it('com a senha certa pede o código do app, e só então abre a sessão', async () => {
       const resposta = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({ email, senha })
         .expect(200);
 
-      expect(resposta.body.usuario.email).toBe(email);
-      expect(resposta.body.usuario.nomeEmpresa).toBe(`Empresa ${marca}`);
+      expect(resposta.body).toEqual({
+        etapa: 'dois_fatores',
+        desafio: expect.any(String),
+        configurar: false,
+      });
+
+      const sessao = await concluirDoisFatores(app.getHttpServer(), resposta.body);
+      expect(sessao.usuario.email).toBe(email);
+      expect(sessao.usuario.nomeEmpresa).toBe(`Empresa ${marca}`);
     });
 
     it('normaliza o e-mail antes de procurar', async () => {
@@ -163,9 +181,7 @@ describe('autenticação (HTTP)', () => {
     });
 
     it('recusa token adulterado', async () => {
-      const { body } = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email, senha });
+      const body = await entrarComDoisFatores(app.getHttpServer(), email, senha);
 
       // Troca o último caractere: a assinatura deixa de bater.
       const adulterado =
@@ -178,9 +194,7 @@ describe('autenticação (HTTP)', () => {
     });
 
     it('devolve o usuário do token', async () => {
-      const { body } = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email, senha });
+      const body = await entrarComDoisFatores(app.getHttpServer(), email, senha);
 
       const resposta = await request(app.getHttpServer())
         .get('/api/auth/eu')
@@ -202,9 +216,7 @@ describe('autenticação (HTTP)', () => {
 
   describe('rotação de refresh token', () => {
     it('troca o token por um novo', async () => {
-      const { body: sessao } = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email, senha });
+      const sessao = await entrarComDoisFatores(app.getHttpServer(), email, senha);
 
       const resposta = await request(app.getHttpServer())
         .post('/api/auth/refresh')
@@ -216,9 +228,7 @@ describe('autenticação (HTTP)', () => {
     });
 
     it('derruba todas as sessões quando um token é reutilizado', async () => {
-      const { body: sessao } = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email, senha });
+      const sessao = await entrarComDoisFatores(app.getHttpServer(), email, senha);
 
       const { body: renovada } = await request(app.getHttpServer())
         .post('/api/auth/refresh')
@@ -247,11 +257,108 @@ describe('autenticação (HTTP)', () => {
     });
   });
 
+  describe('verificação em duas etapas', () => {
+    const email2fa = `dois-fatores+${marca}@exemplo.com`;
+
+    /** Conta própria: os testes de erro bloqueiam o 2FA, e não podem travar a conta principal. */
+    async function contaConfigurada(): Promise<{ segredo: string; recuperacao: string[] }> {
+      const { body: desafio } = await cadastrar({ email: email2fa }).expect(201);
+      const { body: configuracao } = await request(app.getHttpServer())
+        .post('/api/auth/2fa/configuracao')
+        .send({ desafio: desafio.desafio })
+        .expect(200);
+
+      expect(configuracao.qrCode).toMatch(/^data:image\/png;base64,/);
+      const segredo = String(configuracao.segredo).replace(/\s/g, '');
+
+      const { body: ativacao } = await request(app.getHttpServer())
+        .post('/api/auth/2fa/ativar')
+        .send({ desafio: configuracao.desafio, codigo: codigoDoPasso(segredo, passoAtual()) })
+        .expect(200);
+
+      tenantsCriados.push(ativacao.sessao.usuario.tenantId);
+      expect(ativacao.codigosRecuperacao).toHaveLength(10);
+      return { segredo, recuperacao: ativacao.codigosRecuperacao };
+    }
+
+    async function desafioDeLogin(): Promise<string> {
+      const { body } = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: email2fa, senha })
+        .expect(200);
+      return body.desafio;
+    }
+
+    const verificar = (desafio: string, codigo: string) =>
+      request(app.getHttpServer()).post('/api/auth/2fa/verificar').send({ desafio, codigo });
+
+    let conta: { segredo: string; recuperacao: string[] };
+
+    beforeAll(async () => {
+      conta = await contaConfigurada();
+    });
+
+    it('o desafio não serve como token de acesso', async () => {
+      const desafio = await desafioDeLogin();
+
+      await request(app.getHttpServer())
+        .get('/api/auth/eu')
+        .set('Authorization', `Bearer ${desafio}`)
+        .expect(401);
+    });
+
+    it('não deixa reconfigurar o app de quem já ativou', async () => {
+      const desafio = await desafioDeLogin();
+
+      await request(app.getHttpServer())
+        .post('/api/auth/2fa/configuracao')
+        .send({ desafio })
+        .expect(409);
+    });
+
+    it('não aceita de novo um código do app já usado', async () => {
+      // O passo da ativação já foi consumido; repetir o código é o que faria
+      // quem o viu por cima do ombro.
+      const desafio = await desafioDeLogin();
+      await verificar(desafio, codigoDoPasso(conta.segredo, passoAtual() - 1)).expect(401);
+    });
+
+    it('cada código de recuperação entra uma vez só', async () => {
+      const codigo = conta.recuperacao[0]!;
+
+      const { body: sessao } = await verificar(await desafioDeLogin(), codigo).expect(200);
+      expect(sessao.accessToken).toEqual(expect.any(String));
+
+      await verificar(await desafioDeLogin(), codigo).expect(401);
+    });
+
+    it('recusa desafio adulterado', async () => {
+      const desafio = await desafioDeLogin();
+      const adulterado = desafio.slice(0, -1) + (desafio.endsWith('a') ? 'b' : 'a');
+
+      await verificar(adulterado, '123456').expect(401);
+    });
+
+    // Por último: deixa a conta bloqueada por 15 minutos.
+    it('bloqueia depois de cinco códigos errados, até para um código certo', async () => {
+      const desafio = await desafioDeLogin();
+
+      // Os erros dos testes anteriores já contam para o limite, por isso o
+      // laço aceita o bloqueio antes da quinta tentativa.
+      for (let tentativa = 1; tentativa <= 5; tentativa++) {
+        const resposta = await verificar(desafio, '000000');
+        if (resposta.status === 429) break;
+        expect(resposta.status).toBe(401);
+      }
+      await verificar(desafio, '000000').expect(429);
+
+      await verificar(desafio, conta.recuperacao[1]!).expect(429);
+    });
+  });
+
   describe('logout', () => {
     it('encerra a sessão e invalida o refresh token', async () => {
-      const { body: sessao } = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email, senha });
+      const sessao = await entrarComDoisFatores(app.getHttpServer(), email, senha);
 
       await request(app.getHttpServer())
         .post('/api/auth/logout')

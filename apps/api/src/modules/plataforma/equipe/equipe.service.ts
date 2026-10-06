@@ -23,7 +23,7 @@ import {
   type EquipeResponse,
   type Funcionario,
   type PessoaEquipe,
-  type SessaoResponse,
+  type DesafioDoisFatores,
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
 import type { Env } from '../../../config/env.schema';
@@ -334,7 +334,7 @@ export class EquipeService {
     if (!removido) this.naoEncontrado('Convite não encontrado.');
   }
 
-  async aceitar(dados: AceitarConviteInput): Promise<SessaoResponse> {
+  async aceitar(dados: AceitarConviteInput): Promise<DesafioDoisFatores> {
     let payload: TokenConvite;
     try {
       payload = this.jwt.verify<TokenConvite>(dados.token);
@@ -407,14 +407,50 @@ export class EquipeService {
       throw erro;
     }
 
-    return this.auth.montarSessao({
-      id: criado.usuario.id,
-      nome: criado.usuario.nome,
-      email: criado.usuario.email,
-      papel: criado.usuario.papel,
-      permissoes: permissoesDoUsuario(criado.usuario.papel, criado.usuario.permissoes),
-      tenantId: criado.usuario.tenantId,
-      nomeEmpresa: criado.empresa.nome,
+    // Quem entra pelo convite configura o app autenticador antes da primeira sessão.
+    return this.auth.emitirDesafio(
+      { id: criado.usuario.id, tenantId: criado.usuario.tenantId },
+      false,
+    );
+  }
+
+  /**
+   * Apaga o 2FA de alguém que perdeu o celular e os códigos de recuperação.
+   *
+   * Só o administrador: quem tem apenas `equipe.gerenciar` poderia, de outro
+   * modo, tirar o segundo fator de um admin e ficar a uma senha da conta dele.
+   * As sessões abertas caem junto, e o próximo login pede a configuração de novo.
+   */
+  async redefinirDoisFatores(id: string): Promise<void> {
+    const contexto = exigirContextoTenant();
+
+    await this.prisma.comTenant(async (tx) => {
+      const atual = await tx.usuario.findFirst({
+        where: { id, tenantId: contexto.tenantId },
+        select: { id: true, doisFatoresAtivadoEm: true },
+      });
+      if (!atual) this.naoEncontrado();
+
+      await tx.usuario.update({
+        where: { id },
+        data: {
+          doisFatoresSegredo: null,
+          doisFatoresAtivadoEm: null,
+          doisFatoresUltimoPasso: null,
+          doisFatoresRecuperacao: [],
+          doisFatoresFalhas: 0,
+          doisFatoresBloqueadoAte: null,
+        },
+        select: { id: true },
+      });
+      await this.refreshTokens.revogarTodasAsSessoes(contexto.tenantId, id);
+      await this.auditoria.registrar(tx, {
+        entidade: 'funcionario',
+        entidadeId: id,
+        acao: 'alterou',
+        antes: { doisFatoresAtivo: atual.doisFatoresAtivadoEm !== null },
+        depois: { doisFatoresAtivo: false },
+      });
     });
   }
 
@@ -429,6 +465,7 @@ export class EquipeService {
     comissaoVendaPercentual: { toFixed(casas: number): string } | null;
     comissaoExecucaoPercentual: { toFixed(casas: number): string } | null;
     ultimoLoginEm: Date | null;
+    doisFatoresAtivadoEm: Date | null;
     criadoEm: Date;
   }): Funcionario {
     const permissoes = permissoesDoUsuario(
@@ -445,8 +482,12 @@ export class EquipeService {
       permissoes,
       // Comparado ao padrão de agora, e não à marca gravada: quem salvou sem
       // mudar nada não aparece como "personalizado".
-      permissoesPersonalizadas: !mesmoConjunto(permissoes, PERMISSOES_PADRAO_POR_PAPEL[usuario.papel]),
+      permissoesPersonalizadas: !mesmoConjunto(
+        permissoes,
+        PERMISSOES_PADRAO_POR_PAPEL[usuario.papel],
+      ),
       acessos: acessosDasPermissoes(permissoes),
+      doisFatoresAtivo: usuario.doisFatoresAtivadoEm !== null,
       comissaoVendaPercentual: usuario.comissaoVendaPercentual?.toFixed(2) ?? null,
       comissaoExecucaoPercentual: usuario.comissaoExecucaoPercentual?.toFixed(2) ?? null,
       ultimoLoginEm: usuario.ultimoLoginEm?.toISOString() ?? null,

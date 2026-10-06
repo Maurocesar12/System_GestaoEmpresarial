@@ -20,7 +20,12 @@ import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/compone
 import { PainelLateral } from '@/components/ui/painel-lateral';
 import { SeletorSegmentado } from '@/components/ui/seletor-segmentado';
 import { Selo } from '@/components/ui/selo';
-import { atualizarFuncionario, cancelarConvite, convidarFuncionario } from './acoes';
+import {
+  atualizarFuncionario,
+  cancelarConvite,
+  convidarFuncionario,
+  redefinirDoisFatores,
+} from './acoes';
 import { EditorAcessos, mesmosAcessos } from './editor-acessos';
 
 const TODOS_OS_PAPEIS: readonly PapelUsuario[] = ['admin', 'financeiro', 'atendente', 'tecnico'];
@@ -33,9 +38,12 @@ export function GerenciadorEquipe({
   capacidade,
   catalogo,
   mostrarComissoes,
+  ehAdmin,
 }: EquipeResponse & {
   /** Percentuais de comissão são só do admin; a API também recusa os demais. */
   mostrarComissoes: boolean;
+  /** Mostra "Redefinir 2FA". A API só aceita do admin, com ou sem o botão. */
+  ehAdmin: boolean;
 }) {
   const [editando, setEditando] = useState<Funcionario>();
 
@@ -78,6 +86,7 @@ export function GerenciadorEquipe({
           funcionario={editando}
           catalogo={catalogo}
           mostrarComissoes={mostrarComissoes}
+          ehAdmin={ehAdmin}
           aoFechar={() => setEditando(undefined)}
         />
       )}
@@ -245,6 +254,11 @@ function LinhaFuncionario({
             </Selo>
             {funcionario.permissoesPersonalizadas && <Selo tom="atencao">Personalizado</Selo>}
             {!funcionario.ativo && <Selo tom="perigo">Desativado</Selo>}
+            {funcionario.ativo && !funcionario.doisFatoresAtivo && (
+              <Selo tom="neutro" title="Configura o app autenticador no próximo login">
+                2FA pendente
+              </Selo>
+            )}
           </div>
           <span className="text-muted-foreground truncate text-xs">{funcionario.email}</span>
         </div>
@@ -327,11 +341,13 @@ function PainelFuncionario({
   funcionario,
   catalogo,
   mostrarComissoes,
+  ehAdmin,
   aoFechar,
 }: {
   funcionario: Funcionario;
   catalogo: CatalogoAcessos;
   mostrarComissoes: boolean;
+  ehAdmin: boolean;
   aoFechar: () => void;
 }) {
   const idFormulario = useId();
@@ -446,8 +462,87 @@ function PainelFuncionario({
             aoMudar={setAcessos}
           />
         </SecaoPainel>
+
+        <SecaoPainel titulo="Verificação em duas etapas">
+          <DoisFatoresDoFuncionario
+            funcionario={funcionario}
+            podeRedefinir={ehAdmin}
+            aoRedefinir={aoFechar}
+          />
+        </SecaoPainel>
       </form>
     </PainelLateral>
+  );
+}
+
+/**
+ * Situação do 2FA e, para o admin, a saída de quem perdeu o celular.
+ *
+ * Redefinir derruba as sessões da pessoa e faz o próximo login pedir a
+ * configuração do app de novo — por isso a confirmação antes.
+ */
+function DoisFatoresDoFuncionario({
+  funcionario,
+  podeRedefinir,
+  aoRedefinir,
+}: {
+  funcionario: Funcionario;
+  podeRedefinir: boolean;
+  aoRedefinir: () => void;
+}) {
+  const [falha, setFalha] = useState<string>();
+  const [ocupado, iniciar] = useTransition();
+  const { avisar } = useAvisos();
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border p-3">
+      {falha && <AvisoErro mensagem={falha} />}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-2.5 text-sm">
+          <ShieldCheck
+            aria-hidden
+            className={`mt-0.5 size-4 shrink-0 ${funcionario.doisFatoresAtivo ? 'text-sucesso' : 'text-muted-foreground'}`}
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium">
+              {funcionario.doisFatoresAtivo
+                ? 'App autenticador configurado'
+                : 'Ainda não configurado'}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              {funcionario.doisFatoresAtivo
+                ? 'Perdeu o celular e os códigos de recuperação? Redefina para configurar de novo.'
+                : 'A configuração é pedida no próximo login.'}
+            </span>
+          </span>
+        </div>
+        {podeRedefinir && funcionario.doisFatoresAtivo && (
+          <Botao
+            type="button"
+            variante="secundario"
+            tamanho="sm"
+            carregando={ocupado}
+            onClick={() => {
+              const confirmou = window.confirm(
+                `Redefinir a verificação em duas etapas de ${funcionario.nome}? As sessões abertas serão encerradas e o app precisará ser configurado de novo no próximo login.`,
+              );
+              if (!confirmou) return;
+              setFalha(undefined);
+              iniciar(async () => {
+                const resultado = await redefinirDoisFatores(funcionario.id);
+                setFalha(resultado.erro);
+                if (!resultado.erro) {
+                  avisar('sucesso', 'Verificação em duas etapas redefinida.');
+                  aoRedefinir();
+                }
+              });
+            }}
+          >
+            Redefinir
+          </Botao>
+        )}
+      </div>
+    </div>
   );
 }
 

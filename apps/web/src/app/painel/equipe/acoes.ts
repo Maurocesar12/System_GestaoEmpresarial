@@ -34,6 +34,17 @@ export async function atualizarFuncionario(
   return {};
 }
 
+/** Para quem perdeu o celular e os códigos de recuperação. A API só aceita do admin. */
+export async function redefinirDoisFatores(id: string): Promise<ResultadoAcao> {
+  try {
+    await apiComSessao(`/equipe/funcionarios/${id}/redefinir-2fa`, { method: 'POST' });
+  } catch (erro) {
+    return traduzirErroAcao(erro);
+  }
+  revalidatePath('/painel/equipe');
+  return {};
+}
+
 export async function cancelarConvite(id: string): Promise<ResultadoAcao> {
   try {
     await apiComSessao(`/equipe/convites/${id}`, { method: 'DELETE' });

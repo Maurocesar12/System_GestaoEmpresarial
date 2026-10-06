@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { concluirDoisFatores } from '../../../testes/dois-fatores';
 import { AppModule } from '../../../app.module';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 
@@ -69,15 +70,20 @@ describe('automação entre orçamentos e funil (HTTP)', () => {
       update: {},
     });
 
-    const { body } = await request(app.getHttpServer())
-      .post('/api/onboarding/cadastro')
-      .send({
-        nomeEmpresa: `Automação ${marca}`,
-        nomeResponsavel: 'Responsável',
-        email: `auto+${marca}@exemplo.com`,
-        senha: 'senhaSegura123',
-      })
-      .expect(201);
+    const body = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/onboarding/cadastro')
+          .send({
+            nomeEmpresa: `Automação ${marca}`,
+            nomeResponsavel: 'Responsável',
+            email: `auto+${marca}@exemplo.com`,
+            senha: 'senhaSegura123',
+          })
+          .expect(201)
+      ).body,
+    );
 
     tenantsCriados.push(body.usuario.tenantId);
     token = body.accessToken;

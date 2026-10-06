@@ -20,8 +20,9 @@ import {
   type EquipeResponse,
   type Funcionario,
   type PessoaEquipe,
-  type SessaoResponse,
+  type DesafioDoisFatores,
 } from '@gestao/shared-types';
+import { Papeis } from '../../../common/decorators/papeis.decorator';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
 import { Publico } from '../../../common/decorators/publico.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
@@ -62,6 +63,14 @@ export class EquipeController {
     return this.equipe.atualizar(id, dados);
   }
 
+  /** Para quem perdeu o celular e os códigos de recuperação. Só o admin. */
+  @Post('funcionarios/:id/redefinir-2fa')
+  @Papeis('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  redefinirDoisFatores(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.equipe.redefinirDoisFatores(id);
+  }
+
   @Delete('convites/:id')
   @Permissoes('equipe.gerenciar')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -73,7 +82,7 @@ export class EquipeController {
   @Post('convites/aceitar')
   aceitar(
     @Body(new ZodValidationPipe(aceitarConviteSchema)) dados: AceitarConviteInput,
-  ): Promise<SessaoResponse> {
+  ): Promise<DesafioDoisFatores> {
     return this.equipe.aceitar(dados);
   }
 }

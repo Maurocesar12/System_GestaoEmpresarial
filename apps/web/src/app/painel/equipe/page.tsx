@@ -18,7 +18,11 @@ export default async function PaginaEquipe() {
         titulo="Equipe"
         descricao="Convide funcionários e escolha exatamente o que cada pessoa pode fazer."
       />
-      <GerenciadorEquipe {...equipe} mostrarComissoes={usuario.papel === 'admin'} />
+      <GerenciadorEquipe
+        {...equipe}
+        mostrarComissoes={usuario.papel === 'admin'}
+        ehAdmin={usuario.papel === 'admin'}
+      />
     </div>
   );
 }

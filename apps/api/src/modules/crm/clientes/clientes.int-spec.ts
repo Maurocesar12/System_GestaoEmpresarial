@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { concluirDoisFatores } from '../../../testes/dois-fatores';
 import { CODIGOS_ERRO } from '@gestao/shared-types';
 import { AppModule } from '../../../app.module';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
@@ -29,15 +30,20 @@ describe('clientes (HTTP)', () => {
   async function cadastrarEmpresa(
     sufixo: string,
   ): Promise<{ accessToken: string; tenantId: string }> {
-    const { body } = await request(app.getHttpServer())
-      .post('/api/onboarding/cadastro')
-      .send({
-        nomeEmpresa: `Empresa ${sufixo} ${marca}`,
-        nomeResponsavel: 'Responsável',
-        email: `${sufixo}+${marca}@exemplo.com`,
-        senha: 'senhaSegura123',
-      })
-      .expect(201);
+    const body = await concluirDoisFatores(
+      app.getHttpServer(),
+      (
+        await request(app.getHttpServer())
+          .post('/api/onboarding/cadastro')
+          .send({
+            nomeEmpresa: `Empresa ${sufixo} ${marca}`,
+            nomeResponsavel: 'Responsável',
+            email: `${sufixo}+${marca}@exemplo.com`,
+            senha: 'senhaSegura123',
+          })
+          .expect(201)
+      ).body,
+    );
 
     tenantsCriados.push(body.usuario.tenantId);
     return { accessToken: body.accessToken, tenantId: body.usuario.tenantId };
@@ -422,10 +428,15 @@ describe('clientes (HTTP)', () => {
 
       // Precisa entrar de novo: o papel vem do JWT, e o token emitido antes da
       // troca continua dizendo "admin" até expirar.
-      const { body: sessao } = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({ email: `importacao+${marca}@exemplo.com`, senha: 'senhaSegura123' })
-        .expect(200);
+      const sessao = await concluirDoisFatores(
+        app.getHttpServer(),
+        (
+          await request(app.getHttpServer())
+            .post('/api/auth/login')
+            .send({ email: `importacao+${marca}@exemplo.com`, senha: 'senhaSegura123' })
+            .expect(200)
+        ).body,
+      );
 
       await request(app.getHttpServer())
         .post('/api/clientes/importar')

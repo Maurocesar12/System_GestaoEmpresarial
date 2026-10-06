@@ -121,6 +121,36 @@ export async function lerUsuarioDaSessao(): Promise<UsuarioDaSessao | undefined>
   }
 }
 
+/**
+ * O desafio do 2FA, entre a senha e o código.
+ *
+ * Fica em cookie `httpOnly`, como os tokens, e não no estado da página: assim
+ * o JavaScript do navegador nunca o vê, e a etapa sobrevive a um recarregar.
+ * Vale 10 minutos, o mesmo prazo que a API dá ao desafio.
+ */
+const COOKIE_DESAFIO = 'gestao_2fa';
+
+export async function gravarDesafio(desafio: string): Promise<void> {
+  const jar = await cookies();
+  jar.set(COOKIE_DESAFIO, desafio, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 10,
+  });
+}
+
+export async function lerDesafio(): Promise<string | undefined> {
+  const jar = await cookies();
+  return jar.get(COOKIE_DESAFIO)?.value;
+}
+
+export async function limparDesafio(): Promise<void> {
+  const jar = await cookies();
+  jar.delete(COOKIE_DESAFIO);
+}
+
 export async function limparSessao(): Promise<void> {
   const jar = await cookies();
   jar.delete(COOKIE_ACCESS);

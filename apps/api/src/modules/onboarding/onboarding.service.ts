@@ -1,11 +1,6 @@
 import { ConflictException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  CODIGOS_ERRO,
-  permissoesDoUsuario,
-  type CadastroInput,
-  type SessaoResponse,
-} from '@gestao/shared-types';
+import { CODIGOS_ERRO, type CadastroInput, type DesafioDoisFatores } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
 import type { Env } from '../../config/env.schema';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -50,7 +45,7 @@ export class OnboardingService {
     private readonly config: ConfigService<Env, true>,
   ) {}
 
-  async cadastrar(dados: CadastroInput): Promise<SessaoResponse> {
+  async cadastrar(dados: CadastroInput): Promise<DesafioDoisFatores> {
     const plano = await this.buscarPlanoPadrao();
 
     // O hash é calculado antes da transação de propósito: o Argon2id leva
@@ -100,15 +95,9 @@ export class OnboardingService {
       },
     );
 
-    return this.auth.montarSessao({
-      id: criado.usuario.id,
-      nome: criado.usuario.nome,
-      email: criado.usuario.email,
-      papel: criado.usuario.papel,
-      permissoes: permissoesDoUsuario(criado.usuario.papel, undefined),
-      tenantId: criado.tenantId,
-      nomeEmpresa: dados.nomeEmpresa,
-    });
+    // Conta nova também passa pelo 2FA: a sessão só abre depois que o dono
+    // configurar o app autenticador.
+    return this.auth.emitirDesafio({ id: criado.usuario.id, tenantId: criado.tenantId }, false);
   }
 
   /**

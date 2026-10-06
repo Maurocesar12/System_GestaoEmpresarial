@@ -1,20 +1,20 @@
 'use server';
 
-import { redirect } from 'next/navigation';
-import type { AceitarConviteInput, SessaoResponse } from '@gestao/shared-types';
+import type { AceitarConviteInput, DesafioDoisFatores } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
 import { apiFetch } from '@/lib/api';
-import { gravarSessao } from '@/lib/sessao';
+import { seguirParaDoisFatores } from '@/lib/dois-fatores';
 
 export async function aceitarConvite(dados: AceitarConviteInput): Promise<ResultadoAcao> {
+  let resposta: DesafioDoisFatores;
   try {
-    const sessao = await apiFetch<SessaoResponse>('/equipe/convites/aceitar', {
+    resposta = await apiFetch<DesafioDoisFatores>('/equipe/convites/aceitar', {
       method: 'POST',
       body: JSON.stringify(dados),
     });
-    await gravarSessao(sessao);
   } catch (erro) {
     return traduzirErroAcao(erro, 'Não foi possível aceitar o convite.');
   }
-  redirect('/painel');
+  // Quem entra pelo convite configura o app autenticador antes do painel.
+  return seguirParaDoisFatores(resposta);
 }
