@@ -61,7 +61,7 @@ const OPCOES_SMTP = {
         if (!smtpUrl) {
           logger.warn('SMTP_URL não configurada — os e-mails serão apenas registrados no log.');
 
-          return new NotificadorLog();
+          return new NotificadorLog(config.get('NODE_ENV', { infer: true }) === 'production');
         }
 
         return new NotificadorEmail(

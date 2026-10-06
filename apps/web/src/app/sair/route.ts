@@ -15,7 +15,14 @@ import { limparSessao } from '@/lib/sessao';
  * Component consegue lê-los, mas não escrevê-los. Por isso a saída passa por
  * aqui.
  */
-export async function GET(): Promise<never> {
+export async function GET(request: Request): Promise<never> {
+  // Sendo GET, um link em outro site poderia deslogar a pessoa (CSRF de
+  // logout). O navegador marca a origem em `Sec-Fetch-Site`: os redirecionamentos
+  // do próprio sistema chegam como `same-origin` e a URL digitada como `none`.
+  if (request.headers.get('sec-fetch-site') === 'cross-site') {
+    redirect('/painel');
+  }
+
   await limparSessao();
   redirect('/entrar');
 }

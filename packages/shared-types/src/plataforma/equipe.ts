@@ -16,7 +16,8 @@ export const conviteEquipeSchema = z.object({
 export type ConviteEquipeInput = z.infer<typeof conviteEquipeSchema>;
 
 export const aceitarConviteSchema = z.object({
-  token: z.string().min(32),
+  // É um JWT (~270 caracteres); o teto só barra lixo grande.
+  token: z.string().min(32).max(1024),
   nome: z.string().trim().min(2, 'Informe seu nome').max(120),
   senha: z.string().min(10, 'A senha precisa de pelo menos 10 caracteres').max(128),
 });

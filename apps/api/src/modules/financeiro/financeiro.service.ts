@@ -616,7 +616,9 @@ export class FinanceiroService {
       }),
     );
     const escapar = (valor: string | null) => {
-      const seguro = valor && /^[=+\-@]/.test(valor) ? `'${valor}` : (valor ?? '');
+      // TAB e CR iniciais também fazem o Excel interpretar a célula como
+      // fórmula (OWASP, "CSV Injection") — não só `= + - @`.
+      const seguro = valor && /^[=+\-@\t\r]/.test(valor) ? `'${valor}` : (valor ?? '');
       return `"${seguro.replace(/"/g, '""')}"`;
     };
     const linhas = [

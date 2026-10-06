@@ -20,9 +20,20 @@ export class NotificadorLog extends Notificador {
   override readonly modo = 'simulado' as const;
   private readonly logger = new Logger(NotificadorLog.name);
 
+  /**
+   * @param ocultarCorpo Em produção, o corpo não vai para o log: ele leva link
+   * de redefinição de senha e de convite, e qualquer pessoa com acesso aos logs
+   * do provedor poderia usá-los para entrar na conta de outra.
+   */
+  constructor(private readonly ocultarCorpo = false) {
+    super();
+  }
+
   enviar(mensagem: MensagemNotificacao): Promise<void> {
+    const corpo = this.ocultarCorpo ? '(corpo omitido em produção)' : mensagem.corpo;
+
     this.logger.log(
-      `[envio simulado] para: ${mensagem.destinatario} | assunto: ${mensagem.assunto}\n${mensagem.corpo}`,
+      `[envio simulado] para: ${mensagem.destinatario} | assunto: ${mensagem.assunto}\n${corpo}`,
     );
 
     return Promise.resolve();

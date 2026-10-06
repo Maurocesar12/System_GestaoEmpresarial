@@ -38,7 +38,9 @@ export const senhaSchema = z
 
 export const loginSchema = z.object({
   email: emailSchema,
-  senha: z.string().min(1, 'Informe a senha'),
+  // Mesmo teto do cadastro, e aqui importa mais: a rota de entrada é pública,
+  // e cada tentativa custa um Argon2id no servidor.
+  senha: z.string().min(1, 'Informe a senha').max(128, 'Senha ou e-mail incorretos.'),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -54,7 +56,8 @@ export type CadastroInput = z.infer<typeof cadastroSchema>;
 export const signupSchema = cadastroSchema;
 
 export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1),
+  // O token real tem ~80 caracteres (`tenantId.aleatório`); o teto só barra lixo grande.
+  refreshToken: z.string().min(1).max(256),
 });
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 
