@@ -67,7 +67,10 @@ export function PainelLateral({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        {/* `overscroll-contain`: no fim do formulário, a rolagem não vaza para a página de trás. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+          {children}
+        </div>
 
         {rodape && (
           <footer className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3">

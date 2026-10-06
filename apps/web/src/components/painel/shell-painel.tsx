@@ -71,8 +71,17 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
       if (evento.key === 'Escape') setGavetaAberta(false);
     };
 
+    // Com a gaveta aberta, a página de trás não rola: o dedo que rola o menu
+    // no celular não deve arrastar o conteúdo escondido atrás do fundo escuro.
+    const raiz = document.documentElement;
+    const overflowAnterior = raiz.style.overflow;
+    raiz.style.overflow = 'hidden';
+
     document.addEventListener('keydown', aoTeclar);
-    return () => document.removeEventListener('keydown', aoTeclar);
+    return () => {
+      document.removeEventListener('keydown', aoTeclar);
+      raiz.style.overflow = overflowAnterior;
+    };
   }, [gavetaAberta]);
 
   function alternarMenuEncolhido() {
@@ -90,7 +99,10 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
   const navegacao = (encolhido = false) => (
     <nav
       className={cn(
-        'flex flex-1 flex-col overflow-y-auto py-4',
+        // `min-h-0` deixa a lista encolher dentro da lateral e rolar sozinha.
+        // `overscroll-contain` impede que, ao chegar no fim do menu, a rolagem
+        // passe para a página de trás e a arraste junto.
+        'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain py-4',
         encolhido ? 'items-center gap-5 px-2' : 'gap-6 px-3',
       )}
       aria-label="Seções"
@@ -235,7 +247,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
       </header>
 
       {gavetaAberta && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-40 overscroll-contain md:hidden">
           {/* Clicar fora fecha. É `button` para funcionar também no teclado. */}
           <button
             type="button"
@@ -244,7 +256,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
             className="absolute inset-0 h-full w-full bg-black/40"
           />
 
-          <div className="bg-superficie absolute inset-y-0 left-0 flex w-64 flex-col border-r shadow-[var(--sombra-media)]">
+          <div className="bg-superficie absolute inset-y-0 left-0 flex h-dvh w-64 flex-col border-r shadow-[var(--sombra-media)]">
             <div className="flex items-start justify-between">
               {identificacao(false)}
 
