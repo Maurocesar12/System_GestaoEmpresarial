@@ -109,7 +109,7 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
         nome: 'Funcionário convidado',
         email: emailFuncionario,
         papel: 'atendente',
-        permissoes: ['clientes.visualizar'],
+        acessos: { clientes: { nivel: 'ver', extras: [] } },
       })
       .expect(204);
 
@@ -221,7 +221,7 @@ describe('equipe, permissões e auditoria (HTTP)', () => {
         nome: 'Maria da Equipe',
         papel: 'atendente',
         ativo: true,
-        permissoes: ['clientes.visualizar', 'clientes.criar'],
+        acessos: { clientes: { nivel: 'ver', extras: ['clientes.criar'] } },
       })
       .expect(200);
 

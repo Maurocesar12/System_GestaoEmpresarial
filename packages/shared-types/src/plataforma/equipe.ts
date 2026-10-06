@@ -1,16 +1,17 @@
 import { z } from 'zod';
 import { papelUsuarioSchema, type PapelUsuario } from '../enums';
 import { percentualComissaoOpcionalSchema } from '../operacao/comissoes';
-import { PERMISSOES, type Permissao } from './permissoes';
+import { mapaAcessosSchema, type CatalogoAcessos, type MapaAcessos } from './acessos';
+import type { Permissao } from './permissoes';
 
 const emailEquipeSchema = z.string().trim().toLowerCase().pipe(z.email('E-mail inválido'));
-const permissaoSchema = z.enum(PERMISSOES);
 
 export const conviteEquipeSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome').max(120),
   email: emailEquipeSchema,
   papel: papelUsuarioSchema.exclude(['admin']),
-  permissoes: z.array(permissaoSchema).optional(),
+  /** Acesso por área. Ausente usa o padrão do papel. A API converte em permissões. */
+  acessos: mapaAcessosSchema.optional(),
 });
 export type ConviteEquipeInput = z.infer<typeof conviteEquipeSchema>;
 
@@ -25,7 +26,8 @@ export const atualizarFuncionarioSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome').max(120),
   papel: papelUsuarioSchema,
   ativo: z.boolean(),
-  permissoes: z.array(permissaoSchema),
+  /** Acesso por área. Ignorado para administrador, que sempre tem acesso total. */
+  acessos: mapaAcessosSchema,
   /** Ausente mantém o que está gravado; vazio remove a comissão. */
   comissaoVendaPercentual: percentualComissaoOpcionalSchema.optional(),
   comissaoExecucaoPercentual: percentualComissaoOpcionalSchema.optional(),
@@ -47,7 +49,10 @@ export interface Funcionario {
   papel: PapelUsuario;
   ativo: boolean;
   permissoes: Permissao[];
+  /** Difere do padrão do papel — calculado pela API comparando os conjuntos. */
   permissoesPersonalizadas: boolean;
+  /** As permissões lidas como nível por área, para o editor de acesso. */
+  acessos: MapaAcessos;
   comissaoVendaPercentual: string | null;
   comissaoExecucaoPercentual: string | null;
   ultimoLoginEm: string | null;
@@ -60,6 +65,7 @@ export interface ConviteEquipe {
   email: string;
   papel: PapelUsuario;
   permissoes: Permissao[];
+  acessos: MapaAcessos;
   expiraEm: string;
   criadoEm: string;
 }
@@ -98,6 +104,6 @@ export interface EquipeResponse {
       precoPorUsuarioAdicional: string;
     } | null;
   };
-  /** O ponto de partida de cada papel ao convidar ou editar alguém. Vem da API. */
-  permissoesPadraoPorPapel: Record<PapelUsuario, Permissao[]>;
+  /** Áreas, níveis, papéis e o acesso padrão de cada papel — tudo da API. */
+  catalogo: CatalogoAcessos;
 }

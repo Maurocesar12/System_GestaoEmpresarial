@@ -9,9 +9,12 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'node:crypto';
 import {
   CODIGOS_ERRO,
-  PAPEIS_USUARIO,
   PERMISSOES_PADRAO_POR_PAPEL,
+  acessosDasPermissoes,
+  montarCatalogoAcessos,
   permissoesDoUsuario,
+  permissoesDosAcessos,
+  type MapaAcessos,
   type PapelUsuario,
   type Permissao,
   type AceitarConviteInput,
@@ -32,6 +35,30 @@ import { RefreshTokenService } from '../../auth/refresh-token.service';
 import { SenhaService } from '../../auth/senha.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { calcularMensalidade } from '../planos/calcular-mensalidade';
+
+function mesmoConjunto(a: readonly string[], b: readonly string[]): boolean {
+  const conjunto = new Set(a);
+  return conjunto.size === new Set(b).size && b.every((item) => conjunto.has(item));
+}
+
+/**
+ * O que gravar a partir da escolha por área.
+ *
+ * - Administrador tem sempre acesso total: personalizar o admin só serviria
+ *   para trancá-lo fora de algo que ele precisa destrancar.
+ * - Sem `acessos`, vale o padrão do papel.
+ * - `personalizadas` só quando difere do padrão. Quem segue o padrão continua
+ *   seguindo se o padrão do papel mudar numa versão futura.
+ */
+function permissoesParaGravar(
+  papel: PapelUsuario,
+  acessos: Partial<MapaAcessos> | undefined,
+): { permissoes: Permissao[]; personalizadas: boolean } {
+  const padrao = PERMISSOES_PADRAO_POR_PAPEL[papel];
+  const permissoes = papel === 'admin' || !acessos ? [...padrao] : permissoesDosAcessos(acessos);
+
+  return { permissoes, personalizadas: !mesmoConjunto(permissoes, padrao) };
+}
 
 interface TokenConvite {
   tipo: 'convite-equipe';
@@ -100,6 +127,7 @@ export class EquipeService {
         email: item.email,
         papel: item.papel,
         permissoes: permissoesDoUsuario(item.papel, item.permissoes),
+        acessos: acessosDasPermissoes(permissoesDoUsuario(item.papel, item.permissoes)),
         expiraEm: item.expiraEm.toISOString(),
         criadoEm: item.criadoEm.toISOString(),
       })),
@@ -136,11 +164,9 @@ export class EquipeService {
             }
           : null,
       },
-      // O ponto de partida ao escolher um papel na tela. A tabela é da API: a
-      // tela não sabe o que cada papel pode, só mostra o que veio.
-      permissoesPadraoPorPapel: Object.fromEntries(
-        PAPEIS_USUARIO.map((papel) => [papel, [...PERMISSOES_PADRAO_POR_PAPEL[papel]]]),
-      ) as Record<PapelUsuario, Permissao[]>,
+      // Áreas, níveis e o padrão de cada papel. A tabela é da API: a tela não
+      // sabe o que cada nível concede, só mostra o que veio e devolve a escolha.
+      catalogo: montarCatalogoAcessos(),
     };
   }
 
@@ -159,7 +185,7 @@ export class EquipeService {
     await this.garantirEmailDisponivel(dados.email);
 
     const tenantId = tenantAtual();
-    const permissoes = dados.permissoes ?? permissoesDoUsuario(dados.papel, undefined);
+    const { permissoes } = permissoesParaGravar(dados.papel, dados.acessos);
     const conviteId = uuidv7();
     const token = this.jwt.sign(
       { tipo: 'convite-equipe', conviteId, tenantId } satisfies TokenConvite,
@@ -233,14 +259,20 @@ export class EquipeService {
       }
       if (!atual.ativo && dados.ativo) await this.garantirVaga(tx, contexto.tenantId);
 
+      const novo = permissoesParaGravar(dados.papel, dados.acessos);
+      const anteriores = permissoesDoUsuario(
+        atual.papel,
+        atual.permissoesPersonalizadas ? atual.permissoes : undefined,
+      );
+
       const alterado = await tx.usuario.update({
         where: { id },
         data: {
           nome: dados.nome,
           papel: dados.papel,
           ativo: dados.ativo,
-          permissoes: dados.permissoes,
-          permissoesPersonalizadas: true,
+          permissoes: novo.permissoes,
+          permissoesPersonalizadas: novo.personalizadas,
           ...(dados.comissaoVendaPercentual !== undefined
             ? { comissaoVendaPercentual: dados.comissaoVendaPercentual }
             : {}),
@@ -252,7 +284,7 @@ export class EquipeService {
       if (
         !dados.ativo ||
         atual.papel !== dados.papel ||
-        JSON.stringify(atual.permissoes) !== JSON.stringify(dados.permissoes)
+        !mesmoConjunto(anteriores, novo.permissoes)
       ) {
         await this.refreshTokens.revogarTodasAsSessoes(contexto.tenantId, id);
       }
@@ -361,7 +393,10 @@ export class EquipeService {
             senhaHash,
             papel: conviteAtual.papel,
             permissoes: conviteAtual.permissoes,
-            permissoesPersonalizadas: true,
+            permissoesPersonalizadas: !mesmoConjunto(
+              permissoesDoUsuario(conviteAtual.papel, conviteAtual.permissoes),
+              PERMISSOES_PADRAO_POR_PAPEL[conviteAtual.papel],
+            ),
           },
         });
         await tx.conviteEquipe.delete({ where: { id: conviteAtual.id } });
@@ -396,17 +431,22 @@ export class EquipeService {
     ultimoLoginEm: Date | null;
     criadoEm: Date;
   }): Funcionario {
+    const permissoes = permissoesDoUsuario(
+      usuario.papel,
+      usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
+    );
+
     return {
       id: usuario.id,
       nome: usuario.nome,
       email: usuario.email,
       papel: usuario.papel,
       ativo: usuario.ativo,
-      permissoes: permissoesDoUsuario(
-        usuario.papel,
-        usuario.permissoesPersonalizadas ? usuario.permissoes : undefined,
-      ),
-      permissoesPersonalizadas: usuario.permissoesPersonalizadas,
+      permissoes,
+      // Comparado ao padrão de agora, e não à marca gravada: quem salvou sem
+      // mudar nada não aparece como "personalizado".
+      permissoesPersonalizadas: !mesmoConjunto(permissoes, PERMISSOES_PADRAO_POR_PAPEL[usuario.papel]),
+      acessos: acessosDasPermissoes(permissoes),
       comissaoVendaPercentual: usuario.comissaoVendaPercentual?.toFixed(2) ?? null,
       comissaoExecucaoPercentual: usuario.comissaoExecucaoPercentual?.toFixed(2) ?? null,
       ultimoLoginEm: usuario.ultimoLoginEm?.toISOString() ?? null,

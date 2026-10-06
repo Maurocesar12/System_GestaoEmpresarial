@@ -285,6 +285,26 @@
     animation: entrada-suave var(--duracao-normal) var(--curva);
   }
 
+  /* O painel lateral desliza da borda direita, de onde a pessoa espera que venha. */
+  @keyframes painel-lateral-entrar {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  .painel-lateral[open] {
+    animation: painel-lateral-entrar var(--duracao-normal) var(--curva);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .painel-lateral[open] {
+      animation: none;
+    }
+  }
+
   /*
    * Entrada progressiva das seções comerciais quando chegam à tela.
    *
