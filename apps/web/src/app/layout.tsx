@@ -40,6 +40,16 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Toda página é renderizada por requisição.
+ *
+ * É o que o CSP com nonce exige: o nonce muda a cada acesso, e uma página
+ * gerada no build levaria scripts sem ele — que o navegador bloquearia,
+ * deixando a tela sem JavaScript. O custo é o site público deixar de ser
+ * estático; em troca, nenhum script fora do nonce roda em página nenhuma.
+ */
+export const dynamic = 'force-dynamic';
+
 export const viewport: Viewport = {
   colorScheme: 'light',
   themeColor: SITE.corFundo,

@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { gerarNonce, politicaDeConteudo } from './lib/politica-conteudo';
 
 /**
  * Guarda de rota e renovação de sessão.
  *
- * Roda antes de qualquer página começar a renderizar e faz duas coisas.
+ * Roda antes de qualquer página começar a renderizar e faz três coisas — a
+ * terceira é o Content-Security-Policy com nonce (veja `seguir`).
  *
  * **1. Renova a sessão quando o access token expira.** Ele dura 15 minutos de
  * propósito (arquitetura §9.1): se vazar, a janela de uso é curta. Mas ninguém
@@ -51,6 +53,7 @@ interface SessaoRenovada {
 export async function proxy(request: NextRequest) {
   const accessToken = request.cookies.get(COOKIE_ACCESS)?.value;
   const refreshToken = request.cookies.get(COOKIE_REFRESH)?.value;
+  const csp = politicaDeConteudo(gerarNonce());
 
   // Sessão expirada mas recuperável: tenta renovar antes de qualquer decisão
   // sobre redirecionar.
@@ -58,24 +61,40 @@ export async function proxy(request: NextRequest) {
     const sessao = await renovar(refreshToken);
 
     if (sessao) {
-      const resposta = decidirRota(request, true);
+      const resposta = decidirRota(request, true, csp);
       gravarCookies(resposta, sessao, request.nextUrl.protocol === 'https:');
       return resposta;
     }
 
     // Renovação recusada — expirou, foi revogada no logout, ou o token foi
     // detectado como reutilizado. Limpa o que sobrou e segue sem sessão.
-    const resposta = decidirRota(request, false);
+    const resposta = decidirRota(request, false, csp);
     resposta.cookies.delete(COOKIE_REFRESH);
     resposta.cookies.delete(COOKIE_USUARIO);
     return resposta;
   }
 
-  return decidirRota(request, Boolean(accessToken));
+  return decidirRota(request, Boolean(accessToken), csp);
+}
+
+/**
+ * Segue para a página com o CSP do nonce desta requisição.
+ *
+ * O cabeçalho vai nos dois sentidos: na resposta, para o navegador aplicar; e
+ * na requisição repassada ao Next, que lê o nonce dali e o coloca nos próprios
+ * scripts ao renderizar.
+ */
+function seguir(request: NextRequest, csp: string): NextResponse {
+  const cabecalhos = new Headers(request.headers);
+  cabecalhos.set('Content-Security-Policy', csp);
+
+  const resposta = NextResponse.next({ request: { headers: cabecalhos } });
+  resposta.headers.set('Content-Security-Policy', csp);
+  return resposta;
 }
 
 /** Aplica as regras de acesso, dado se há sessão válida ou não. */
-function decidirRota(request: NextRequest, temSessao: boolean): NextResponse {
+function decidirRota(request: NextRequest, temSessao: boolean, csp: string): NextResponse {
   const { pathname } = request.nextUrl;
 
   if (ROTAS_PROTEGIDAS.some((rota) => pathname.startsWith(rota)) && !temSessao) {
@@ -93,7 +112,7 @@ function decidirRota(request: NextRequest, temSessao: boolean): NextResponse {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return seguir(request, csp);
 }
 
 /**

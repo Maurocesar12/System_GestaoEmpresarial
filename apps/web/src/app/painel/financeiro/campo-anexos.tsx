@@ -3,7 +3,13 @@
 import { FileText, ImageIcon, Loader2, Paperclip, Upload, X } from 'lucide-react';
 import { useId, useState, type DragEvent } from 'react';
 import { MAX_ANEXOS_LANCAMENTO, type AnexoLancamentoInput } from '@gestao/shared-types';
-import { EXTENSOES_ANEXO, ErroDeAnexo, formatarTamanho, prepararAnexo } from '@/lib/anexos';
+import {
+  EXTENSOES_ANEXO,
+  ErroDeAnexo,
+  abrirAnexo,
+  formatarTamanho,
+  prepararAnexo,
+} from '@/lib/anexos';
 import { cn } from '@/lib/utils';
 
 /** Mesma chave para o mesmo arquivo: é como o campo evita anexar duas vezes. */
@@ -179,18 +185,18 @@ export function CampoAnexos({
               <li key={chave(anexo)} className="flex items-center gap-3 px-3 py-2">
                 <Icone aria-hidden className="text-muted-foreground size-4 shrink-0" />
 
-                <a
-                  href={anexo.conteudo}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="min-w-0 flex-1 text-sm font-medium underline-offset-4 hover:underline"
+                <button
+                  type="button"
+                  onClick={() => abrirAnexo(anexo)}
+                  title="Abrir em nova aba"
+                  className="min-w-0 flex-1 text-left text-sm font-medium underline-offset-4 hover:underline"
                 >
                   <span className="block truncate">{anexo.nome}</span>
                   <span className="text-muted-foreground block text-xs font-normal">
                     {formatarTamanho(anexo.tamanhoBytes)}
                     {original && ` · reduzido de ${formatarTamanho(original)}`}
                   </span>
-                </a>
+                </button>
 
                 <button
                   type="button"

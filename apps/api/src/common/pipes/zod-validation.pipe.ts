@@ -1,13 +1,16 @@
 import { BadRequestException, Injectable, type PipeTransform } from '@nestjs/common';
 import { CODIGOS_ERRO, type ApiError } from '@gestao/shared-types';
 import type { ZodType } from 'zod';
+import { procurarCodigo } from '../seguranca/codigo-injetado';
 
 /**
- * Valida o corpo/query/param da requisição contra um schema Zod.
+ * Valida o corpo/query da requisição contra um schema Zod e recusa código
+ * dentro dos dados.
  *
- * A validação usa os mesmos schemas de `@gestao/shared-types` que o frontend
- * usa no React Hook Form — uma regra escrita uma vez só. Divergência entre o
- * que o formulário aceita e o que a API aceita deixa de ser possível.
+ * Duas etapas, nesta ordem: o schema de `@gestao/shared-types` (formato,
+ * tamanho, tipo) e depois a busca por HTML, script, fórmula e caracteres de
+ * controle em todo texto — veja `procurarCodigo`. As duas respondem no mesmo
+ * formato, com o campo exato, para a tela marcar o input certo.
  *
  * Uso:
  * ```ts
@@ -32,23 +35,28 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
   transform(valor: unknown): T {
     const resultado = this.schema.safeParse(valor);
 
-    if (resultado.success) {
-      return resultado.data;
+    if (!resultado.success) {
+      // Agrupa por campo: o frontend precisa saber qual input pintar de vermelho.
+      const detalhes: Record<string, string[]> = {};
+      for (const issue of resultado.error.issues) {
+        const campo = issue.path.join('.') || '_';
+        (detalhes[campo] ??= []).push(issue.message);
+      }
+      throw this.invalido('Dados inválidos.', detalhes);
     }
 
-    // Agrupa por campo: o frontend precisa saber qual input pintar de vermelho.
-    const detalhes: Record<string, string[]> = {};
-    for (const issue of resultado.error.issues) {
-      const campo = issue.path.join('.') || '_';
-      (detalhes[campo] ??= []).push(issue.message);
+    const achados = procurarCodigo(resultado.data);
+    if (achados.length > 0) {
+      const detalhes: Record<string, string[]> = {};
+      for (const { campo, mensagem } of achados) (detalhes[campo] ??= []).push(mensagem);
+      throw this.invalido('Há código ou marcação em um dos campos.', detalhes);
     }
 
-    const erro: ApiError = {
-      codigo: CODIGOS_ERRO.VALIDACAO,
-      mensagem: 'Dados inválidos.',
-      detalhes,
-    };
+    return resultado.data;
+  }
 
-    throw new BadRequestException(erro);
+  private invalido(mensagem: string, detalhes: Record<string, string[]>): BadRequestException {
+    const erro: ApiError = { codigo: CODIGOS_ERRO.VALIDACAO, mensagem, detalhes };
+    return new BadRequestException(erro);
   }
 }

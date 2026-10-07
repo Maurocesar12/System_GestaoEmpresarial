@@ -163,9 +163,25 @@ export type ImportacaoClientesInput = z.infer<typeof importacaoClientesSchema>;
  * trabalho da API, e uma linha malformada precisa chegar até ela para voltar
  * com o motivo em vez de derrubar a requisição inteira.
  */
+/**
+ * Uma célula como sai da planilha. "Objeto qualquer" não quer dizer qualquer
+ * coisa: objeto aninhado ou texto de megabytes não sai de planilha nenhuma, e
+ * aceitar isso só servia para quem quisesse pesar a API.
+ */
+const celulaImportacaoSchema = z.union([
+  z.string().max(2000, 'Célula com texto longo demais'),
+  z.number(),
+  z.boolean(),
+  z.null(),
+]);
+
 export const conferenciaImportacaoClientesSchema = z.object({
   clientes: z
-    .array(z.record(z.string(), z.unknown()))
+    .array(
+      z
+        .record(z.string().max(100), celulaImportacaoSchema)
+        .refine((linha) => Object.keys(linha).length <= 60, 'Linha com colunas demais'),
+    )
     .min(1, 'Envie ao menos uma linha')
     .max(LIMITE_IMPORTACAO, `Envie no máximo ${LIMITE_IMPORTACAO} linhas por vez`),
 });

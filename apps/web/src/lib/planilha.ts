@@ -19,10 +19,91 @@ export interface PlanilhaLida {
   totalAbas?: number;
 }
 
-/** Extensões aceitas, para o `accept` do input e para a validação. */
-export const EXTENSOES_ACEITAS = ['.csv', '.xlsx', '.xls'] as const;
+/**
+ * Extensões aceitas, para o `accept` do input e para a validação.
+ *
+ * Sem `.xls`: é o formato binário antigo do Excel, que a biblioteca não lê. O
+ * arquivo era aceito e falhava com um erro confuso.
+ */
+export const EXTENSOES_ACEITAS = ['.csv', '.xlsx'] as const;
 
 export class ErroDePlanilha extends Error {}
+
+/**
+ * Proteção do próprio navegador, antes de abrir o arquivo.
+ *
+ * Não é regra de negócio — o arquivo nem vai para a API, só as linhas, que a
+ * API valida. É o que impede um arquivo hostil de travar a aba de quem importa:
+ * um `.xlsx` é um ZIP, e uma "bomba ZIP" de poucos KB se abre em gigabytes.
+ */
+const MAX_BYTES_ARQUIVO = 5 * 1024 * 1024;
+const MAX_BYTES_DESCOMPACTADO = 60 * 1024 * 1024;
+const MAX_ENTRADAS_ZIP = 2000;
+
+/**
+ * Soma o tamanho descompactado que o índice do ZIP declara, sem descompactar.
+ *
+ * Lê o "diretório central" no fim do arquivo: cada entrada diz quanto ocupa
+ * aberta. ZIP64 (tamanhos acima de 4 GB) não existe em planilha honesta.
+ */
+function tamanhoDescompactado(bytes: Uint8Array): number | undefined {
+  const dados = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const inicioBusca = Math.max(0, bytes.length - 65_557);
+
+  let fim = -1;
+  for (let posicao = bytes.length - 22; posicao >= inicioBusca; posicao--) {
+    if (dados.getUint32(posicao, true) === 0x06054b50) {
+      fim = posicao;
+      break;
+    }
+  }
+  if (fim < 0) return undefined;
+
+  const entradas = dados.getUint16(fim + 10, true);
+  let posicao = dados.getUint32(fim + 16, true);
+  if (entradas > MAX_ENTRADAS_ZIP || posicao >= bytes.length) return undefined;
+
+  let total = 0;
+  for (let entrada = 0; entrada < entradas; entrada++) {
+    if (posicao + 46 > bytes.length || dados.getUint32(posicao, true) !== 0x02014b50) {
+      return undefined;
+    }
+    const descompactado = dados.getUint32(posicao + 24, true);
+    if (descompactado === 0xffffffff) return undefined;
+    total += descompactado;
+    posicao +=
+      46 +
+      dados.getUint16(posicao + 28, true) +
+      dados.getUint16(posicao + 30, true) +
+      dados.getUint16(posicao + 32, true);
+  }
+  return total;
+}
+
+async function conferirArquivo(arquivo: File, formato: 'csv' | 'xlsx'): Promise<Uint8Array> {
+  if (arquivo.size > MAX_BYTES_ARQUIVO) {
+    throw new ErroDePlanilha('O arquivo passa de 5 MB. Divida a planilha em partes menores.');
+  }
+
+  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+
+  if (formato === 'xlsx') {
+    // Todo .xlsx começa com "PK": é um ZIP. Outra coisa renomeada não passa.
+    const ehZip = bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
+    const aberto = ehZip ? tamanhoDescompactado(bytes) : undefined;
+    if (aberto === undefined) {
+      throw new ErroDePlanilha('Este arquivo não é uma planilha do Excel válida.');
+    }
+    if (aberto > MAX_BYTES_DESCOMPACTADO) {
+      throw new ErroDePlanilha('A planilha é grande demais para abrir. Divida em partes menores.');
+    }
+  } else if (bytes.subarray(0, 65_536).includes(0)) {
+    // Texto não tem byte zero; executável e imagem renomeados para .csv têm.
+    throw new ErroDePlanilha('Este arquivo não é um CSV de texto.');
+  }
+
+  return bytes;
+}
 
 /**
  * Decodifica o arquivo de texto respeitando a codificação.
@@ -105,10 +186,12 @@ export async function lerPlanilha(arquivo: File): Promise<PlanilhaLida> {
   const nome = arquivo.name.toLowerCase();
 
   if (nome.endsWith('.csv')) {
-    return lerCsv(decodificarTexto(await arquivo.arrayBuffer()));
+    const bytes = await conferirArquivo(arquivo, 'csv');
+    return lerCsv(decodificarTexto(bytes.buffer as ArrayBuffer));
   }
 
-  if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
+  if (nome.endsWith('.xlsx')) {
+    await conferirArquivo(arquivo, 'xlsx');
     return lerExcel(arquivo);
   }
 

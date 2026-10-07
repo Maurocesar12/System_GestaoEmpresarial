@@ -4,7 +4,7 @@ import { FileSpreadsheet, Upload } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
-import { lerPlanilha } from '@/lib/planilha';
+import { EXTENSOES_ACEITAS, lerPlanilha } from '@/lib/planilha';
 import { importarLancamentos } from './acoes';
 
 const COLUNAS = ['tipo', 'natureza', 'descricao', 'valor', 'data', 'vencimento', 'pagoEm'] as const;
@@ -75,7 +75,7 @@ export function ImportadorFinanceiro() {
         <span className="text-muted-foreground text-xs">Até 500 lançamentos por importação.</span>
         <input
           type="file"
-          accept=".csv,.xlsx,.xls"
+          accept={EXTENSOES_ACEITAS.join(',')}
           className="sr-only"
           onChange={(e) => {
             const arquivo = e.target.files?.[0];

@@ -179,3 +179,24 @@ export async function prepararAnexo(arquivo: File): Promise<AnexoPreparado> {
     bytesOriginais: reduzida ? arquivo.size : undefined,
   };
 }
+
+/**
+ * Abre um anexo para ver, em nova aba.
+ *
+ * Não navega para o `data:` direto: os navegadores bloqueiam abrir `data:` em
+ * aba nova, e o tipo dele é texto que veio de fora. Aqui o tipo do `Blob` sai
+ * da lista fixa de tipos aceitos — um conteúdo que diga ser outra coisa (uma
+ * página HTML, por exemplo) simplesmente não abre. `noopener` impede a aba
+ * nova de alcançar esta página.
+ */
+export function abrirAnexo(anexo: Pick<AnexoLancamentoInput, 'mimeType' | 'conteudo'>): void {
+  const tipo = MIME_TYPES_ANEXO_LANCAMENTO.find((aceito) => aceito === anexo.mimeType);
+  const [cabecalho = '', base64 = ''] = anexo.conteudo.split(',');
+  if (!tipo || cabecalho !== `data:${tipo};base64`) return;
+
+  const bytes = Uint8Array.from(atob(base64), (caractere) => caractere.charCodeAt(0));
+  const endereco = URL.createObjectURL(new Blob([bytes], { type: tipo }));
+  window.open(endereco, '_blank', 'noopener,noreferrer');
+  // A aba nova já carregou o arquivo; o endereço temporário pode ser liberado.
+  setTimeout(() => URL.revokeObjectURL(endereco), 60_000);
+}

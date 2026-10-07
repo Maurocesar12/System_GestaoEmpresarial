@@ -42,7 +42,7 @@ import {
   sugerirVinculos,
   type ContaEmAberto,
 } from './conciliacao';
-import { conferirAnexo } from './conferencia-anexo';
+import { conferirAnexos, type AnexoConferido } from './conferencia-anexo';
 import { ZERO } from './decimal';
 import { hojeEmDia, paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
@@ -288,6 +288,7 @@ export class FinanceiroService {
       return this.criarParcelado(dados);
     }
 
+    const anexos = await conferirAnexos(dados.anexos);
     const lancamento = await this.prisma.comTenant(async (tx) => {
       await garantirVinculos(tx, dados);
       await garantirCategoriaDoTipo(tx, dados);
@@ -296,7 +297,7 @@ export class FinanceiroService {
         data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBanco(dados) },
         include: INCLUDE_RESUMO,
       });
-      await this.substituirAnexos(tx, criado.id, dados.anexos);
+      await this.substituirAnexos(tx, criado.id, anexos);
 
       const completo = await tx.lancamentoFinanceiro.findUniqueOrThrow({
         where: { id: criado.id },
@@ -420,6 +421,7 @@ export class FinanceiroService {
     // único lugar onde um parcelamento faz sentido ser acompanhado.
     const primeiroVencimento = dados.vencimento ?? dados.data;
 
+    const anexos = await conferirAnexos(dados.anexos);
     const lancamentos = await this.prisma.comTenant(async (tx) => {
       await garantirVinculos(tx, dados);
       await garantirCategoriaDoTipo(tx, dados);
@@ -455,7 +457,7 @@ export class FinanceiroService {
       // cada cobrança, e replicá-la em 24 linhas multiplicaria o mesmo arquivo
       // no banco.
       const primeira = criados[0]!;
-      await this.substituirAnexos(tx, primeira.id, dados.anexos);
+      await this.substituirAnexos(tx, primeira.id, anexos);
 
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
@@ -482,6 +484,7 @@ export class FinanceiroService {
    * `set_config` + consulta + `COMMIT`) sem ganhar atomicidade nenhuma.
    */
   async atualizar(id: string, dados: LancamentoFormInput): Promise<Lancamento> {
+    const anexos = await conferirAnexos(dados.anexos);
     const lancamento = await this.prisma.comTenant(async (tx) => {
       const [anterior] = await Promise.all([
         tx.lancamentoFinanceiro.findUnique({ where: { id }, include: INCLUDE_COMPLETO }),
@@ -501,7 +504,7 @@ export class FinanceiroService {
         data: this.paraBanco(dados),
         include: INCLUDE_RESUMO,
       });
-      await this.substituirAnexos(tx, id, dados.anexos);
+      await this.substituirAnexos(tx, id, anexos);
 
       const completo = await tx.lancamentoFinanceiro.findUniqueOrThrow({
         where: { id },
@@ -1056,15 +1059,19 @@ export class FinanceiroService {
     };
   }
 
+  /**
+   * Grava os anexos já conferidos por `conferirAnexos`.
+   *
+   * A conferência acontece antes da transação, em quem chama: recodificar
+   * imagem e abrir PDF levam centenas de milissegundos, e segurar a transação
+   * do banco esse tempo todo atrasaria as outras requisições. E um arquivo
+   * recusado ali nunca chega a apagar os anexos que o lançamento já tinha.
+   */
   private async substituirAnexos(
     tx: TransacaoComTenant,
     lancamentoId: string,
-    anexos: LancamentoFormInput['anexos'],
+    conferidos: AnexoConferido[],
   ): Promise<void> {
-    // Confere todos antes de apagar qualquer um: um arquivo recusado não pode
-    // deixar o lançamento sem os anexos que já tinha.
-    const conferidos = anexos.map((anexo, indice) => conferirAnexo(anexo, indice));
-
     await tx.anexoLancamento.deleteMany({ where: { lancamentoId } });
 
     if (conferidos.length === 0) {
