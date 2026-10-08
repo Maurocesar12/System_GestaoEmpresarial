@@ -39,11 +39,6 @@ export const lembretesQuerySchema = paginacaoQuerySchema.extend({
 
 export type LembretesQuery = z.infer<typeof lembretesQuerySchema>;
 
-export const ROTULO_CANAL_LEMBRETE: Record<CanalLembrete, string> = {
-  email: 'E-mail',
-  whatsapp: 'WhatsApp',
-};
-
 export const ROTULO_STATUS_LEMBRETE: Record<StatusLembrete, string> = {
   pendente: 'Pendente',
   enviado: 'Enviado',

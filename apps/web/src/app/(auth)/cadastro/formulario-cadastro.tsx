@@ -15,9 +15,8 @@ const CAMPOS = ['nomeEmpresa', 'nomeResponsavel', 'email', 'senha'] as const;
 /**
  * Formulário de cadastro de empresa.
  *
- * Valida com `cadastroSchema`, o mesmo schema que a API usa — inclusive a regra
- * de senha. Assim a mensagem "a senha precisa de pelo menos 10 caracteres"
- * aparece enquanto a pessoa digita, e não depois de enviar.
+ * Não valida nada na tela: a API valida (inclusive a regra de senha) e devolve
+ * o erro de cada campo, que aparece embaixo do campo certo.
  */
 export function FormularioCadastro() {
   const [falha, setFalha] = useState<ResultadoAcao>();

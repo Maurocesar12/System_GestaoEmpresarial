@@ -30,11 +30,6 @@ export const MOVIMENTOS_RESERVA = ['aporte', 'resgate'] as const;
 export const movimentoReservaSchema = z.enum(MOVIMENTOS_RESERVA);
 export type MovimentoReserva = z.infer<typeof movimentoReservaSchema>;
 
-export const ROTULO_MOVIMENTO_RESERVA: Record<MovimentoReserva, string> = {
-  aporte: 'Guardar',
-  resgate: 'Resgatar',
-};
-
 export const movimentacaoFormSchema = z.object({
   tipo: movimentoReservaSchema,
   valor: dinheiroDigitadoSchema,

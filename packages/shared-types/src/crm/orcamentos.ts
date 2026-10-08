@@ -107,12 +107,6 @@ export const ROTULO_STATUS: Record<StatusOrcamento, string> = {
   recusado: 'Recusado',
 };
 
-export const ROTULO_ACAO: Record<AcaoOrcamento, string> = {
-  aprovar: 'Aprovar',
-  recusar: 'Recusar',
-  reabrir: 'Reabrir',
-};
-
 export interface Orcamento {
   id: string;
   clienteId: string;

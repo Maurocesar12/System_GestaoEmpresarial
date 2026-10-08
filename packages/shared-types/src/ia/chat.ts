@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LIMITE_HISTORICO_CHAT } from './chat-exibicao';
 
 /**
  * Contrato do chat do painel.
@@ -37,15 +38,6 @@ export const mensagemChatSchema = z.object({
 });
 
 export type MensagemChat = z.infer<typeof mensagemChatSchema>;
-
-/**
- * Quantas mensagens anteriores viajam junto com a pergunta.
- *
- * O histórico é o que faz "e no mês passado?" significar alguma coisa. Dez
- * mensagens cobrem uma conversa inteira de suporte e mantêm o custo por
- * pergunta previsível — o contexto do modelo cresce com cada uma delas.
- */
-export const LIMITE_HISTORICO_CHAT = 10;
 
 export const chatIaSchema = z.object({
   mensagem: z.string().trim().min(2, 'Digite uma pergunta.').max(1_000, 'Pergunta muito longa.'),

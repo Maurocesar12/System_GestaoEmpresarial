@@ -13,12 +13,9 @@ import Link from 'next/link';
 /**
  * Formulário de login.
  *
- * A validação usa `loginSchema`, o **mesmo** schema que a API aplica no
- * servidor. Não há como o formulário aceitar algo que a API recusa, nem o
- * contrário — a regra existe em um lugar só, em `@gestao/shared-types`.
- *
- * A validação no cliente serve para dar resposta imediata a quem digita. A que
- * protege o sistema é a do servidor, que roda de qualquer forma.
+ * Não valida nada na tela: quem valida é a API, e os erros por campo voltam da
+ * ação e são marcados aqui. Assim a regra existe num lugar só — e a tela não
+ * carrega a biblioteca de validação.
  */
 export function FormularioLogin() {
   const [falha, setFalha] = useState<ResultadoAcao>();

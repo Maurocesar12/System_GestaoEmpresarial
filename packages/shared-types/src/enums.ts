@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TIPOS_CUSTO, CANAIS_LEMBRETE } from './enums-exibicao';
 
 /**
  * Enums de domínio.
@@ -32,8 +33,6 @@ export const STATUS_AGENDAMENTO = ['agendado', 'confirmado', 'executado', 'cance
 export const statusAgendamentoSchema = z.enum(STATUS_AGENDAMENTO);
 export type StatusAgendamento = z.infer<typeof statusAgendamentoSchema>;
 
-/** Canal de envio do lembrete de follow-up. WhatsApp aqui é mensagem *utility*. */
-export const CANAIS_LEMBRETE = ['email', 'whatsapp'] as const;
 export const canalLembreteSchema = z.enum(CANAIS_LEMBRETE);
 export type CanalLembrete = z.infer<typeof canalLembreteSchema>;
 
@@ -53,15 +52,6 @@ export const NATUREZAS_LANCAMENTO = ['pessoal', 'empresa'] as const;
 export const naturezaLancamentoSchema = z.enum(NATUREZAS_LANCAMENTO);
 export type NaturezaLancamento = z.infer<typeof naturezaLancamentoSchema>;
 
-/**
- * Para que serve uma categoria financeira.
- *
- * `fixo` e `variavel` classificam despesa e alimentam o custo operacional e a
- * margem. `receita` é para as categorias de entrada — sem ela, "Venda de
- * serviço" tinha de se declarar custo fixo ou variável, o que não significa
- * nada e punha receita ao lado de despesa nos seletores.
- */
-export const TIPOS_CUSTO = ['fixo', 'variavel', 'receita'] as const;
 export const tipoCustoSchema = z.enum(TIPOS_CUSTO);
 export type TipoCusto = z.infer<typeof tipoCustoSchema>;
 

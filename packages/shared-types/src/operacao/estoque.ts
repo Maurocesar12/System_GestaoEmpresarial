@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { dinheiroDigitadoSchema } from '../common/dinheiro';
 import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
+import { UNIDADES_MATERIAL } from './estoque-exibicao';
 
 /**
  * Contrato do estoque de materiais.
@@ -19,37 +20,8 @@ import { paginacaoQuerySchema } from '../common/paginacao';
  * também apontasse para o serviço, o mesmo parafuso seria custo duas vezes.
  */
 
-export const UNIDADES_MATERIAL = [
-  'un',
-  'pc',
-  'par',
-  'cx',
-  'rolo',
-  'm',
-  'm2',
-  'm3',
-  'kg',
-  'g',
-  'l',
-  'ml',
-] as const;
 export const unidadeMaterialSchema = z.enum(UNIDADES_MATERIAL);
 export type UnidadeMaterial = z.infer<typeof unidadeMaterialSchema>;
-
-export const ROTULO_UNIDADE: Record<UnidadeMaterial, string> = {
-  un: 'Unidade',
-  pc: 'Peça',
-  par: 'Par',
-  cx: 'Caixa',
-  rolo: 'Rolo',
-  m: 'Metro',
-  m2: 'Metro quadrado',
-  m3: 'Metro cúbico',
-  kg: 'Quilo',
-  g: 'Grama',
-  l: 'Litro',
-  ml: 'Mililitro',
-};
 
 export const TIPOS_MOVIMENTACAO_ESTOQUE = ['entrada', 'consumo', 'ajuste'] as const;
 export type TipoMovimentacaoEstoque = (typeof TIPOS_MOVIMENTACAO_ESTOQUE)[number];

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { paginacaoQuerySchema } from '../common/paginacao';
+import { LIMITE_EXCLUSAO_HISTORICO } from './auditoria-exibicao';
 
 export const ACOES_AUDITORIA = [
   'criou',
@@ -66,16 +67,6 @@ export interface RegistroAuditoria {
   depois: unknown;
   criadoEm: string;
 }
-
-/**
- * Teto de uma exclusão em lote.
- *
- * A remoção roda numa transação só — o que garante que o histórico e o registro
- * da própria exclusão nunca divirjam. Transação longa segura conexão do pool e
- * bloqueia linhas, então o lote tem tamanho máximo: a tela pagina de 30 em 30 e
- * nunca chega perto disso.
- */
-export const LIMITE_EXCLUSAO_HISTORICO = 100;
 
 export const exclusaoHistoricoSchema = z.object({
   ids: z

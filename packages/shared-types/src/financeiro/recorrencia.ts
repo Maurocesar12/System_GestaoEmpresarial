@@ -7,6 +7,7 @@ import {
 } from '../enums';
 import { dinheiroDigitadoSchema } from '../common/dinheiro';
 import { opcional } from '../common/opcional';
+import { PERIODICIDADES } from './recorrencia-exibicao';
 
 /**
  * Lançamento recorrente: o molde de uma despesa ou receita que se repete.
@@ -29,16 +30,8 @@ import { opcional } from '../common/opcional';
  * aprender um tipo novo.
  */
 
-export const PERIODICIDADES = ['semanal', 'mensal', 'trimestral', 'anual'] as const;
 export const periodicidadeSchema = z.enum(PERIODICIDADES);
 export type Periodicidade = z.infer<typeof periodicidadeSchema>;
-
-export const ROTULO_PERIODICIDADE: Record<Periodicidade, string> = {
-  semanal: 'Toda semana',
-  mensal: 'Todo mês',
-  trimestral: 'A cada três meses',
-  anual: 'Todo ano',
-};
 
 /**
  * Quantos dias antes do vencimento a ocorrência é criada.

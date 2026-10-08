@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -42,6 +43,11 @@ async function bootstrap(): Promise<void> {
 
   // Cabeçalhos de segurança (arquitetura §9.2).
   app.use(helmet());
+
+  // Comprime as respostas: a web (Vercel) e a API (Render) conversam pela
+  // internet, e listas e o painel em JSON encolhem para cerca de um quinto.
+  // Abaixo de 1 KB não compensa o custo de comprimir.
+  app.use(compression({ threshold: 1024 }));
 
   // CORS restrito às origens configuradas — nunca '*', porque a API responde
   // a um frontend que envia credenciais.

@@ -170,13 +170,6 @@ export const ROTULO_STATUS_AGENDAMENTO: Record<StatusAgendamento, string> = {
   cancelado: 'Cancelado',
 };
 
-export const ROTULO_ACAO_AGENDAMENTO: Record<AcaoAgendamento, string> = {
-  confirmar: 'Confirmar',
-  executar: 'Marcar como executado',
-  cancelar: 'Cancelar',
-  reagendar: 'Reagendar',
-};
-
 export interface Agendamento {
   id: string;
   clienteId: string;

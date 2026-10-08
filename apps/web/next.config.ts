@@ -9,6 +9,15 @@ const raizMonorepo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  /**
+   * Empacota o contrato compartilhado a partir da versão ESM dele.
+   *
+   * Em CommonJS o bundler não consegue descartar o que não é usado: a tela que
+   * importava só `formatarBRL` levava junto todos os schemas e o Zod (~390 KB).
+   * Em ESM, marcado `sideEffects: false`, cada tela leva só o que usa.
+   */
+  transpilePackages: ['@gestao/shared-types'],
   poweredByHeader: false,
   // O `next dev` gerava AGENTS.md e CLAUDE.md na pasta do app a cada subida, e
   // eles acabavam entrando nos commits sem ninguém pedir.

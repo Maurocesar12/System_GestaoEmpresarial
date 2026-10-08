@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PAPEIS_USUARIO, type PapelUsuario } from '../enums';
 import { PERMISSOES, PERMISSOES_PADRAO_POR_PAPEL, type Permissao } from './permissoes';
+import { ROTULO_PAPEL } from './acessos-exibicao';
 
 /**
  * Acesso por área: a forma de configurar permissões que as pessoas entendem.
@@ -368,13 +369,6 @@ export const acessoAreaSchema = z.object({
 
 /** A escolha por área que a tela envia. Áreas ausentes ficam sem acesso. */
 export const mapaAcessosSchema = z.partialRecord(z.enum(AREAS_ACESSO_IDS), acessoAreaSchema);
-
-export const ROTULO_PAPEL: Record<PapelUsuario, string> = {
-  admin: 'Administrador',
-  financeiro: 'Financeiro',
-  atendente: 'Atendente',
-  tecnico: 'Técnico',
-};
 
 /** Para que serve cada papel — o ponto de partida antes de personalizar. */
 export const DESCRICAO_PAPEL: Record<PapelUsuario, string> = {
