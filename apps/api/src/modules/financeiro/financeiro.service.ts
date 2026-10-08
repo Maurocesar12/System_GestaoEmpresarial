@@ -1,13 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
-  CODIGOS_ERRO,
   type AnaliseConciliacaoInput,
   type ConciliacaoAnalisada,
-  MIME_TYPES_ANEXO_LANCAMENTO,
   dividirEmParcelas,
   ocorrenciaDoCiclo,
   paginar,
-  statusDoLancamento,
   type BaixaFormInput,
   type CategoriaFinanceira,
   type CategoriaFormInput,
@@ -15,12 +12,10 @@ import {
   type Lancamento,
   type LancamentoFormInput,
   type LancamentosQuery,
-  type MargemPorServico,
   type Paginado,
   type PeriodoQuery,
   type RelatorioMargem,
   type ResumoContas,
-  type StatusLancamento,
   type ImportacaoLancamentosInput,
   type ResultadoImportacaoLancamentos,
   type ExportacaoFinanceira,
@@ -30,85 +25,24 @@ import { Prisma } from '../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { garantirVinculos } from '../../common/vinculos';
-import { garantirCategoriaDoTipo, tiposQueACategoriaServe } from './categoria-do-tipo';
-import {
-  ColunasNaoEncontradas,
-  extrairMovimentacoes,
-  sugerirVinculos,
-  type ContaEmAberto,
-} from './conciliacao';
-import { conferirAnexos, type AnexoConferido } from './conferencia-anexo';
-import { ZERO } from './decimal';
+import { garantirCategoriaDoTipo } from './categoria-do-tipo';
+import { conferirAnexos } from './conferencia-anexo';
 import { hojeEmDia, paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 import { naoEncontrado, conflito } from '../../common/erros';
-
-/** Quantas contas em aberto entram na conciliação, das que vencem antes. */
-const LIMITE_CONTAS_CONCILIACAO = 500;
-
-/**
- * Traduz a situação — que é derivada — para um filtro que o banco entende.
- *
- * Precisa existir porque não há coluna `status` para o `where` apontar. A
- * tradução é a mesma regra de `statusDoLancamento`, escrita na linguagem do
- * Prisma; as duas são cobertas pelos testes de integração justamente para não
- * divergirem.
- */
-function filtroDeStatus(status: StatusLancamento): Prisma.LancamentoFinanceiroWhereInput {
-  if (status === 'pago') {
-    return { pagoEm: { not: null } };
-  }
-
-  if (status === 'atrasado') {
-    return { pagoEm: null, vencimento: { lt: new Date(`${hojeEmDia()}T00:00:00Z`) } };
-  }
-
-  // A vencer: em aberto e ainda no prazo — incluindo o que não tem vencimento,
-  // que nunca fica atrasado.
-  return {
-    pagoEm: null,
-    OR: [{ vencimento: null }, { vencimento: { gte: new Date(`${hojeEmDia()}T00:00:00Z`) } }],
-  };
-}
-
-const RELACIONAMENTOS_PADRAO = {
-  categoria: { select: { nome: true } },
-  servico: { select: { nome: true } },
-  cliente: { select: { nome: true } },
-} as const;
-
-const INCLUDE_RESUMO = {
-  ...RELACIONAMENTOS_PADRAO,
-  anexos: {
-    select: {
-      id: true,
-      nome: true,
-      mimeType: true,
-      tamanhoBytes: true,
-      criadoEm: true,
-    },
-    orderBy: { criadoEm: 'asc' },
-  },
-} as const;
-
-const INCLUDE_COMPLETO = {
-  ...RELACIONAMENTOS_PADRAO,
-  anexos: { orderBy: { criadoEm: 'asc' } },
-} as const;
-
-/**
- * O registro como ele volta do banco, derivado do próprio schema.
- *
- * Escrever este tipo à mão significaria mantê-lo sincronizado com o Prisma na
- * unha, e o TypeScript não avisaria quando os dois divergissem.
- */
-type LancamentoBanco =
-  | Prisma.LancamentoFinanceiroGetPayload<{
-      include: typeof INCLUDE_RESUMO;
-    }>
-  | Prisma.LancamentoFinanceiroGetPayload<{
-      include: typeof INCLUDE_COMPLETO;
-    }>;
+import * as conciliacaoBanco from './analise-conciliacao';
+import * as categoriasBanco from './categorias-financeiras';
+import {
+  INCLUDE_COMPLETO,
+  INCLUDE_RESUMO,
+  montarFiltro,
+  paraAuditoria,
+  paraBanco,
+  paraResposta,
+  resumirLancamento,
+  substituirAnexos,
+} from './lancamento-banco';
+import * as relatorios from './relatorios-financeiros';
 
 /**
  * Financeiro: lançamentos, categorias e os relatórios que deles derivam.
@@ -125,132 +59,43 @@ export class FinanceiroService {
     private readonly auditoria: AuditoriaService,
   ) {}
 
-  // --- Conciliação ---------------------------------------------------------
+  // --- Conciliação, categorias e relatórios ---------------------------------
+  //
+  // Moram em arquivos próprios (`analise-conciliacao.ts`, `categorias-financeiras.ts`
+  // e `relatorios-financeiros.ts`). Aqui ficam só as portas que o controller usa.
 
-  /**
-   * Lê o extrato e sugere com qual conta em aberto cada movimentação bate.
-   *
-   * Não grava nada: conciliar é dar baixa na conta escolhida, pela rota de
-   * baixa de sempre. As contas vêm do banco aqui mesmo — a tela passava as que
-   * tinha carregado, até cem por situação.
-   */
-  async analisarConciliacao(dados: AnaliseConciliacaoInput): Promise<ConciliacaoAnalisada> {
-    let extraidas: ReturnType<typeof extrairMovimentacoes>;
-
-    try {
-      extraidas = extrairMovimentacoes(dados.cabecalhos, dados.linhas);
-    } catch (erro) {
-      if (erro instanceof ColunasNaoEncontradas) {
-        throw new BadRequestException({
-          codigo: CODIGOS_ERRO.VALIDACAO,
-          mensagem: erro.message,
-          detalhes: { cabecalhos: [erro.message] },
-        });
-      }
-      throw erro;
-    }
-
-    const abertas = await this.prisma.comTenant((tx) =>
-      tx.lancamentoFinanceiro.findMany({
-        where: { pagoEm: null, natureza: 'empresa' },
-        select: {
-          id: true,
-          tipo: true,
-          descricao: true,
-          valor: true,
-          data: true,
-          vencimento: true,
-        },
-        orderBy: [{ vencimento: 'asc' }, { data: 'asc' }],
-        take: LIMITE_CONTAS_CONCILIACAO,
-      }),
-    );
-
-    const contas: ContaEmAberto[] = abertas.map((conta) => ({
-      id: conta.id,
-      tipo: conta.tipo,
-      descricao: conta.descricao,
-      valor: conta.valor,
-      referencia: paraDia(conta.vencimento ?? conta.data)!,
-    }));
-
-    return {
-      movimentacoes: sugerirVinculos(extraidas.movimentacoes, contas),
-      ignoradas: extraidas.ignoradas,
-      contasEmAberto: contas.length,
-    };
+  analisarConciliacao(dados: AnaliseConciliacaoInput): Promise<ConciliacaoAnalisada> {
+    return conciliacaoBanco.analisarConciliacao(this.prisma, dados);
   }
 
-  // --- Categorias ----------------------------------------------------------
-
-  async listarCategorias(): Promise<CategoriaFinanceira[]> {
-    const categorias = await this.prisma.comTenant((tx) =>
-      tx.categoriaFinanceira.findMany({ orderBy: { nome: 'asc' } }),
-    );
-
-    return categorias.map((categoria) => ({
-      id: categoria.id,
-      nome: categoria.nome,
-      tipoCusto: categoria.tipoCusto,
-      servePara: tiposQueACategoriaServe(categoria.tipoCusto),
-      criadoEm: categoria.criadoEm.toISOString(),
-    }));
+  listarCategorias(): Promise<CategoriaFinanceira[]> {
+    return categoriasBanco.listarCategorias(this.prisma);
   }
 
-  async criarCategoria(dados: CategoriaFormInput): Promise<CategoriaFinanceira> {
-    const categoria = await this.prisma.comTenant(async (tx) => {
-      const existente = await tx.categoriaFinanceira.findFirst({
-        where: { nome: dados.nome },
-        select: { id: true },
-      });
-
-      if (existente) {
-        throw conflito('Já existe uma categoria com este nome.');
-      }
-
-      return tx.categoriaFinanceira.create({
-        data: { id: uuidv7(), tenantId: tenantAtual(), ...dados },
-      });
-    });
-
-    return {
-      id: categoria.id,
-      nome: categoria.nome,
-      tipoCusto: categoria.tipoCusto,
-      servePara: tiposQueACategoriaServe(categoria.tipoCusto),
-      criadoEm: categoria.criadoEm.toISOString(),
-    };
+  criarCategoria(dados: CategoriaFormInput): Promise<CategoriaFinanceira> {
+    return categoriasBanco.criarCategoria(this.prisma, dados);
   }
 
-  /**
-   * Remove uma categoria.
-   *
-   * Recusa se houver lançamento usando. Apagar desvincularia registros do
-   * passado, e o relatório de custo fixo do mês anterior mudaria sozinho.
-   */
-  async removerCategoria(id: string): Promise<void> {
-    await this.prisma.comTenant(async (tx) => {
-      const emUso = await tx.lancamentoFinanceiro.count({ where: { categoriaId: id } });
+  removerCategoria(id: string): Promise<void> {
+    return categoriasBanco.removerCategoria(this.prisma, id);
+  }
 
-      if (emUso > 0) {
-        throw new BadRequestException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: `Esta categoria tem ${emUso} lançamento(s). Reclassifique-os antes de excluí-la.`,
-        });
-      }
+  resumoContas(): Promise<ResumoContas> {
+    return relatorios.resumoContas(this.prisma);
+  }
 
-      const removidas = await tx.categoriaFinanceira.deleteMany({ where: { id } });
+  fluxoDeCaixa(query: PeriodoQuery): Promise<FluxoDeCaixa> {
+    return relatorios.fluxoDeCaixa(this.prisma, query);
+  }
 
-      if (removidas.count === 0) {
-        throw naoEncontrado('Categoria não encontrada.');
-      }
-    });
+  margemPorServico(query: PeriodoQuery): Promise<RelatorioMargem> {
+    return relatorios.margemPorServico(this.prisma, query);
   }
 
   // --- Lançamentos ---------------------------------------------------------
 
   async listar(query: LancamentosQuery): Promise<Paginado<Lancamento>> {
-    const where = this.montarFiltro(query);
+    const where = montarFiltro(query);
 
     const [registros, total] = await this.prisma.comTenant((tx) =>
       Promise.all([
@@ -267,7 +112,7 @@ export class FinanceiroService {
     );
 
     return paginar(
-      registros.map((registro) => this.paraResposta(registro)),
+      registros.map((registro) => paraResposta(registro)),
       total,
       query,
     );
@@ -284,10 +129,10 @@ export class FinanceiroService {
       await garantirCategoriaDoTipo(tx, dados);
 
       const criado = await tx.lancamentoFinanceiro.create({
-        data: { id: uuidv7(), tenantId: tenantAtual(), ...this.paraBanco(dados) },
+        data: { id: uuidv7(), tenantId: tenantAtual(), ...paraBanco(dados) },
         include: INCLUDE_RESUMO,
       });
-      await this.substituirAnexos(tx, criado.id, anexos);
+      await substituirAnexos(tx, criado.id, anexos);
 
       const completo = await tx.lancamentoFinanceiro.findUniqueOrThrow({
         where: { id: criado.id },
@@ -298,13 +143,13 @@ export class FinanceiroService {
         entidade: 'lancamento',
         entidadeId: completo.id,
         acao: 'criou',
-        resumo: this.resumirLancamento('Lançamento criado', completo),
-        depois: this.paraAuditoria(completo),
+        resumo: resumirLancamento('Lançamento criado', completo),
+        depois: paraAuditoria(completo),
       });
       return completo;
     });
 
-    return this.paraResposta(lancamento);
+    return paraResposta(lancamento);
   }
 
   /**
@@ -363,11 +208,11 @@ export class FinanceiroService {
       entidade: 'lancamento',
       entidadeId: criado.id,
       acao: 'criou',
-      resumo: this.resumirLancamento(
+      resumo: resumirLancamento(
         recebido ? 'Recebimento do serviço executado' : 'Conta a receber do serviço executado',
         criado,
       ),
-      depois: this.paraAuditoria(criado),
+      depois: paraAuditoria(criado),
     });
   }
 
@@ -416,7 +261,7 @@ export class FinanceiroService {
       await garantirVinculos(tx, dados);
       await garantirCategoriaDoTipo(tx, dados);
 
-      const base = this.paraBanco(dados);
+      const base = paraBanco(dados);
       const tenantId = tenantAtual();
 
       const criados = [];
@@ -447,7 +292,7 @@ export class FinanceiroService {
       // cada cobrança, e replicá-la em 24 linhas multiplicaria o mesmo arquivo
       // no banco.
       const primeira = criados[0]!;
-      await this.substituirAnexos(tx, primeira.id, anexos);
+      await substituirAnexos(tx, primeira.id, anexos);
 
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
@@ -463,7 +308,7 @@ export class FinanceiroService {
       });
     });
 
-    return this.paraResposta(lancamentos);
+    return paraResposta(lancamentos);
   }
 
   /**
@@ -488,10 +333,10 @@ export class FinanceiroService {
 
       await tx.lancamentoFinanceiro.update({
         where: { id },
-        data: this.paraBanco(dados),
+        data: paraBanco(dados),
         include: INCLUDE_RESUMO,
       });
-      await this.substituirAnexos(tx, id, anexos);
+      await substituirAnexos(tx, id, anexos);
 
       const completo = await tx.lancamentoFinanceiro.findUniqueOrThrow({
         where: { id },
@@ -502,14 +347,14 @@ export class FinanceiroService {
         entidade: 'lancamento',
         entidadeId: id,
         acao: 'alterou',
-        resumo: this.resumirLancamento('Lançamento alterado', completo),
-        antes: this.paraAuditoria(anterior),
-        depois: this.paraAuditoria(completo),
+        resumo: resumirLancamento('Lançamento alterado', completo),
+        antes: paraAuditoria(anterior),
+        depois: paraAuditoria(completo),
       });
       return completo;
     });
 
-    return this.paraResposta(lancamento);
+    return paraResposta(lancamento);
   }
 
   async buscarPorId(id: string): Promise<Lancamento> {
@@ -521,7 +366,7 @@ export class FinanceiroService {
       throw naoEncontrado('Lançamento não encontrado.');
     }
 
-    return this.paraResposta(lancamento);
+    return paraResposta(lancamento);
   }
 
   async remover(id: string): Promise<void> {
@@ -544,8 +389,8 @@ export class FinanceiroService {
           entidade: 'lancamento',
           entidadeId: id,
           acao: 'excluiu',
-          resumo: this.resumirLancamento('Lançamento excluído', anterior),
-          antes: this.paraAuditoria(anterior),
+          resumo: resumirLancamento('Lançamento excluído', anterior),
+          antes: paraAuditoria(anterior),
         });
       }
       return resultado;
@@ -564,7 +409,7 @@ export class FinanceiroService {
         registros.push({
           id: uuidv7(),
           tenantId: tenantAtual(),
-          ...this.paraBanco({
+          ...paraBanco({
             ...item,
             categoriaId: null,
             servicoId: null,
@@ -661,14 +506,14 @@ export class FinanceiroService {
         entidade: 'lancamento',
         entidadeId: id,
         acao: 'movimentou',
-        resumo: this.resumirLancamento('Baixa registrada', alterado),
+        resumo: resumirLancamento('Baixa registrada', alterado),
         antes: { pagoEm: null },
         depois: { pagoEm: alterado.pagoEm?.toISOString() ?? null },
       });
       return alterado;
     });
 
-    return this.paraResposta(lancamento);
+    return paraResposta(lancamento);
   }
 
   /**
@@ -702,424 +547,13 @@ export class FinanceiroService {
         entidade: 'lancamento',
         entidadeId: id,
         acao: 'movimentou',
-        resumo: this.resumirLancamento('Baixa estornada', alterado),
+        resumo: resumirLancamento('Baixa estornada', alterado),
         antes: { pagoEm: atual.pagoEm.toISOString() },
         depois: { pagoEm: null },
       });
       return alterado;
     });
 
-    return this.paraResposta(lancamento);
-  }
-
-  /**
-   * Quanto há em aberto, e quanto disso já venceu.
-   *
-   * São quatro somas agregadas no banco, e não uma varredura de lançamentos:
-   * a tela precisa de oito números, não da lista inteira.
-   */
-  async resumoContas(): Promise<ResumoContas> {
-    const hoje = new Date(`${hojeEmDia()}T00:00:00Z`);
-    const emAberto: Prisma.LancamentoFinanceiroWhereInput = {
-      pagoEm: null,
-      natureza: 'empresa',
-    };
-    const vencido = { ...emAberto, vencimento: { lt: hoje } };
-
-    const [receber, pagar, receberVencido, pagarVencido] = await this.prisma.comTenant((tx) =>
-      Promise.all([
-        tx.lancamentoFinanceiro.aggregate({
-          where: { ...emAberto, tipo: 'entrada' },
-          _sum: { valor: true },
-          _count: { _all: true },
-        }),
-        tx.lancamentoFinanceiro.aggregate({
-          where: { ...emAberto, tipo: 'saida' },
-          _sum: { valor: true },
-          _count: { _all: true },
-        }),
-        tx.lancamentoFinanceiro.aggregate({
-          where: { ...vencido, tipo: 'entrada' },
-          _sum: { valor: true },
-          _count: { _all: true },
-        }),
-        tx.lancamentoFinanceiro.aggregate({
-          where: { ...vencido, tipo: 'saida' },
-          _sum: { valor: true },
-          _count: { _all: true },
-        }),
-      ]),
-    );
-
-    const totalizar = (grupo: {
-      _sum: { valor: Prisma.Decimal | null };
-      _count: { _all: number };
-    }) => ({
-      total: (grupo._sum.valor ?? ZERO).toFixed(2),
-      quantidade: grupo._count._all,
-    });
-
-    return {
-      aReceber: totalizar(receber),
-      aPagar: totalizar(pagar),
-      vencidoAReceber: totalizar(receberVencido),
-      vencidoAPagar: totalizar(pagarVencido),
-    };
-  }
-
-  // --- Relatórios ----------------------------------------------------------
-
-  /**
-   * Fluxo de caixa do período.
-   *
-   * Ignora lançamentos pessoais por padrão: misturá-los ao caixa da empresa
-   * distorceria o custo operacional e, por consequência, toda decisão de preço.
-   */
-  async fluxoDeCaixa(query: PeriodoQuery): Promise<FluxoDeCaixa> {
-    const where = this.filtroDePeriodo(query);
-
-    // As quatro somas são independentes e vão juntas ao banco. Trazer as saídas
-    // linha a linha para somar em JavaScript custaria uma transferência
-    // proporcional ao movimento do mês para produzir dois números.
-    const [porTipo, fixo, variavel] = await this.prisma.comTenant((tx) =>
-      Promise.all([
-        tx.lancamentoFinanceiro.groupBy({ by: ['tipo'], where, _sum: { valor: true } }),
-        // Saída sem categoria não entra em nenhum dos dois: classificá-la por
-        // suposição inventaria um número.
-        tx.lancamentoFinanceiro.aggregate({
-          where: { ...where, tipo: 'saida', categoria: { tipoCusto: 'fixo' } },
-          _sum: { valor: true },
-        }),
-        tx.lancamentoFinanceiro.aggregate({
-          where: { ...where, tipo: 'saida', categoria: { tipoCusto: 'variavel' } },
-          _sum: { valor: true },
-        }),
-      ]),
-    );
-
-    const entradas = porTipo.find((g) => g.tipo === 'entrada')?._sum.valor ?? ZERO;
-    const saidas = porTipo.find((g) => g.tipo === 'saida')?._sum.valor ?? ZERO;
-
-    const custoFixo = fixo._sum.valor ?? ZERO;
-    const custoVariavel = variavel._sum.valor ?? ZERO;
-
-    return {
-      entradas: entradas.toFixed(2),
-      saidas: saidas.toFixed(2),
-      saldo: entradas.minus(saidas).toFixed(2),
-      custoFixo: custoFixo.toFixed(2),
-      custoVariavel: custoVariavel.toFixed(2),
-
-      // O que sobra das saídas depois de tirar fixo e variável: as saídas sem
-      // categoria. Reportado em vez de ignorado para que os três números fechem
-      // com o total — antes eles não fechavam, e a diferença sumia calada.
-      //
-      // Calculado por subtração, e não com uma quarta consulta, porque
-      // `saidas` já é a soma de todas elas.
-      custoNaoClassificado: saidas.minus(custoFixo).minus(custoVariavel).toFixed(2),
-
-      periodo: { de: query.de, ate: query.ate },
-    };
-  }
-
-  /**
-   * Margem por tipo de serviço.
-   *
-   * Este é o relatório que justifica CRM e financeiro viverem no mesmo banco
-   * (§1). Ele responde a pergunta que o dono não consegue responder com
-   * planilha: *qual serviço realmente dá lucro?*
-   */
-  async margemPorServico(query: PeriodoQuery): Promise<RelatorioMargem> {
-    const where = this.filtroDePeriodo(query);
-
-    // Material e comissão não têm natureza nem categoria: são sempre da empresa
-    // e ficam fora quando o relatório é filtrado por algo que eles não têm.
-    const incluiOperacao = (query.natureza ?? 'empresa') === 'empresa' && !query.categoriaId;
-    const dias = {
-      gte: new Date(`${query.de}T00:00:00Z`),
-      lte: new Date(`${query.ate}T00:00:00Z`),
-    };
-
-    const [grupos, servicos, consumos, comissoes] = await this.prisma.comTenant((tx) =>
-      Promise.all([
-        // Uma passada só: receita e custo de todos os serviços, agrupados pelo
-        // banco. A alternativa — uma consulta por serviço — multiplicaria as
-        // idas ao banco pelo tamanho do catálogo.
-        tx.lancamentoFinanceiro.groupBy({
-          by: ['servicoId', 'tipo'],
-          where,
-          _sum: { valor: true },
-          _count: { _all: true },
-        }),
-        tx.servico.findMany({ select: { id: true, nome: true } }),
-        incluiOperacao
-          ? tx.movimentacaoEstoque.groupBy({
-              by: ['servicoId'],
-              where: { tipo: 'consumo', servicoId: { not: null }, data: dias },
-              _sum: { valorTotal: true },
-            })
-          : [],
-        incluiOperacao
-          ? tx.comissao.groupBy({
-              by: ['servicoId'],
-              where: { servicoId: { not: null }, competencia: dias },
-              _sum: { valor: true },
-            })
-          : [],
-      ]),
-    );
-
-    const nomePorServico = new Map(servicos.map((servico) => [servico.id, servico.nome]));
-    const acumulado = new Map<
-      string,
-      {
-        receita: Prisma.Decimal;
-        custoLancamentos: Prisma.Decimal;
-        custoMateriais: Prisma.Decimal;
-        custoComissoes: Prisma.Decimal;
-        quantidade: number;
-      }
-    >();
-    const linha = (servicoId: string) =>
-      acumulado.get(servicoId) ?? {
-        receita: ZERO,
-        custoLancamentos: ZERO,
-        custoMateriais: ZERO,
-        custoComissoes: ZERO,
-        quantidade: 0,
-      };
-
-    let receitaSemServico = ZERO;
-
-    for (const grupo of grupos) {
-      const valor = grupo._sum.valor ?? ZERO;
-
-      // Receita sem serviço vinculado fica de fora das margens, mas é reportada
-      // à parte — uma lacuna visível é melhor que um número silenciosamente
-      // incompleto.
-      if (!grupo.servicoId) {
-        if (grupo.tipo === 'entrada') {
-          receitaSemServico = receitaSemServico.plus(valor);
-        }
-        continue;
-      }
-
-      const atual = linha(grupo.servicoId);
-
-      if (grupo.tipo === 'entrada') {
-        atual.receita = atual.receita.plus(valor);
-        atual.quantidade += grupo._count._all;
-      } else {
-        atual.custoLancamentos = atual.custoLancamentos.plus(valor);
-      }
-
-      acumulado.set(grupo.servicoId, atual);
-    }
-
-    for (const grupo of consumos) {
-      if (!grupo.servicoId) continue;
-      const atual = linha(grupo.servicoId);
-      atual.custoMateriais = atual.custoMateriais.plus(grupo._sum.valorTotal ?? ZERO);
-      acumulado.set(grupo.servicoId, atual);
-    }
-
-    for (const grupo of comissoes) {
-      if (!grupo.servicoId) continue;
-      const atual = linha(grupo.servicoId);
-      atual.custoComissoes = atual.custoComissoes.plus(grupo._sum.valor ?? ZERO);
-      acumulado.set(grupo.servicoId, atual);
-    }
-
-    const itens: MargemPorServico[] = [...acumulado.entries()]
-      .map(([servicoId, valores]) => {
-        const { receita, custoLancamentos, custoMateriais, custoComissoes, quantidade } = valores;
-        const custo = custoLancamentos.plus(custoMateriais).plus(custoComissoes);
-        const margem = receita.minus(custo);
-
-        return {
-          servicoId,
-          servicoNome: nomePorServico.get(servicoId) ?? 'Serviço removido',
-          receita: receita.toFixed(2),
-          custo: custo.toFixed(2),
-          custoLancamentos: custoLancamentos.toFixed(2),
-          custoMateriais: custoMateriais.toFixed(2),
-          custoComissoes: custoComissoes.toFixed(2),
-          margem: margem.toFixed(2),
-          // Percentual só faz sentido com receita: dividir por zero não é
-          // "margem zero", é pergunta sem resposta.
-          margemPercentual: receita.isZero()
-            ? null
-            : Number(margem.dividedBy(receita).times(100).toFixed(1)),
-          quantidade,
-        };
-      })
-      // Maior margem primeiro: a pergunta é "o que dá mais lucro?".
-      .sort((a, b) => Number(b.margem) - Number(a.margem));
-
-    return {
-      itens,
-      receitaSemServico: receitaSemServico.toFixed(2),
-      periodo: { de: query.de, ate: query.ate },
-    };
-  }
-
-  // --- Apoio ---------------------------------------------------------------
-
-  /**
-   * O recorte de período compartilhado pelos dois relatórios.
-   *
-   * Filtra por `pagoEm`, e não por `data`. A diferença é o ponto inteiro das
-   * contas a receber: fluxo de caixa mede dinheiro que se moveu, e uma conta em
-   * aberto — por definição — não moveu. Somá-la faria o saldo do mês mostrar
-   * dinheiro que ainda não está na conta.
-   *
-   * Como consequência, `pagoEm: null` fica de fora: lançamento em aberto não
-   * entra em caixa nem em margem até a baixa.
-   */
-  private filtroDePeriodo(query: PeriodoQuery): Prisma.LancamentoFinanceiroWhereInput {
-    return {
-      pagoEm: {
-        gte: new Date(`${query.de}T00:00:00Z`),
-        lte: new Date(`${query.ate}T23:59:59.999Z`),
-      },
-      natureza: query.natureza ?? 'empresa',
-      ...(query.categoriaId ? { categoriaId: query.categoriaId } : {}),
-    };
-  }
-
-  private montarFiltro(query: LancamentosQuery): Prisma.LancamentoFinanceiroWhereInput {
-    const where: Prisma.LancamentoFinanceiroWhereInput = {};
-
-    if (query.tipo) where.tipo = query.tipo;
-    if (query.natureza) where.natureza = query.natureza;
-    if (query.categoriaId) where.categoriaId = query.categoriaId;
-    if (query.servicoId) where.servicoId = query.servicoId;
-    if (query.status) Object.assign(where, filtroDeStatus(query.status));
-
-    if (query.de || query.ate) {
-      where.data = {
-        ...(query.de ? { gte: new Date(`${query.de}T00:00:00Z`) } : {}),
-        ...(query.ate ? { lte: new Date(`${query.ate}T23:59:59.999Z`) } : {}),
-      };
-    }
-
-    return where;
-  }
-
-  /**
-   * As colunas gravadas, iguais no `create` e no `update`.
-   *
-   * A data chega como `YYYY-MM-DD` e é fixada em meia-noite UTC. Sem o `Z`, o
-   * servidor interpretaria no fuso dele e a data mudaria de dia conforme onde a
-   * aplicação estivesse rodando.
-   */
-  private paraBanco(dados: LancamentoFormInput) {
-    return {
-      tipo: dados.tipo,
-      natureza: dados.natureza,
-      descricao: dados.descricao,
-      valor: dados.valor,
-      data: new Date(`${dados.data}T00:00:00Z`),
-      vencimento: paraData(dados.vencimento),
-      pagoEm: paraData(dados.pagoEm),
-      categoriaId: dados.categoriaId,
-      servicoId: dados.servicoId,
-      clienteId: dados.clienteId,
-    };
-  }
-
-  /**
-   * Grava os anexos já conferidos por `conferirAnexos`.
-   *
-   * A conferência acontece antes da transação, em quem chama: recodificar
-   * imagem e abrir PDF levam centenas de milissegundos, e segurar a transação
-   * do banco esse tempo todo atrasaria as outras requisições. E um arquivo
-   * recusado ali nunca chega a apagar os anexos que o lançamento já tinha.
-   */
-  private async substituirAnexos(
-    tx: TransacaoComTenant,
-    lancamentoId: string,
-    conferidos: AnexoConferido[],
-  ): Promise<void> {
-    await tx.anexoLancamento.deleteMany({ where: { lancamentoId } });
-
-    if (conferidos.length === 0) {
-      return;
-    }
-
-    await tx.anexoLancamento.createMany({
-      // O id é sempre do servidor. O que vinha do corpo era aceito como chave
-      // primária — e um id de outra empresa batia na unicidade e revelava que
-      // aquele anexo existia.
-      data: conferidos.map((anexo) => ({
-        id: uuidv7(),
-        tenantId: tenantAtual(),
-        lancamentoId,
-        ...anexo,
-      })),
-    });
-  }
-
-  private paraResposta(registro: LancamentoBanco): Lancamento {
-    const vencimento = paraDia(registro.vencimento);
-    const pagoEm = paraDia(registro.pagoEm);
-
-    return {
-      id: registro.id,
-      tipo: registro.tipo,
-      natureza: registro.natureza,
-      descricao: registro.descricao,
-      valor: registro.valor.toFixed(2),
-      data: registro.data.toISOString().slice(0, 10),
-      vencimento,
-      pagoEm,
-      // Calculado na resposta, com a mesma função que a tela usa — em vez de
-      // gravado numa coluna que envelheceria à meia-noite.
-      status: statusDoLancamento(vencimento, pagoEm, hojeEmDia()),
-      categoriaId: registro.categoriaId,
-      categoriaNome: registro.categoria?.nome ?? null,
-      servicoId: registro.servicoId,
-      servicoNome: registro.servico?.nome ?? null,
-      clienteId: registro.clienteId,
-      clienteNome: registro.cliente?.nome ?? null,
-      // As três colunas andam juntas por restrição do banco, mas o TypeScript
-      // não sabe disso — a checagem aqui é o que converte "três nulos
-      // independentes" no objeto único que a tela espera.
-      parcelamento:
-        registro.grupoId && registro.parcela && registro.totalParcelas
-          ? {
-              grupoId: registro.grupoId,
-              parcela: registro.parcela,
-              total: registro.totalParcelas,
-            }
-          : null,
-      recorrenciaId: registro.recorrenciaId,
-      anexos: registro.anexos.map((anexo) => ({
-        id: anexo.id,
-        nome: anexo.nome,
-        mimeType: anexo.mimeType as (typeof MIME_TYPES_ANEXO_LANCAMENTO)[number],
-        tamanhoBytes: anexo.tamanhoBytes,
-        conteudo: 'conteudo' in anexo ? anexo.conteudo : undefined,
-        criadoEm: anexo.criadoEm.toISOString(),
-      })),
-      criadoEm: registro.criadoEm.toISOString(),
-    };
-  }
-
-  private paraAuditoria(registro: LancamentoBanco) {
-    const resposta = this.paraResposta(registro);
-
-    return {
-      ...resposta,
-      anexos: resposta.anexos.map(({ conteudo: _conteudo, ...anexo }) => anexo),
-    };
-  }
-
-  private resumirLancamento(prefixo: string, registro: LancamentoBanco): string {
-    const tipo = registro.tipo === 'entrada' ? 'entrada' : 'saída';
-    const natureza = registro.natureza === 'pessoal' ? 'pessoal' : 'empresa';
-    const cliente = registro.cliente?.nome ? ` · cliente: ${registro.cliente.nome}` : '';
-
-    return `${prefixo}: ${registro.descricao} · ${tipo} ${natureza} · R$ ${registro.valor.toFixed(2)}${cliente}`;
+    return paraResposta(lancamento);
   }
 }

@@ -14,10 +14,23 @@ import {
 import type { Env } from '../../config/env.schema';
 import { Prisma } from '../../generated/prisma/client';
 import { AssistenteIa } from '../../infra/ia/assistente-ia';
-import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
+import { PrismaService } from '../../infra/prisma/prisma.service';
 import { exigirContextoTenant, tenantAtual } from '../../infra/tenant/tenant-context';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 import { motivoParaNaoPrever } from './suficiencia-previsao';
+import { ZERO } from '../financeiro/decimal';
+import {
+  AVISO_PREVISAO,
+  inicioMes,
+  somarMeses,
+  chaveMes,
+  moeda,
+  somar,
+  mediaPonderada,
+  maiorDecimal,
+  limitePrevisoesIa,
+} from './calculos-previsao';
+import { retratoDoNegocio } from './retrato-negocio';
 
 interface DadosCalculados {
   saldoAtual: string;
@@ -385,7 +398,7 @@ export class PrevisaoFinanceiraService {
           where: { natureza: 'empresa', tipo: 'saida', pagoEm: { not: null } },
           _sum: { valor: true },
         }),
-        this.retratoDoNegocio(tx, { inicioHistorico, agora, hojeUtc, dados }),
+        retratoDoNegocio(tx, { inicioHistorico, agora, hojeUtc, dados }),
       ]);
 
       return { pagos, futuros, todasEntradas, todasSaidas, negocio };
@@ -462,157 +475,4 @@ export class PrevisaoFinanceiraService {
       lancamentosNoHistorico: pagos.length,
     };
   }
-
-  /**
-   * O negócio além do extrato.
-   *
-   * Tudo em agregados — contagens, somas e médias. Nenhum nome de cliente e
-   * nenhuma descrição saem daqui, porque este objeto é justamente o que segue
-   * para o fornecedor de IA.
-   */
-  private async retratoDoNegocio(
-    tx: TransacaoComTenant,
-    janela: {
-      inicioHistorico: Date;
-      agora: Date;
-      hojeUtc: Date;
-      dados: GerarPrevisaoFinanceiraInput;
-    },
-  ): Promise<BaseDaPrevisao> {
-    const [
-      lancamentos,
-      clientes,
-      abertos,
-      respondidos,
-      ticket,
-      agendamentos,
-      proLabore,
-      vencidas,
-      saidasPorCategoria,
-    ] = await Promise.all([
-      tx.lancamentoFinanceiro.count({
-        where: { natureza: 'empresa', pagoEm: { gte: janela.inicioHistorico } },
-      }),
-      tx.cliente.count({ where: { anonimizadoEm: null } }),
-      tx.orcamento.aggregate({
-        where: { status: 'aberto' },
-        _count: { _all: true },
-        _sum: { valor: true },
-      }),
-      tx.orcamento.groupBy({
-        by: ['status'],
-        where: { respondidoEm: { gte: janela.inicioHistorico } },
-        _count: { _all: true },
-      }),
-      tx.orcamento.aggregate({ where: { status: 'aprovado' }, _avg: { valor: true } }),
-      tx.agendamento.count({
-        where: { dataHora: { gte: janela.agora }, status: { in: ['agendado', 'confirmado'] } },
-      }),
-      tx.proLabore.findFirst({
-        where: { OR: [{ vigenciaFim: null }, { vigenciaFim: { gte: janela.hojeUtc } }] },
-        orderBy: { vigenciaInicio: 'desc' },
-        select: { valor: true },
-      }),
-      tx.lancamentoFinanceiro.aggregate({
-        where: { natureza: 'empresa', pagoEm: null, vencimento: { lt: janela.hojeUtc } },
-        _count: { _all: true },
-        _sum: { valor: true },
-      }),
-      tx.lancamentoFinanceiro.groupBy({
-        by: ['categoriaId'],
-        where: {
-          natureza: 'empresa',
-          tipo: 'saida',
-          pagoEm: { gte: janela.inicioHistorico },
-          categoriaId: { not: null },
-        },
-        _sum: { valor: true },
-        orderBy: { _sum: { valor: 'desc' } },
-        take: 5,
-      }),
-    ]);
-
-    const aprovados = respondidos.find((grupo) => grupo.status === 'aprovado')?._count._all ?? 0;
-    const recusados = respondidos.find((grupo) => grupo.status === 'recusado')?._count._all ?? 0;
-
-    const categorias = await tx.categoriaFinanceira.findMany({
-      where: {
-        id: {
-          in: saidasPorCategoria.flatMap((grupo) => (grupo.categoriaId ? [grupo.categoriaId] : [])),
-        },
-      },
-      select: { id: true, nome: true },
-    });
-    const nomeDaCategoria = new Map(categorias.map((categoria) => [categoria.id, categoria.nome]));
-
-    return {
-      mesesHistorico: janela.dados.mesesHistorico,
-      mesesProjecao: janela.dados.mesesProjecao,
-      lancamentosAnalisados: lancamentos,
-      clientesNaCarteira: clientes,
-      propostasAbertas: {
-        quantidade: abertos._count._all,
-        valor: moeda(abertos._sum.valor ?? ZERO),
-      },
-      // Sobre os respondidos: incluir as propostas ainda em aberto no
-      // denominador faria a taxa cair toda vez que a equipe vendesse mais.
-      taxaConversao: aprovados + recusados === 0 ? 0 : aprovados / (aprovados + recusados),
-      ticketMedio: moeda(ticket._avg.valor ?? ZERO),
-      agendamentosFuturos: agendamentos,
-      compromissosRecorrentes: moeda(proLabore?.valor ?? ZERO),
-      contasVencidas: {
-        quantidade: vencidas._count._all,
-        valor: moeda(vencidas._sum.valor ?? ZERO),
-      },
-      maioresSaidas: saidasPorCategoria.map((grupo) => ({
-        categoria: nomeDaCategoria.get(grupo.categoriaId ?? '') ?? 'Sem categoria',
-        valor: moeda(grupo._sum.valor ?? ZERO),
-      })),
-    };
-  }
-}
-
-const ZERO = new Prisma.Decimal(0);
-
-const AVISO_PREVISAO =
-  'Estimativa baseada nos lançamentos registrados. Não é garantia de resultado nem aconselhamento contábil.';
-
-function inicioMes(data: Date): Date {
-  return new Date(Date.UTC(data.getUTCFullYear(), data.getUTCMonth(), 1));
-}
-function somarMeses(data: Date, quantidade: number): Date {
-  return new Date(Date.UTC(data.getUTCFullYear(), data.getUTCMonth() + quantidade, 1));
-}
-function chaveMes(data: Date): string {
-  return data.toISOString().slice(0, 7);
-}
-function moeda(valor: Prisma.Decimal): string {
-  return valor.toFixed(2);
-}
-function somar(itens: Array<{ valor: Prisma.Decimal }>): Prisma.Decimal {
-  return itens.reduce((total, item) => total.plus(item.valor), ZERO);
-}
-function mediaPonderada(valores: Prisma.Decimal[]): Prisma.Decimal {
-  const pesoTotal = valores.reduce((total, _, indice) => total + indice + 1, 0);
-  return pesoTotal === 0
-    ? ZERO
-    : valores
-        .reduce((total, valor, indice) => total.plus(valor.times(indice + 1)), ZERO)
-        .dividedBy(pesoTotal);
-}
-function maiorDecimal(a: Prisma.Decimal, b: Prisma.Decimal): Prisma.Decimal {
-  return a.greaterThan(b) ? a : b;
-}
-
-/**
- * Teto mensal de previsões.
- *
- * Só faz sentido para quem tem o recurso: sem o Premium não existe previsão, e
- * `0` diz isso à tela sem precisar de um campo à parte para "indisponível".
- */
-function limitePrevisoesIa(plano: {
-  iaHabilitada: boolean;
-  limitePrevisoesIaMensais: number | null;
-}): number | null {
-  return plano.iaHabilitada ? plano.limitePrevisoesIaMensais : 0;
 }
