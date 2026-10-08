@@ -26,6 +26,8 @@ interface Ponto {
   saldo: number;
   /** Soma dos saldos desde o início da janela — a curva do caixa no período. */
   acumulado: number;
+  /** Diferença para o mês anterior, calculada pela API. `null` no primeiro mês. */
+  variacaoSaldo: string | null;
 }
 
 /**
@@ -72,6 +74,7 @@ export function GraficoResumoPainel({
     saidas: Number(mes.saidas),
     saldo: Number(mes.saldo),
     acumulado: Number(mes.acumulado),
+    variacaoSaldo: mes.variacaoSaldo,
   }));
 
   const totalEntradas = Number(resumo.totalEntradas);
@@ -158,7 +161,7 @@ export function GraficoResumoPainel({
                     className={cn(
                       'min-h-8 rounded px-3 text-xs font-medium transition-colors',
                       visao === opcao
-                        ? 'bg-background text-foreground shadow-[var(--sombra-sutil)]'
+                        ? 'bg-background text-foreground shadow-(--sombra-sutil)'
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -222,7 +225,8 @@ function MesEmFoco({
   parcial: boolean;
   acompanhandoOCursor: boolean;
 }) {
-  const variacao = anterior ? ponto.saldo - anterior.saldo : 0;
+  // A diferença vem pronta da API; aqui só se lê o sinal para escolher a cor.
+  const variacao = Number(ponto.variacaoSaldo ?? 0);
 
   return (
     <div
@@ -265,7 +269,8 @@ function MesEmFoco({
           ) : (
             <Minus aria-hidden className="size-3.5" />
           )}
-          {formatarBRL(Math.abs(variacao).toFixed(2))} vs. {formatarMesCurto(anterior.mes)}
+          {formatarBRL((ponto.variacaoSaldo ?? '0').replace('-', ''))} vs.{' '}
+          {formatarMesCurto(anterior.mes)}
         </span>
       )}
     </div>
@@ -741,7 +746,7 @@ function Metrica({
   return (
     <div
       className={cn(
-        'bg-card min-w-[7.5rem] flex-1 rounded-md border px-3 py-2 shadow-[var(--sombra-sutil)] sm:flex-none sm:min-w-[9rem]',
+        'bg-card min-w-[7.5rem] flex-1 rounded-md border px-3 py-2 shadow-(--sombra-sutil) sm:flex-none sm:min-w-[9rem]',
         destaque && 'border-primary/35',
       )}
     >

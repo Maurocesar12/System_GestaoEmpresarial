@@ -53,20 +53,32 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
   return (
     <div className="border-b p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div role="group" aria-label="Visualização da previsão" className="flex rounded-md bg-muted p-1">
+        <div
+          role="group"
+          aria-label="Visualização da previsão"
+          className="flex rounded-md bg-muted p-1"
+        >
           {(['saldo', 'fluxo'] as const).map((opcao) => (
-            <button key={opcao} type="button" aria-pressed={visao === opcao}
+            <button
+              key={opcao}
+              type="button"
+              aria-pressed={visao === opcao}
               onClick={() => setVisao(opcao)}
-              className={`min-h-9 rounded px-3 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 ${visao === opcao ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+              className={`min-h-9 rounded px-3 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 ${visao === opcao ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+            >
               {opcao === 'saldo' ? 'Saldo acumulado' : 'Entradas e saídas'}
             </button>
           ))}
         </div>
         <div className="text-muted-foreground flex flex-wrap gap-3 text-[0.6875rem]">
-          {visao === 'fluxo' ? <>
-            <Legenda classe="bg-foreground" rotulo="Entradas" />
-            <Legenda classe="bg-zinc-300" rotulo="Saídas" />
-          </> : <Legenda classe="bg-foreground" rotulo="Saldo projetado" linha />}
+          {visao === 'fluxo' ? (
+            <>
+              <Legenda classe="bg-foreground" rotulo="Entradas" />
+              <Legenda classe="bg-zinc-300" rotulo="Saídas" />
+            </>
+          ) : (
+            <Legenda classe="bg-foreground" rotulo="Saldo projetado" linha />
+          )}
         </div>
       </div>
 
@@ -74,7 +86,11 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
         <svg
           viewBox={`0 0 ${LARGURA} ${ALTURA}`}
           role="img"
-          aria-label={visao === 'saldo' ? 'Saldo acumulado projetado por mês' : 'Entradas e saídas projetadas por mês'}
+          aria-label={
+            visao === 'saldo'
+              ? 'Saldo acumulado projetado por mês'
+              : 'Entradas e saídas projetadas por mês'
+          }
           className="w-full min-w-[32rem]"
         >
           {marcacoes.map((valor) => {
@@ -113,22 +129,26 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
             const centro = MARGEM.esquerda + larguraGrupo * (indice + 0.5);
             return (
               <g key={item.mes}>
-                {visao === 'fluxo' && <><Barra
-                  x={centro - larguraBarra - 2}
-                  yZero={yZero}
-                  yValor={y(item.entradas)}
-                  largura={larguraBarra}
-                  classe="fill-foreground"
-                  titulo={`Entradas: ${FORMATADOR_COMPACTO.format(item.entradas)}`}
-                />
-                <Barra
-                  x={centro + 2}
-                  yZero={yZero}
-                  yValor={y(item.saidas)}
-                  largura={larguraBarra}
-                  classe="fill-zinc-300"
-                  titulo={`Saídas: ${FORMATADOR_COMPACTO.format(item.saidas)}`}
-                /></>}
+                {visao === 'fluxo' && (
+                  <>
+                    <Barra
+                      x={centro - larguraBarra - 2}
+                      yZero={yZero}
+                      yValor={y(item.entradas)}
+                      largura={larguraBarra}
+                      classe="fill-foreground"
+                      titulo={`Entradas: ${FORMATADOR_COMPACTO.format(item.entradas)}`}
+                    />
+                    <Barra
+                      x={centro + 2}
+                      yZero={yZero}
+                      yValor={y(item.saidas)}
+                      largura={larguraBarra}
+                      classe="fill-zinc-300"
+                      titulo={`Saídas: ${FORMATADOR_COMPACTO.format(item.saidas)}`}
+                    />
+                  </>
+                )}
                 <text
                   x={centro}
                   y={ALTURA - 14}
@@ -141,32 +161,39 @@ export function GraficoFluxoProjetado({ projecoes }: { projecoes: MesProjetado[]
             );
           })}
 
-          {visao === 'saldo' && <><path
-            d={`${linha} L ${MARGEM.esquerda + larguraGrupo * (dados.length - 0.5)} ${yZero} L ${MARGEM.esquerda + larguraGrupo * 0.5} ${yZero} Z`}
-            className="fill-foreground/5"
-          /><path
-            d={linha}
-            fill="none"
-            className="stroke-foreground"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {dados.map((item, indice) => {
-            const x = MARGEM.esquerda + larguraGrupo * (indice + 0.5);
-            return (
-              <circle
-                key={item.mes}
-                cx={x}
-                cy={y(item.saldoAcumulado)}
-                r="4"
-                className="fill-background stroke-foreground"
+          {visao === 'saldo' && (
+            <>
+              <path
+                d={`${linha} L ${MARGEM.esquerda + larguraGrupo * (dados.length - 0.5)} ${yZero} L ${MARGEM.esquerda + larguraGrupo * 0.5} ${yZero} Z`}
+                className="fill-foreground/5"
+              />
+              <path
+                d={linha}
+                fill="none"
+                className="stroke-foreground"
                 strokeWidth="2"
-              >
-                <title>Saldo acumulado: {FORMATADOR_COMPACTO.format(item.saldoAcumulado)}</title>
-              </circle>
-            );
-          })}</>}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {dados.map((item, indice) => {
+                const x = MARGEM.esquerda + larguraGrupo * (indice + 0.5);
+                return (
+                  <circle
+                    key={item.mes}
+                    cx={x}
+                    cy={y(item.saldoAcumulado)}
+                    r="4"
+                    className="fill-background stroke-foreground"
+                    strokeWidth="2"
+                  >
+                    <title>
+                      Saldo acumulado: {FORMATADOR_COMPACTO.format(item.saldoAcumulado)}
+                    </title>
+                  </circle>
+                );
+              })}
+            </>
+          )}
         </svg>
       </div>
     </div>

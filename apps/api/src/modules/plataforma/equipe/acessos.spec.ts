@@ -13,7 +13,10 @@ const ordenar = (lista: readonly string[]) => [...lista].sort();
 describe('catálogo de acesso por área', () => {
   it('cobre cada permissão em exatamente uma área', () => {
     const vistas = AREAS_ACESSO.flatMap((area) => [
-      ...new Set([...area.niveis.flatMap((n) => n.permissoes), ...area.extras.map((e) => e.codigo)]),
+      ...new Set([
+        ...area.niveis.flatMap((n) => n.permissoes),
+        ...area.extras.map((e) => e.codigo),
+      ]),
     ]);
 
     expect(ordenar(vistas)).toEqual(ordenar(PERMISSOES));
@@ -23,7 +26,8 @@ describe('catálogo de acesso por área', () => {
     for (const area of AREAS_ACESSO) {
       area.niveis.forEach((nivel, indice) => {
         const anterior = area.niveis[indice - 1];
-        if (anterior) expect(nivel.permissoes).toEqual(expect.arrayContaining([...anterior.permissoes]));
+        if (anterior)
+          expect(nivel.permissoes).toEqual(expect.arrayContaining([...anterior.permissoes]));
       });
     }
   });

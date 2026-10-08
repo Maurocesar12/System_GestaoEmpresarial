@@ -93,7 +93,6 @@ export const materialFormSchema = z.object({
   ativo: z.boolean().default(true),
 });
 export type MaterialFormInput = z.infer<typeof materialFormSchema>;
-export type MaterialFormEntrada = z.input<typeof materialFormSchema>;
 
 export const entradaEstoqueSchema = z.object({
   quantidade: quantidadeSchema,

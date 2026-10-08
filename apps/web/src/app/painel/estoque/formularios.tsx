@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  ROTULO_UNIDADE,
-  UNIDADES_MATERIAL,
-  type Material,
-} from '@gestao/shared-types';
+import { ROTULO_UNIDADE, UNIDADES_MATERIAL, type Material } from '@gestao/shared-types';
 import { useRef, useState, useTransition } from 'react';
 import { AvisoErro } from '@/components/ui/aviso-erro';
 import { useAvisos } from '@/components/ui/avisos';
@@ -134,8 +130,8 @@ export function FormularioEntrada({ material }: { material: Material }) {
       </div>
 
       <p className="text-muted-foreground text-xs">
-        A entrada atualiza o saldo e o custo médio. Registre o pagamento da compra no financeiro
-        sem vincular a um serviço: o custo chega à margem quando o material é usado.
+        A entrada atualiza o saldo e o custo médio. Registre o pagamento da compra no financeiro sem
+        vincular a um serviço: o custo chega à margem quando o material é usado.
       </p>
 
       <Botao type="submit" carregando={salvando} className="w-fit">

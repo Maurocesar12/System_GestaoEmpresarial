@@ -175,8 +175,19 @@ export interface BlocoFinanceiro {
    */
   vencidosAPagar: { quantidade: number; valor: string };
   vencidosAReceber: { quantidade: number; valor: string };
-  /** Últimos seis meses, do mais antigo ao mais recente. `acumulado` soma os saldos. */
-  serie: Array<{ mes: string; entradas: string; saidas: string; saldo: string; acumulado: string }>;
+  /**
+   * Últimos seis meses, do mais antigo ao mais recente. `acumulado` soma os
+   * saldos; `variacaoSaldo` é o saldo do mês menos o do anterior (`null` no
+   * primeiro, que não tem com quem comparar).
+   */
+  serie: Array<{
+    mes: string;
+    entradas: string;
+    saidas: string;
+    saldo: string;
+    acumulado: string;
+    variacaoSaldo: string | null;
+  }>;
   /** As leituras embaixo do gráfico, calculadas pela API. */
   resumoSerie: {
     totalEntradas: string;

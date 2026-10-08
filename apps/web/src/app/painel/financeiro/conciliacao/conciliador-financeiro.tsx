@@ -343,7 +343,7 @@ function IndicadorConciliacao({
   alerta?: boolean;
 }) {
   return (
-    <div className="rounded-lg border bg-card p-4 shadow-[var(--sombra-sutil)]">
+    <div className="rounded-lg border bg-card p-4 shadow-(--sombra-sutil)">
       <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">{titulo}</p>
       <p
         className={cn(

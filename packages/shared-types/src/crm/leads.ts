@@ -175,14 +175,6 @@ export const ROTULO_MOTIVO_REATIVACAO: Record<MotivoReativacao, string> = {
   nunca_fechou: 'Nunca fechou',
 };
 
-/** Como abrir a conversa com cada tipo de cliente frio. */
-export const SUGESTAO_MOTIVO_REATIVACAO: Record<MotivoReativacao, string> = {
-  comprou_e_sumiu: 'Já comprou de você. Ofereça a revisão, a manutenção ou o próximo serviço.',
-  proposta_recusada: 'Recusou o valor ou o prazo. Uma condição nova costuma reabrir a conversa.',
-  proposta_sem_resposta: 'A proposta ficou sem resposta. Pergunte o que faltou antes de reenviar.',
-  nunca_fechou: 'Entrou na base e não avançou. Confirme se a necessidade ainda existe.',
-};
-
 export const reativacaoQuerySchema = paginacaoQuerySchema.extend({
   /** Dias sem contato a partir dos quais o cliente entra na lista. */
   dias: z.coerce.number().int().min(7).max(1095).default(DIAS_PARA_REATIVACAO),
@@ -232,12 +224,6 @@ export interface ListaDeReativacao {
   resumo: ResumoReativacao;
   clientes: ClienteParaReativar[];
   meta: PaginacaoMeta;
-}
-
-/** Horas decorridas desde um instante ISO, nunca negativas. */
-export function horasDesde(iso: string): number {
-  const MS_POR_HORA = 60 * 60 * 1000;
-  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / MS_POR_HORA));
 }
 
 /**

@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -28,6 +23,8 @@ import { obterContextoTenant, tenantAtual } from '../../../infra/tenant/tenant-c
 import { hojeEmDia } from '../../financeiro/datas';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
 import { custoMedioAposEntrada, paraQuantidade, valorMovimentacao } from './calculo-estoque';
+import { naoEncontrado, conflito } from '../../../common/erros';
+import { diaEmSaoPaulo } from '../../../common/fuso';
 
 type MaterialBanco = Prisma.MaterialGetPayload<object>;
 
@@ -470,12 +467,11 @@ export class EstoqueService {
     });
 
     if (encontrados !== ids.length) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: exigirAtivos
+      throw naoEncontrado(
+        exigirAtivos
           ? 'Um dos materiais não existe ou está desativado.'
           : 'Um dos materiais não existe mais.',
-      });
+      );
     }
   }
 
@@ -489,10 +485,7 @@ export class EstoqueService {
     });
 
     if (!servico) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Serviço não encontrado.',
-      });
+      throw naoEncontrado('Serviço não encontrado.');
     }
 
     return servico;
@@ -502,18 +495,12 @@ export class EstoqueService {
     const existente = await tx.material.findFirst({ where: { nome }, select: { id: true } });
 
     if (existente) {
-      throw new ConflictException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem: 'Já existe um material com este nome.',
-      });
+      throw conflito('Já existe um material com este nome.');
     }
   }
 
   private materialNaoEncontrado(): NotFoundException {
-    return new NotFoundException({
-      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-      mensagem: 'Material não encontrado.',
-    });
+    return naoEncontrado('Material não encontrado.');
   }
 
   private paraMaterial(registro: MaterialBanco): Material {
@@ -535,9 +522,4 @@ export class EstoqueService {
       criadoEm: registro.criadoEm.toISOString(),
     };
   }
-}
-
-/** O dia do compromisso no fuso da empresa, e não em UTC. */
-export function diaEmSaoPaulo(instante: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(instante);
 }

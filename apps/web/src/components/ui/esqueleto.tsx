@@ -27,11 +27,6 @@ export function Esqueleto({ className }: { className?: string }) {
   return <div aria-hidden className={cn('bg-muted animate-pulse rounded-md', className)} />;
 }
 
-/** Linha de texto falsa. A largura varia para não parecer um código de barras. */
-export function EsqueletoTexto({ className }: { className?: string }) {
-  return <Esqueleto className={cn('h-4', className)} />;
-}
-
 /**
  * Envelope de uma área que está carregando.
  *
@@ -58,7 +53,7 @@ export function EsqueletoIndicadores({ quantidade = 4 }: { quantidade?: number }
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: quantidade }, (_, i) => (
-        <div key={i} className="bg-card rounded-lg border p-4 shadow-[var(--sombra-sutil)]">
+        <div key={i} className="bg-card rounded-lg border p-4 shadow-(--sombra-sutil)">
           <Esqueleto className="h-3 w-24" />
           <Esqueleto className="mt-2 h-7 w-32" />
           <Esqueleto className="mt-1.5 h-3 w-20" />
@@ -77,7 +72,7 @@ export function EsqueletoTabela({
   colunas?: number;
 }) {
   return (
-    <div className="bg-card overflow-hidden rounded-lg border shadow-[var(--sombra-sutil)]">
+    <div className="bg-card overflow-hidden rounded-lg border shadow-(--sombra-sutil)">
       <div className="bg-muted/50 flex gap-4 border-b px-4 py-3">
         {Array.from({ length: colunas }, (_, i) => (
           <Esqueleto key={i} className="h-3 flex-1" />
@@ -123,7 +118,7 @@ export function EsqueletoCabecalho({ comAcoes = true }: { comAcoes?: boolean }) 
 /** Cartão com cabeçalho e uma lista curta — o formato dos blocos do painel. */
 export function EsqueletoCartaoLista({ itens = 4 }: { itens?: number }) {
   return (
-    <div className="bg-card rounded-lg border shadow-[var(--sombra-sutil)]">
+    <div className="bg-card rounded-lg border shadow-(--sombra-sutil)">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <Esqueleto className="h-4 w-40" />
         <Esqueleto className="h-3 w-16" />

@@ -109,7 +109,7 @@ export function ChatIa() {
       {aberto && (
         <section
           aria-label={capacidades?.titulo ?? 'Assistente'}
-          className="bg-card text-card-foreground animate-in slide-in-from-bottom-2 fade-in flex h-[min(38rem,calc(100vh-7rem))] w-[min(calc(100vw-2rem),25rem)] flex-col overflow-hidden rounded-xl border shadow-[var(--sombra-media)] duration-200"
+          className="bg-card text-card-foreground animate-in slide-in-from-bottom-2 fade-in flex h-[min(38rem,calc(100vh-7rem))] w-[min(calc(100vw-2rem),25rem)] flex-col overflow-hidden rounded-xl border shadow-(--sombra-media) duration-200"
         >
           <header className="from-primary/8 flex items-center justify-between gap-3 border-b bg-gradient-to-br to-transparent px-4 py-3">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -295,7 +295,7 @@ export function ChatIa() {
         onClick={() => setAberto((atual) => !atual)}
         aria-expanded={aberto}
         aria-label={aberto ? 'Fechar assistente' : 'Abrir assistente'}
-        className={`bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring flex h-12 items-center gap-2 rounded-full text-sm font-medium shadow-[var(--sombra-media)] transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${
+        className={`bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring flex h-12 items-center gap-2 rounded-full text-sm font-medium shadow-(--sombra-media) transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${
           aberto ? 'w-12 justify-center' : 'px-4'
         }`}
       >

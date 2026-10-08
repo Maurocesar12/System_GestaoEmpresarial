@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -22,6 +16,7 @@ import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
 import { FunilService } from '../funil/funil.service';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
+import { naoEncontrado, conflito } from '../../../common/erros';
 
 /**
  * Clientes da empresa.
@@ -88,10 +83,7 @@ export class ClientesService {
     // permissão". A diferença importa: responder 403 confirmaria que aquele id
     // existe em algum lugar do sistema.
     if (!cliente) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Cliente não encontrado.',
-      });
+      throw naoEncontrado('Cliente não encontrado.');
     }
 
     return {
@@ -250,17 +242,11 @@ export class ClientesService {
       });
 
       if (!existe) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Cliente não encontrado.',
-        });
+        throw naoEncontrado('Cliente não encontrado.');
       }
 
       if (existe.anonimizadoEm) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Este cliente foi anonimizado a pedido do titular e não pode ser editado.',
-        });
+        throw conflito('Este cliente foi anonimizado a pedido do titular e não pode ser editado.');
       }
 
       await this.garantirPersonalizacao(tx, dados);
@@ -304,10 +290,7 @@ export class ClientesService {
     });
 
     if (count === 0) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Cliente não encontrado.',
-      });
+      throw naoEncontrado('Cliente não encontrado.');
     }
   }
 
@@ -433,10 +416,7 @@ export class ClientesService {
     });
 
     if (!tenant) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Empresa não encontrada.',
-      });
+      throw naoEncontrado('Empresa não encontrada.');
     }
 
     const limite = tenant.plano.limiteClientes;
@@ -632,10 +612,7 @@ export class ClientesService {
     if (!ids.length) return;
     const total = await tx.etiqueta.count({ where: { id: { in: ids } } });
     if (total !== new Set(ids).size) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Uma das etiquetas não existe.',
-      });
+      throw naoEncontrado('Uma das etiquetas não existe.');
     }
   }
 

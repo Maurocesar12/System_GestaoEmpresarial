@@ -1,6 +1,5 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
-  CODIGOS_ERRO,
   margemPercentual,
   paginar,
   type Paginado,
@@ -12,6 +11,7 @@ import { uuidv7 } from '../../../common/uuid';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
+import { naoEncontrado, conflito } from '../../../common/erros';
 
 /** O registro como vem do banco, com dinheiro em Decimal. */
 type ServicoBanco = Prisma.ServicoGetPayload<object>;
@@ -57,10 +57,7 @@ export class ServicosService {
     const servico = await this.prisma.comTenant((tx) => tx.servico.findUnique({ where: { id } }));
 
     if (!servico) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Serviço não encontrado.',
-      });
+      throw naoEncontrado('Serviço não encontrado.');
     }
 
     return this.paraResposta(servico);
@@ -91,10 +88,7 @@ export class ServicosService {
       const atual = await tx.servico.findUnique({ where: { id }, select: { nome: true } });
 
       if (!atual) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Serviço não encontrado.',
-        });
+        throw naoEncontrado('Serviço não encontrado.');
       }
 
       if (atual.nome !== dados.nome) {
@@ -120,10 +114,7 @@ export class ServicosService {
       const existe = await tx.servico.findUnique({ where: { id }, select: { id: true } });
 
       if (!existe) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Serviço não encontrado.',
-        });
+        throw naoEncontrado('Serviço não encontrado.');
       }
 
       return tx.servico.update({ where: { id }, data: { ativo: false } });
@@ -136,10 +127,7 @@ export class ServicosService {
     const existente = await tx.servico.findFirst({ where: { nome }, select: { id: true } });
 
     if (existente) {
-      throw new ConflictException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem: 'Já existe um serviço com este nome.',
-      });
+      throw conflito('Já existe um serviço com este nome.');
     }
   }
 

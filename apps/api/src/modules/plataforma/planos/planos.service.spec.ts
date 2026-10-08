@@ -41,8 +41,10 @@ describe('PlanosService', () => {
   it('lista somente os dois planos ativos na hierarquia comercial', async () => {
     const findMany = jest.fn().mockResolvedValue(planos);
     const prisma = {
-      semTenant: (_motivo: string, operacao: (db: { plano: { findMany: typeof findMany } }) => unknown) =>
-        operacao({ plano: { findMany } }),
+      semTenant: (
+        _motivo: string,
+        operacao: (db: { plano: { findMany: typeof findMany } }) => unknown,
+      ) => operacao({ plano: { findMany } }),
     } as unknown as PrismaService;
     const config: ConfigService<Env, true> = new ConfigService({ OPENAI_API_KEY: undefined });
 

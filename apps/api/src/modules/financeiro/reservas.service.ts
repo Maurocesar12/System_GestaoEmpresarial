@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   type MovimentacaoFormInput,
@@ -21,6 +16,7 @@ import { ZERO } from './decimal';
 import { primeiroDiaDeMesesAtras, ultimoDiaDoMesPassado } from './datas';
 import { FinanceiroService } from './financeiro.service';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
+import { naoEncontrado, conflito } from '../../common/erros';
 
 /** Quantos meses fechados entram na média do custo fixo mensal. */
 const MESES_DA_MEDIA = 3;
@@ -90,10 +86,7 @@ export class ReservasService {
     ]);
 
     if (!reserva) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Reserva não encontrada.',
-      });
+      throw naoEncontrado('Reserva não encontrada.');
     }
 
     // Aporte negativo não é aporte: seria uma retirada, que tem fluxo próprio.
@@ -139,10 +132,7 @@ export class ReservasService {
       });
 
       if (existente) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Já existe uma reserva com este nome.',
-        });
+        throw conflito('Já existe uma reserva com este nome.');
       }
 
       const criada = await tx.reservaFinanceira.create({
@@ -183,10 +173,7 @@ export class ReservasService {
       });
 
       if (existente) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Já existe uma reserva com este nome.',
-        });
+        throw conflito('Já existe uma reserva com este nome.');
       }
 
       const alterada = await tx.reservaFinanceira.update({
@@ -226,10 +213,7 @@ export class ReservasService {
       });
 
       if (!atual) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Reserva não encontrada.',
-        });
+        throw naoEncontrado('Reserva não encontrada.');
       }
 
       const valor = new Prisma.Decimal(dados.valor);
@@ -282,10 +266,7 @@ export class ReservasService {
     });
 
     if (count === 0) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Reserva não encontrada.',
-      });
+      throw naoEncontrado('Reserva não encontrada.');
     }
   }
 
@@ -296,10 +277,7 @@ export class ReservasService {
     const existe = await tx.reservaFinanceira.findUnique({ where: { id }, select: { id: true } });
 
     if (!existe) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Reserva não encontrada.',
-      });
+      throw naoEncontrado('Reserva não encontrada.');
     }
 
     return tx.reservaFinanceira.findUniqueOrThrow({ where: { id } });

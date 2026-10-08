@@ -1,3 +1,5 @@
+import { diaEmSaoPaulo } from '../../common/fuso';
+
 /**
  * Conversões entre a data pura do banco (`DATE`) e o texto `AAAA-MM-DD` que
  * trafega no JSON.
@@ -25,7 +27,7 @@ export function paraData(dia: string | null | undefined): Date | null {
  * como atrasada para o usuário — três horas antes de vencer de verdade.
  */
 export function hojeEmDia(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  return diaEmSaoPaulo(new Date());
 }
 
 /**

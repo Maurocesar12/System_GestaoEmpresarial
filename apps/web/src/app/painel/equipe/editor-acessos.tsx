@@ -60,7 +60,7 @@ export function EditorAcessos({
                   'flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 transition-colors',
                   'has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-1',
                   escolhido
-                    ? 'border-primary bg-primary/5 shadow-[var(--sombra-sutil)]'
+                    ? 'border-primary bg-primary/5 shadow-(--sombra-sutil)'
                     : 'hover:bg-accent/60',
                 )}
               >

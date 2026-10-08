@@ -1,6 +1,7 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { CODIGOS_ERRO } from '@gestao/shared-types';
 import type { TransacaoComTenant } from '../infra/prisma/prisma.service';
+import { naoEncontrado } from './erros';
 
 /**
  * Confere que os registros apontados por um formulário existem nesta empresa.
@@ -61,38 +62,23 @@ export async function garantirVinculos(
   ]);
 
   if (vinculos.clienteId && !cliente) {
-    throw new NotFoundException({
-      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-      mensagem: 'Cliente não encontrado.',
-    });
+    throw naoEncontrado('Cliente não encontrado.');
   }
 
   if (vinculos.servicoId && !servico) {
-    throw new NotFoundException({
-      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-      mensagem: 'Serviço não encontrado.',
-    });
+    throw naoEncontrado('Serviço não encontrado.');
   }
 
   if (vinculos.categoriaId && !categoria) {
-    throw new NotFoundException({
-      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-      mensagem: 'Categoria não encontrada.',
-    });
+    throw naoEncontrado('Categoria não encontrada.');
   }
 
   if (ativos !== new Set(pessoas).size) {
-    throw new NotFoundException({
-      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-      mensagem: 'Pessoa da equipe não encontrada ou desativada.',
-    });
+    throw naoEncontrado('Pessoa da equipe não encontrada ou desativada.');
   }
 
   if (vinculos.orcamentoId && !orcamento) {
-    throw new NotFoundException({
-      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-      mensagem: 'Orçamento não encontrado.',
-    });
+    throw naoEncontrado('Orçamento não encontrado.');
   }
 
   // O orçamento é a base da comissão de execução: ligar o de outro cliente

@@ -13,7 +13,7 @@ export default function CarregandoOrcamentos() {
 
         <div className="grid gap-3 sm:grid-cols-3">
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="bg-card rounded-lg border p-4 shadow-[var(--sombra-sutil)]">
+            <div key={i} className="bg-card rounded-lg border p-4 shadow-(--sombra-sutil)">
               <Esqueleto className="h-3 w-20" />
               <Esqueleto className="mt-2 h-7 w-28" />
               <Esqueleto className="mt-1.5 h-3 w-24" />

@@ -24,7 +24,7 @@ export default function CarregandoFunil() {
               {Array.from({ length: 3 - (coluna % 2) }, (_, cartao) => (
                 <div
                   key={cartao}
-                  className="bg-card flex flex-col gap-2 rounded-lg border p-3.5 shadow-[var(--sombra-sutil)]"
+                  className="bg-card flex flex-col gap-2 rounded-lg border p-3.5 shadow-(--sombra-sutil)"
                 >
                   <Esqueleto className="h-4 w-3/4" />
                   <Esqueleto className="h-3 w-1/2" />

@@ -105,7 +105,7 @@ export default async function PaginaMarketing({ searchParams }: Props) {
         />
       </FaixaDeIndicadores>
 
-      <SerieDeLeadsCartao serie={relatorio.serie} />
+      <SerieDeLeadsCartao serie={relatorio.serie} totalConvertidos={relatorio.totalConvertidos} />
 
       <Cartao>
         <CartaoCabecalho>
@@ -333,9 +333,15 @@ function PrazoAteFechar({ dias }: { dias: number | null }) {
  * As barras incluem os pontos de valor zero, que é o que a série existe para
  * mostrar — uma semana sem nenhum lead é informação, não ausência dela.
  */
-function SerieDeLeadsCartao({ serie }: { serie: SerieDeLeads }) {
+function SerieDeLeadsCartao({
+  serie,
+  totalConvertidos,
+}: {
+  serie: SerieDeLeads;
+  /** Do relatório, calculado pela API — só decide se a legenda aparece. */
+  totalConvertidos: number;
+}) {
   const maximo = Math.max(...serie.pontos.map((ponto) => ponto.leads), 0);
-  const totalConvertidos = serie.pontos.reduce((soma, ponto) => soma + ponto.convertidos, 0);
 
   return (
     <Cartao>

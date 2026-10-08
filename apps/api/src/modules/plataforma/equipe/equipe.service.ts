@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'node:crypto';
@@ -25,6 +20,7 @@ import {
   type PessoaEquipe,
   type DesafioDoisFatores,
 } from '@gestao/shared-types';
+import { naoEncontrado, conflito } from '../../../common/erros';
 import { uuidv7 } from '../../../common/uuid';
 import type { Env } from '../../../config/env.schema';
 import { Notificador } from '../../../infra/notificacoes/notificador';
@@ -243,19 +239,16 @@ export class EquipeService {
 
     const usuario = await this.prisma.comTenant(async (tx) => {
       const atual = await tx.usuario.findFirst({ where: { id, tenantId: contexto.tenantId } });
-      if (!atual) this.naoEncontrado();
+      if (!atual) throw naoEncontrado('Funcionário não encontrado.');
       if (id === contexto.usuarioId && !dados.ativo) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Você não pode desativar seu próprio acesso.',
-        });
+        throw conflito('Você não pode desativar seu próprio acesso.');
       }
       if (atual.papel === 'admin' && (dados.papel !== 'admin' || !dados.ativo)) {
         const admins = await tx.usuario.count({
           where: { tenantId: contexto.tenantId, papel: 'admin', ativo: true },
         });
         if (admins <= 1)
-          this.conflito('A empresa precisa manter pelo menos um administrador ativo.');
+          throw conflito('A empresa precisa manter pelo menos um administrador ativo.');
       }
       if (!atual.ativo && dados.ativo) await this.garantirVaga(tx, contexto.tenantId);
 
@@ -331,7 +324,7 @@ export class EquipeService {
       });
       return true;
     });
-    if (!removido) this.naoEncontrado('Convite não encontrado.');
+    if (!removido) throw naoEncontrado('Convite não encontrado.');
   }
 
   async aceitar(dados: AceitarConviteInput): Promise<DesafioDoisFatores> {
@@ -403,7 +396,7 @@ export class EquipeService {
         return { usuario, empresa };
       });
     } catch (erro) {
-      if (this.eConflitoUnico(erro)) this.conflito('Este e-mail já possui acesso.');
+      if (this.eConflitoUnico(erro)) throw conflito('Este e-mail já possui acesso.');
       throw erro;
     }
 
@@ -429,7 +422,7 @@ export class EquipeService {
         where: { id, tenantId: contexto.tenantId },
         select: { id: true, doisFatoresAtivadoEm: true },
       });
-      if (!atual) this.naoEncontrado();
+      if (!atual) throw naoEncontrado('Funcionário não encontrado.');
 
       await tx.usuario.update({
         where: { id },
@@ -503,7 +496,7 @@ export class EquipeService {
       'impedir e-mail duplicado ao convidar ou aceitar funcionário',
       (db) => db.usuario.findUnique({ where: { email }, select: { id: true } }),
     );
-    if (existente) this.conflito('Este e-mail já possui acesso ao sistema.');
+    if (existente) throw conflito('Este e-mail já possui acesso ao sistema.');
   }
   /**
    * Reserva e confere uma vaga do plano sob a mesma trava do tenant.
@@ -541,11 +534,5 @@ export class EquipeService {
   }
   private eConflitoUnico(erro: unknown): boolean {
     return typeof erro === 'object' && erro !== null && 'code' in erro && erro.code === 'P2002';
-  }
-  private conflito(mensagem: string): never {
-    throw new ConflictException({ codigo: CODIGOS_ERRO.CONFLITO, mensagem });
-  }
-  private naoEncontrado(mensagem = 'Funcionário não encontrado.'): never {
-    throw new NotFoundException({ codigo: CODIGOS_ERRO.NAO_ENCONTRADO, mensagem });
   }
 }

@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   type AnaliseConciliacaoInput,
@@ -46,6 +41,7 @@ import { conferirAnexos, type AnexoConferido } from './conferencia-anexo';
 import { ZERO } from './decimal';
 import { hojeEmDia, paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
+import { naoEncontrado, conflito } from '../../common/erros';
 
 /** Quantas contas em aberto entram na conciliação, das que vencem antes. */
 const LIMITE_CONTAS_CONCILIACAO = 500;
@@ -209,10 +205,7 @@ export class FinanceiroService {
       });
 
       if (existente) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Já existe uma categoria com este nome.',
-        });
+        throw conflito('Já existe uma categoria com este nome.');
       }
 
       return tx.categoriaFinanceira.create({
@@ -249,10 +242,7 @@ export class FinanceiroService {
       const removidas = await tx.categoriaFinanceira.deleteMany({ where: { id } });
 
       if (removidas.count === 0) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Categoria não encontrada.',
-        });
+        throw naoEncontrado('Categoria não encontrada.');
       }
     });
   }
@@ -491,10 +481,7 @@ export class FinanceiroService {
         garantirVinculos(tx, dados),
       ]);
       if (!anterior) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Lançamento não encontrado.',
-        });
+        throw naoEncontrado('Lançamento não encontrado.');
       }
 
       await garantirCategoriaDoTipo(tx, dados, anterior.categoriaId);
@@ -531,10 +518,7 @@ export class FinanceiroService {
     );
 
     if (!lancamento) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Lançamento não encontrado.',
-      });
+      throw naoEncontrado('Lançamento não encontrado.');
     }
 
     return this.paraResposta(lancamento);
@@ -568,10 +552,7 @@ export class FinanceiroService {
     });
 
     if (count === 0) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Lançamento não encontrado.',
-      });
+      throw naoEncontrado('Lançamento não encontrado.');
     }
   }
 
@@ -660,19 +641,13 @@ export class FinanceiroService {
       });
 
       if (!atual) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Lançamento não encontrado.',
-        });
+        throw naoEncontrado('Lançamento não encontrado.');
       }
 
       // Recusar a segunda baixa é o que evita o clique duplo virar pagamento
       // duplicado — e a data da primeira baixa ser sobrescrita sem aviso.
       if (atual.pagoEm) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Este lançamento já teve baixa. Estorne antes de lançar outra data.',
-        });
+        throw conflito('Este lançamento já teve baixa. Estorne antes de lançar outra data.');
       }
 
       const alterado = await tx.lancamentoFinanceiro.update({
@@ -711,17 +686,11 @@ export class FinanceiroService {
       });
 
       if (!atual) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Lançamento não encontrado.',
-        });
+        throw naoEncontrado('Lançamento não encontrado.');
       }
 
       if (!atual.pagoEm) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Este lançamento está em aberto — não há baixa para estornar.',
-        });
+        throw conflito('Este lançamento está em aberto — não há baixa para estornar.');
       }
 
       const alterado = await tx.lancamentoFinanceiro.update({
@@ -1089,20 +1058,6 @@ export class FinanceiroService {
         ...anexo,
       })),
     });
-  }
-
-  private async garantirExiste(tx: TransacaoComTenant, id: string): Promise<void> {
-    const existe = await tx.lancamentoFinanceiro.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!existe) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Lançamento não encontrado.',
-      });
-    }
   }
 
   private paraResposta(registro: LancamentoBanco): Lancamento {

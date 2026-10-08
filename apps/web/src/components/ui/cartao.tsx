@@ -13,7 +13,7 @@ export function Cartao({ className, ...props }: HTMLAttributes<HTMLDivElement>) 
     <div
       {...props}
       className={cn(
-        'bg-card text-card-foreground rounded-lg border shadow-[var(--sombra-sutil)]',
+        'bg-card text-card-foreground rounded-lg border shadow-(--sombra-sutil)',
         className,
       )}
     />

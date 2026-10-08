@@ -81,7 +81,7 @@ export function SeletorSegmentado<T extends string>({
                 'flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-[0.3rem] px-2 py-1 text-center text-sm leading-tight font-medium transition-colors sm:px-3',
                 'has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-1',
                 escolhida
-                  ? cn(TOM_ATIVO[opcao.tom ?? 'neutro'], 'shadow-[var(--sombra-sutil)]')
+                  ? cn(TOM_ATIVO[opcao.tom ?? 'neutro'], 'shadow-(--sombra-sutil)')
                   : 'text-muted-foreground hover:text-foreground',
                 desabilitado && 'cursor-not-allowed opacity-50',
               )}

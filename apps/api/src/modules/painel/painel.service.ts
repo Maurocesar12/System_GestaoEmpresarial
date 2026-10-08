@@ -23,6 +23,7 @@ import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prism
 import { exigirContextoTenant } from '../../infra/tenant/tenant-context';
 import { contarMotivos, LeadsService } from '../crm/leads/leads.service';
 import { hojeEmDia } from '../financeiro/datas';
+import { inicioDoDia } from '../../common/fuso';
 
 const ZERO = new Prisma.Decimal(0);
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
@@ -557,7 +558,7 @@ interface Momentos {
  */
 function calcularMomentos(agora: Date): Momentos {
   const hoje = hojeEmDia();
-  const inicioDeHoje = new Date(`${hoje}T00:00:00-03:00`);
+  const inicioDeHoje = inicioDoDia(hoje);
   const inicioDeAmanha = new Date(inicioDeHoje.getTime() + MS_POR_DIA);
   const hojeUtc = new Date(`${hoje}T00:00:00Z`);
   const [ano, mes] = hoje.split('-').map(Number);
@@ -574,7 +575,7 @@ function calcularMomentos(agora: Date): Momentos {
     daquiSeteDias: new Date(agora.getTime() + 7 * MS_POR_DIA),
     seteDiasAtras: new Date(agora.getTime() - 7 * MS_POR_DIA),
     corteParado: new Date(agora.getTime() - DIAS_PARA_ALERTA * MS_POR_DIA),
-    inicioDoMes: new Date(`${hoje.slice(0, 7)}-01T00:00:00-03:00`),
+    inicioDoMes: inicioDoDia(`${hoje.slice(0, 7)}-01`),
     hojeUtc,
     inicioDoMesUtc: new Date(`${hoje.slice(0, 7)}-01T00:00:00Z`),
     inicioDaSerieUtc: new Date(Date.UTC(ano!, mes! - MESES_DA_SERIE, 1)),
@@ -762,13 +763,17 @@ function resumirSerie(
   );
 
   return {
-    serie: meses.map((mes) => ({
-      mes: mes.mes,
-      entradas: mes.entradas.toFixed(2),
-      saidas: mes.saidas.toFixed(2),
-      saldo: mes.saldo.toFixed(2),
-      acumulado: mes.acumulado.toFixed(2),
-    })),
+    serie: meses.map((mes, indice) => {
+      const anterior = meses[indice - 1];
+      return {
+        mes: mes.mes,
+        entradas: mes.entradas.toFixed(2),
+        saidas: mes.saidas.toFixed(2),
+        saldo: mes.saldo.toFixed(2),
+        acumulado: mes.acumulado.toFixed(2),
+        variacaoSaldo: anterior ? mes.saldo.minus(anterior.saldo).toFixed(2) : null,
+      };
+    }),
     resumoSerie: {
       totalEntradas: totalEntradas.toFixed(2),
       totalSaidas: totalSaidas.toFixed(2),

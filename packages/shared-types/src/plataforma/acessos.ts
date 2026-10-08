@@ -66,7 +66,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Clientes',
     descricao: 'Cadastro e ficha dos clientes.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta clientes e o histórico.', permissoes: ['clientes.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta clientes e o histórico.',
+        permissoes: ['clientes.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -91,7 +96,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Funil de vendas',
     descricao: 'Etapas da negociação de cada cliente.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Acompanha o quadro.', permissoes: ['funil.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Acompanha o quadro.',
+        permissoes: ['funil.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Mover',
@@ -112,7 +122,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Orçamentos',
     descricao: 'Propostas enviadas aos clientes.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta orçamentos e valores.', permissoes: ['orcamentos.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta orçamentos e valores.',
+        permissoes: ['orcamentos.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -127,7 +142,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Agenda',
     descricao: 'Serviços marcados e executados.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta os compromissos.', permissoes: ['agenda.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta os compromissos.',
+        permissoes: ['agenda.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -142,7 +162,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Lembretes',
     descricao: 'Follow-ups com os clientes.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta os lembretes.', permissoes: ['lembretes.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta os lembretes.',
+        permissoes: ['lembretes.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -157,7 +182,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Serviços',
     descricao: 'Catálogo de serviços e preços.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta serviços, custos e preços.', permissoes: ['servicos.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta serviços, custos e preços.',
+        permissoes: ['servicos.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -172,7 +202,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Estoque',
     descricao: 'Materiais, entradas e saldos.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta materiais e saldos.', permissoes: ['estoque.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta materiais e saldos.',
+        permissoes: ['estoque.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -187,7 +222,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Financeiro',
     descricao: 'Lançamentos, caixa, margem e pró-labore.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta valores e relatórios.', permissoes: ['financeiro.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta valores e relatórios.',
+        permissoes: ['financeiro.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -198,7 +238,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
         nivel: 'total',
         rotulo: 'Total',
         descricao: 'Também exclui lançamentos.',
-        permissoes: ['financeiro.visualizar', 'financeiro.criar', 'financeiro.editar', 'financeiro.excluir'],
+        permissoes: [
+          'financeiro.visualizar',
+          'financeiro.criar',
+          'financeiro.editar',
+          'financeiro.excluir',
+        ],
       },
     ],
     extras: [
@@ -211,7 +256,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Inteligência artificial',
     descricao: 'Previsão financeira com IA.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver consumo', descricao: 'Acompanha quanto a empresa usou de IA.', permissoes: ['ia.visualizar_consumo'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver consumo',
+        descricao: 'Acompanha quanto a empresa usou de IA.',
+        permissoes: ['ia.visualizar_consumo'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Usar',
@@ -226,7 +276,12 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
     titulo: 'Marketing',
     descricao: 'Origem dos leads e conversão.',
     niveis: [
-      { nivel: 'ver', rotulo: 'Ver', descricao: 'Consulta de onde vêm os leads.', permissoes: ['marketing.visualizar'] },
+      {
+        nivel: 'ver',
+        rotulo: 'Ver',
+        descricao: 'Consulta de onde vêm os leads.',
+        permissoes: ['marketing.visualizar'],
+      },
       {
         nivel: 'editar',
         rotulo: 'Editar',
@@ -346,7 +401,10 @@ export function montarCatalogoAcessos(): CatalogoAcessos {
       descricao: DESCRICAO_PAPEL[papel],
     })),
     padraoPorPapel: Object.fromEntries(
-      PAPEIS_USUARIO.map((papel) => [papel, acessosDasPermissoes(PERMISSOES_PADRAO_POR_PAPEL[papel])]),
+      PAPEIS_USUARIO.map((papel) => [
+        papel,
+        acessosDasPermissoes(PERMISSOES_PADRAO_POR_PAPEL[papel]),
+      ]),
     ) as Record<PapelUsuario, MapaAcessos>,
   };
 }

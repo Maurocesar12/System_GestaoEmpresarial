@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   type Comissao,
@@ -15,8 +15,9 @@ import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/pr
 import { exigirContextoTenant, tenantAtual } from '../../../infra/tenant/tenant-context';
 import { hojeEmDia } from '../../financeiro/datas';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
-import { diaEmSaoPaulo } from '../estoque/estoque.service';
+import { diaEmSaoPaulo } from '../../../common/fuso';
 import { calcularComissao } from './calculo-comissao';
+import { naoEncontrado, conflito } from '../../../common/erros';
 
 const ZERO = new Prisma.Decimal(0);
 const NOME_CATEGORIA = 'Comissões';
@@ -172,7 +173,10 @@ export class ComissoesService {
 
       const ids = [...new Set(grupos.map((grupo) => grupo.usuarioId))];
       const pessoas = ids.length
-        ? await tx.usuario.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true } })
+        ? await tx.usuario.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, nome: true },
+          })
         : [];
 
       return { registros, grupos, pessoas };
@@ -240,10 +244,7 @@ export class ComissoesService {
       });
 
       if (!pessoa) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Pessoa da equipe não encontrada.',
-        });
+        throw naoEncontrado('Pessoa da equipe não encontrada.');
       }
 
       const pendentes = await tx.comissao.findMany({
@@ -289,10 +290,9 @@ export class ComissoesService {
       // Outro fechamento levou parte destas comissões entre a leitura e a
       // gravação. Desfaz tudo em vez de criar uma conta com valor errado.
       if (count !== ids.length) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'As comissões mudaram durante o fechamento. Atualize a tela e tente de novo.',
-        });
+        throw conflito(
+          'As comissões mudaram durante o fechamento. Atualize a tela e tente de novo.',
+        );
       }
 
       await this.auditoria.registrar(tx, {
@@ -330,8 +330,7 @@ export class ComissoesService {
       status: registro.status,
       servicoId: registro.servicoId,
       servicoNome: registro.servico?.nome ?? null,
-      clienteNome:
-        registro.orcamento?.cliente.nome ?? registro.agendamento?.cliente.nome ?? null,
+      clienteNome: registro.orcamento?.cliente.nome ?? registro.agendamento?.cliente.nome ?? null,
       orcamentoId: registro.orcamentoId,
       agendamentoId: registro.agendamentoId,
       base: registro.base.toFixed(2),

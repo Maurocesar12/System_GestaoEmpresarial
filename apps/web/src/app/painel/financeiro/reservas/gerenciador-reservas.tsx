@@ -214,10 +214,10 @@ function PrevisaoReserva({ reserva }: { reserva: Reserva }) {
   }
 
   return (
-    <section className="rounded-lg border bg-muted/30 p-3 shadow-[var(--sombra-sutil)]">
+    <section className="rounded-lg border bg-muted/30 p-3 shadow-(--sombra-sutil)">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-md bg-card shadow-[var(--sombra-sutil)]">
+          <span className="flex size-8 items-center justify-center rounded-md bg-card shadow-(--sombra-sutil)">
             <Calculator className="size-4" />
           </span>
           <div>

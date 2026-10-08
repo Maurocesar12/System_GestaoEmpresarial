@@ -35,7 +35,7 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
         continua legível, sem a barra virar um bloco opaco que rouba altura útil
         em notebook de tela baixa.
       */}
-      <header className="bg-background/80 sticky top-0 z-40 h-[var(--altura-cabecalho-site)] shrink-0 border-b backdrop-blur">
+      <header className="bg-background/80 sticky top-0 z-40 h-(--altura-cabecalho-site) shrink-0 border-b backdrop-blur">
         {/*
           Padding menor no celular: a 390px, o nome da marca mais os dois botões
           não cabem com `px-6`, e o nome quebrava em duas linhas.
@@ -80,9 +80,7 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
           <div className="flex flex-col gap-1">
             <Marca className="text-sm" />
-            <span className="text-muted-foreground text-xs">
-              Sistema de Gestão para empresas.
-            </span>
+            <span className="text-muted-foreground text-xs">Sistema de Gestão para empresas.</span>
           </div>
 
           <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-4 border-t pt-6 text-xs">

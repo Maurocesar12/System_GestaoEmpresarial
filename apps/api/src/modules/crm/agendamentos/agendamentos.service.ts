@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -30,6 +25,8 @@ import { garantirVinculos } from '../../../common/vinculos';
 import { FinanceiroService } from '../../financeiro/financeiro.service';
 import { ComissoesService } from '../../operacao/comissoes/comissoes.service';
 import { EstoqueService } from '../../operacao/estoque/estoque.service';
+import { naoEncontrado } from '../../../common/erros';
+import { diaEmSaoPaulo, fimDoDia, inicioDoDia, instanteDeHorarioLocal } from '../../../common/fuso';
 
 /** Relações que toda resposta de agendamento precisa. */
 const INCLUDE_PADRAO = {
@@ -38,17 +35,6 @@ const INCLUDE_PADRAO = {
   tecnico: { select: { nome: true } },
   orcamento: { select: { valor: true } },
 } as const;
-
-/**
- * O dia do compromisso, em `AAAA-MM-DD`.
- *
- * Um lugar só porque duas gravações dependem dele na execução — o atendimento
- * no histórico e a receita no financeiro — e elas precisam cair no mesmo dia.
- * Se um dia esta regra mudar, as duas mudam juntas.
- */
-function diaDoCompromisso(dataHora: Date): string {
-  return dataHora.toISOString().slice(0, 10);
-}
 
 /** O registro do banco, derivado do schema em vez de redigitado à mão. */
 type AgendamentoBanco = Prisma.AgendamentoGetPayload<{ include: typeof INCLUDE_PADRAO }>;
@@ -71,10 +57,10 @@ export class AgendamentosService {
 
     if (de || ate) {
       where.dataHora = {
-        ...(de ? { gte: new Date(`${de}T00:00:00`) } : {}),
+        ...(de ? { gte: inicioDoDia(de) } : {}),
         // Fim do dia, não início: um filtro "até 20/08" precisa incluir os
         // compromissos das 14h daquele dia.
-        ...(ate ? { lte: new Date(`${ate}T23:59:59.999`) } : {}),
+        ...(ate ? { lte: fimDoDia(ate) } : {}),
       };
     }
 
@@ -106,10 +92,7 @@ export class AgendamentosService {
     );
 
     if (!agendamento) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Agendamento não encontrado.',
-      });
+      throw naoEncontrado('Agendamento não encontrado.');
     }
 
     return this.paraResposta(agendamento);
@@ -125,7 +108,7 @@ export class AgendamentosService {
           tenantId: tenantAtual(),
           clienteId: dados.clienteId,
           servicoId: dados.servicoId,
-          dataHora: new Date(dados.dataHora),
+          dataHora: instanteDeHorarioLocal(dados.dataHora),
           observacoes: dados.observacoes,
           tecnicoId: dados.tecnicoId,
           orcamentoId: dados.orcamentoId,
@@ -163,7 +146,7 @@ export class AgendamentosService {
         data: {
           clienteId: dados.clienteId,
           servicoId: dados.servicoId,
-          dataHora: new Date(dados.dataHora),
+          dataHora: instanteDeHorarioLocal(dados.dataHora),
           observacoes: dados.observacoes,
           tecnicoId: dados.tecnicoId,
           orcamentoId: dados.orcamentoId,
@@ -245,7 +228,7 @@ export class AgendamentosService {
           await this.financeiro.registrarReceitaDeServico(tx, {
             descricao: `${oQue} · ${atualizado.cliente.nome}`,
             valor: recebimento.valor,
-            dia: diaDoCompromisso(atualizado.dataHora),
+            dia: diaEmSaoPaulo(atualizado.dataHora),
             servicoId: atualizado.servicoId,
             clienteId: atualizado.clienteId,
             recebimento,
@@ -287,10 +270,7 @@ export class AgendamentosService {
     const agendamento = await tx.agendamento.findUnique({ where: { id }, include: INCLUDE_PADRAO });
 
     if (!agendamento) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Agendamento não encontrado.',
-      });
+      throw naoEncontrado('Agendamento não encontrado.');
     }
 
     return agendamento;
@@ -321,7 +301,7 @@ export class AgendamentosService {
         // A data do atendimento é a do compromisso, não a de hoje: marcar como
         // executado na segunda-feira um serviço feito na sexta não pode gravar
         // segunda no histórico.
-        data: new Date(diaDoCompromisso(agendamento.dataHora)),
+        data: new Date(diaEmSaoPaulo(agendamento.dataHora)),
       },
     });
   }

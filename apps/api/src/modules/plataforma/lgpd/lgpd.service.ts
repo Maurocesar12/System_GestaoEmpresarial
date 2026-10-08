@@ -19,6 +19,7 @@ import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { exigirContextoTenant, tenantAtual } from '../../../infra/tenant/tenant-context';
 import { SenhaService } from '../../auth/senha.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
+import { naoEncontrado, conflito } from '../../../common/erros';
 
 const RESUMO_LOG_ANONIMIZADO = 'Dados pessoais removidos a pedido do titular (LGPD).';
 
@@ -165,10 +166,7 @@ export class LgpdService {
       if (!cliente) throw this.clienteNaoEncontrado();
 
       if (cliente.anonimizadoEm) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: 'Este cliente já foi anonimizado.',
-        });
+        throw conflito('Este cliente já foi anonimizado.');
       }
 
       await tx.cliente.update({
@@ -422,17 +420,11 @@ export class LgpdService {
   }
 
   private clienteNaoEncontrado(): NotFoundException {
-    return new NotFoundException({
-      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-      mensagem: 'Cliente não encontrado.',
-    });
+    return naoEncontrado('Cliente não encontrado.');
   }
 
   private contaJaCancelada(): ConflictException {
-    return new ConflictException({
-      codigo: CODIGOS_ERRO.CONFLITO,
-      mensagem: 'Esta conta já foi cancelada.',
-    });
+    return conflito('Esta conta já foi cancelada.');
   }
 
   private confirmacaoInvalida(campo: string, mensagem: string): BadRequestException {

@@ -118,7 +118,7 @@ export function NovoCartao({
   }
 
   return (
-    <div className="bg-card flex flex-col gap-2 rounded-lg border p-2 shadow-[var(--sombra-sutil)]">
+    <div className="bg-card flex flex-col gap-2 rounded-lg border p-2 shadow-(--sombra-sutil)">
       <label className="sr-only" htmlFor={`novo-${etapaId}`}>
         Nome do cliente para a etapa {etapaNome}
       </label>
@@ -186,7 +186,7 @@ export function NovoCartao({
                 className={cn(
                   'max-w-full rounded-[5px] border px-2.5 py-1 text-[0.6875rem] font-semibold transition-[box-shadow,opacity,transform]',
                   selecionada
-                    ? 'opacity-100 shadow-[var(--sombra-sutil)]'
+                    ? 'opacity-100 shadow-(--sombra-sutil)'
                     : 'opacity-70 hover:-translate-y-0.5 hover:opacity-100',
                 )}
                 style={estilosEtiqueta(etiqueta.cor, selecionada)}

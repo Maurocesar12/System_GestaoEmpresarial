@@ -1,6 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
-  CODIGOS_ERRO,
   paginar,
   type AcaoAuditoria,
   type AuditoriaQuery,
@@ -11,6 +10,7 @@ import { uuidv7 } from '../../../common/uuid';
 import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { exigirContextoTenant, tenantAtual } from '../../../infra/tenant/tenant-context';
+import { naoEncontrado } from '../../../common/erros';
 
 interface RegistrarAuditoria {
   entidade: string;
@@ -98,10 +98,7 @@ export class AuditoriaService {
     const removidos = await this.removerVarios([id]);
 
     if (removidos === 0) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Histórico não encontrado.',
-      });
+      throw naoEncontrado('Histórico não encontrado.');
     }
   }
 

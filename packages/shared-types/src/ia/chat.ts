@@ -30,7 +30,6 @@ export type ModoChat = z.infer<typeof modoChatSchema>;
 
 export const AUTORES_CHAT = ['usuario', 'assistente'] as const;
 export const autorChatSchema = z.enum(AUTORES_CHAT);
-export type AutorChat = z.infer<typeof autorChatSchema>;
 
 export const mensagemChatSchema = z.object({
   autor: autorChatSchema,

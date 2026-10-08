@@ -22,9 +22,7 @@ export class PermissoesGuard implements CanActivate {
     if (!necessarias?.length) return true;
 
     const usuario = obterContextoTenant();
-    const concedidas = usuario
-      ? permissoesDoUsuario(usuario.papel, usuario.permissoes)
-      : [];
+    const concedidas = usuario ? permissoesDoUsuario(usuario.papel, usuario.permissoes) : [];
 
     if (!usuario || !necessarias.every((item) => concedidas.includes(item))) {
       throw new ForbiddenException({

@@ -1,10 +1,4 @@
-import {
-  ConflictException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CODIGOS_ERRO,
@@ -16,6 +10,7 @@ import type { Env } from '../../../config/env.schema';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { AuthService } from '../auth.service';
 import { CifraSegredo, conferirCodigo, gerarSegredo, urlOtpauth } from './totp';
+import { conflito } from '../../../common/erros';
 
 /** Nome que aparece no app autenticador, acima do e-mail. */
 const EMISSOR = 'Gestão Empresarial';
@@ -110,10 +105,7 @@ export class DoisFatoresService {
     const usuario = await this.buscar(token.sub, token.tenantId);
 
     if (!usuario.doisFatoresAtivadoEm || !usuario.doisFatoresSegredo) {
-      throw new ConflictException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem: 'Configure o app autenticador para continuar.',
-      });
+      throw conflito('Configure o app autenticador para continuar.');
     }
 
     if (usuario.doisFatoresBloqueadoAte && usuario.doisFatoresBloqueadoAte > new Date()) {
@@ -204,20 +196,17 @@ export class DoisFatoresService {
     } catch {
       // Só acontece se o `JWT_SECRET` mudou depois da configuração: a chave
       // derivada não abre mais o segredo. O caminho é o admin redefinir o 2FA.
-      throw new ConflictException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem:
-          'Não foi possível validar seu app autenticador. Peça ao administrador para redefinir a verificação em duas etapas.',
-      });
+      throw conflito(
+        'Não foi possível validar seu app autenticador. Peça ao administrador para redefinir a verificação em duas etapas.',
+      );
     }
   }
 
   private garantirNaoConfigurado(ativadoEm: Date | null): void {
     if (ativadoEm) {
-      throw new ConflictException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem: 'A verificação em duas etapas já está configurada. Entre com o código do app.',
-      });
+      throw conflito(
+        'A verificação em duas etapas já está configurada. Entre com o código do app.',
+      );
     }
   }
 

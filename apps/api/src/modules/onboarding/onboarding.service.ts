@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CODIGOS_ERRO, type CadastroInput, type DesafioDoisFatores } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
@@ -6,6 +6,7 @@ import type { Env } from '../../config/env.schema';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { SenhaService } from '../auth/senha.service';
+import { conflito } from '../../common/erros';
 
 /**
  * Etapas do funil criadas para toda empresa nova (arquitetura §7).
@@ -115,10 +116,7 @@ export class OnboardingService {
     );
 
     if (existente) {
-      throw new ConflictException({
-        codigo: CODIGOS_ERRO.CONFLITO,
-        mensagem: 'Este e-mail já tem cadastro. Faça login ou use outro e-mail.',
-      });
+      throw conflito('Este e-mail já tem cadastro. Faça login ou use outro e-mail.');
     }
   }
 

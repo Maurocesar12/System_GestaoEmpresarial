@@ -177,6 +177,8 @@ function mapearLinhaHistorico(registro: RegistroAuditoria) {
     data: new Intl.DateTimeFormat('pt-BR', {
       dateStyle: 'short',
       timeStyle: 'short',
+      // Página de servidor: sem o fuso, a hora sairia em UTC (3 h adiantada).
+      timeZone: 'America/Sao_Paulo',
     }).format(new Date(registro.criadoEm)),
     responsavel: registro.usuarioNome,
     acao: rotularAcao(registro.acao),

@@ -45,7 +45,7 @@ export function PainelLateral({
       }}
       aria-label={titulo}
       className={cn(
-        'painel-lateral bg-card text-card-foreground border-l p-0 shadow-[var(--sombra-media)]',
+        'painel-lateral bg-card text-card-foreground border-l p-0 shadow-(--sombra-media)',
         // Encostado à direita, altura inteira; no celular ocupa a tela toda.
         // `overflow-hidden`: quem rola é só o corpo, nunca o painel inteiro.
         'fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-dvh w-full max-w-xl overflow-hidden',

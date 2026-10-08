@@ -41,7 +41,7 @@ export function PainelDeExemplo() {
       // Some de leitores de tela: é ilustração. O conteúdo textual da página já
       // explica o produto, e ouvir "R$ 48.320" fora de contexto só confundiria.
       aria-hidden
-      className="bg-card overflow-hidden rounded-xl border shadow-[var(--sombra-media)]"
+      className="bg-card overflow-hidden rounded-xl border shadow-(--sombra-media)"
     >
       <div className="bg-superficie flex items-center gap-1.5 border-b px-4 py-2.5">
         <span className="bg-muted-foreground/30 size-2 rounded-full" />

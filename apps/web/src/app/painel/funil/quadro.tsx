@@ -273,7 +273,7 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
         />
       </section>
 
-      <div className="bg-card flex flex-col gap-3 rounded-xl border p-3 shadow-[var(--sombra-sutil)] lg:flex-row lg:items-center lg:justify-between">
+      <div className="bg-card flex flex-col gap-3 rounded-xl border p-3 shadow-(--sombra-sutil) lg:flex-row lg:items-center lg:justify-between">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">Buscar no funil</span>
           <Search
@@ -299,7 +299,7 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
                 className={cn(
                   'h-8 rounded-md px-3 text-xs font-medium whitespace-nowrap transition-colors',
                   ativo
-                    ? 'bg-primary text-primary-foreground shadow-[var(--sombra-sutil)]'
+                    ? 'bg-primary text-primary-foreground shadow-(--sombra-sutil)'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 )}
               >
@@ -325,7 +325,7 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
       */}
       <DndContext id="funil" sensors={sensores} onDragStart={aoPegar} onDragEnd={aoSoltar}>
         {/* O quadro rola na horizontal; a página, não. */}
-        <div className="bg-card/70 rounded-2xl border p-3 shadow-[var(--sombra-sutil)]">
+        <div className="bg-card/70 rounded-2xl border p-3 shadow-(--sombra-sutil)">
           {/*
             Além da barra de rolagem, o fundo do quadro é uma alça: pegar um
             espaço vazio ou o cabeçalho de uma coluna e puxar move o quadro para
@@ -365,7 +365,7 @@ export function Quadro({ quadro, etiquetas }: { quadro: QuadroFunil; etiquetas: 
         */}
         <DragOverlay>
           {arrastando && (
-            <div className="bg-card w-72 rotate-2 rounded-lg border p-3 shadow-[var(--sombra-media)]">
+            <div className="bg-card w-72 rotate-2 rounded-lg border p-3 shadow-(--sombra-media)">
               <p className="text-sm font-semibold">{arrastando.nome}</p>
               {arrastando.orcamentoAberto && (
                 <p className="numerico mt-1 text-sm font-semibold">
@@ -455,7 +455,7 @@ function Metrica({
   alerta?: boolean;
 }) {
   return (
-    <div className="bg-card flex min-h-28 items-start justify-between gap-4 rounded-xl border p-4 shadow-[var(--sombra-sutil)]">
+    <div className="bg-card flex min-h-28 items-start justify-between gap-4 rounded-xl border p-4 shadow-(--sombra-sutil)">
       <div className="min-w-0">
         <p className="text-muted-foreground text-xs font-medium">{rotulo}</p>
         <p className="mt-2 truncate text-2xl font-semibold tracking-tight tabular-nums">{valor}</p>
@@ -530,7 +530,7 @@ function Coluna({
     <section
       ref={setNodeRef}
       className={cn(
-        'bg-superficie/95 flex max-h-[calc(100vh-18rem)] min-h-[34rem] w-[19rem] shrink-0 flex-col rounded-xl border shadow-[var(--sombra-sutil)] backdrop-blur-sm transition-colors',
+        'bg-superficie/95 flex max-h-[calc(100vh-18rem)] min-h-[34rem] w-[19rem] shrink-0 flex-col rounded-xl border shadow-(--sombra-sutil) backdrop-blur-sm transition-colors',
         // Realce durante o arrasto: sem ele, não fica claro onde o cartão cai.
         isOver && 'border-primary bg-primary/5',
       )}
@@ -646,8 +646,8 @@ function CartaoDoFunil({
         transform: CSS.Translate.toString(transform),
       }}
       className={cn(
-        'group bg-card relative flex flex-col gap-2 overflow-hidden rounded-lg border p-3 shadow-[var(--sombra-sutil)]',
-        'transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-input hover:shadow-[var(--sombra-media)]',
+        'group bg-card relative flex flex-col gap-2 overflow-hidden rounded-lg border p-3 shadow-(--sombra-sutil)',
+        'transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-input hover:shadow-(--sombra-media)',
         // A faixa lateral marca o cartão parado sem gastar espaço com texto.
         parado && 'border-l-atencao border-l-2',
         isDragging && 'opacity-40',

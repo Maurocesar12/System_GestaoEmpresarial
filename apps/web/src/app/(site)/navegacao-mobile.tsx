@@ -33,7 +33,7 @@ export function NavegacaoMobile({
       </summary>
       <nav
         aria-label="Navegação no celular"
-        className="absolute inset-x-0 top-full border-b bg-background px-6 py-5 shadow-[var(--sombra-media)]"
+        className="absolute inset-x-0 top-full border-b bg-background px-6 py-5 shadow-(--sombra-media)"
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('a') && ref.current) ref.current.open = false;
         }}

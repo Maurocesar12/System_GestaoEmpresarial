@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
@@ -25,6 +25,7 @@ import { garantirVinculos } from '../../../common/vinculos';
 // usado em tempo de execução para representar o zero quando não há orçamentos
 // somados.
 import { Prisma } from '../../../generated/prisma/client';
+import { naoEncontrado } from '../../../common/erros';
 
 /** As relações que toda resposta de orçamento carrega. */
 const INCLUDE_PADRAO = {
@@ -138,10 +139,7 @@ export class OrcamentosService {
     );
 
     if (!orcamento) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Orçamento não encontrado.',
-      });
+      throw naoEncontrado('Orçamento não encontrado.');
     }
 
     return this.paraResposta(orcamento);
@@ -285,10 +283,7 @@ export class OrcamentosService {
     const orcamento = await tx.orcamento.findUnique({ where: { id }, include: INCLUDE_PADRAO });
 
     if (!orcamento) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Orçamento não encontrado.',
-      });
+      throw naoEncontrado('Orçamento não encontrado.');
     }
 
     return orcamento;

@@ -11,7 +11,6 @@ import { z } from 'zod';
  */
 
 export const PACOTE_IA_PRECO_MENSAL_BRL = '200,00';
-export const PACOTE_IA_PREVISOES_MENSAIS = 200;
 
 export const gerarPrevisaoFinanceiraSchema = z.object({
   mesesHistorico: z.number().int().min(3).max(12).default(6),

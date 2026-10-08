@@ -1,6 +1,5 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
-  CODIGOS_ERRO,
   ocorrenciaDoCiclo,
   type LancamentoRecorrente,
   type ResumoRecorrencias,
@@ -14,6 +13,7 @@ import { garantirVinculos } from '../../common/vinculos';
 import { garantirCategoriaDoTipo } from './categoria-do-tipo';
 import { paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
+import { naoEncontrado, conflito } from '../../common/erros';
 
 const RELACIONAMENTOS = {
   categoria: { select: { nome: true } },
@@ -135,17 +135,13 @@ export class RecorrenciaService {
       });
 
       if (!atual) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Recorrência não encontrada.',
-        });
+        throw naoEncontrado('Recorrência não encontrada.');
       }
 
       if (atual.ativo === ativo) {
-        throw new ConflictException({
-          codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: ativo ? 'Esta recorrência já está ativa.' : 'Esta recorrência já está pausada.',
-        });
+        throw conflito(
+          ativo ? 'Esta recorrência já está ativa.' : 'Esta recorrência já está pausada.',
+        );
       }
 
       const alterado = await tx.lancamentoRecorrente.update({
@@ -184,10 +180,7 @@ export class RecorrenciaService {
       });
 
       if (!atual) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Recorrência não encontrada.',
-        });
+        throw naoEncontrado('Recorrência não encontrada.');
       }
 
       await tx.lancamentoRecorrente.delete({ where: { id } });

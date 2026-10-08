@@ -26,8 +26,36 @@ export function formatarPeriodo(de: string, ate: string): string {
   return `${formatarDataCompleta(de)} a ${formatarDataCompleta(ate)}`;
 }
 
+/**
+ * Dia e hora de um instante **em Brasília**, onde quer que o código rode.
+ *
+ * As páginas do painel são renderizadas no servidor da Vercel, que está em
+ * UTC. Sem fixar o fuso, um compromisso às 14h aparecia como 17h, e um às 22h
+ * aparecia como "amanhã".
+ */
+const PARTES_EM_BRASILIA = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Sao_Paulo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+function emBrasilia(instante: Date): { dia: string; hora: string } {
+  const partes = Object.fromEntries(
+    PARTES_EM_BRASILIA.formatToParts(instante).map((parte) => [parte.type, parte.value]),
+  );
+  return {
+    dia: `${partes.year}-${partes.month}-${partes.day}`,
+    hora: `${partes.hour}:${partes.minute}`,
+  };
+}
+
+/** `2026-08-13T17:30:00Z` → `14:30`. */
 export function formatarHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return emBrasilia(new Date(iso)).hora;
 }
 
 export function formatarDataLonga(iso: string): string {
@@ -45,12 +73,9 @@ export function formatarDataLonga(iso: string): string {
  * ninguém converte "13/08" para "é hoje?" sem pensar.
  */
 export function formatarDiaAgenda(iso: string): string {
-  const hoje = new Date();
-  const amanha = new Date(hoje);
-  amanha.setDate(hoje.getDate() + 1);
-
-  if (iso === paraISO(hoje)) return 'Hoje';
-  if (iso === paraISO(amanha)) return 'Amanhã';
+  const agora = Date.now();
+  if (iso === emBrasilia(new Date(agora)).dia) return 'Hoje';
+  if (iso === emBrasilia(new Date(agora + 24 * 60 * 60 * 1000)).dia) return 'Amanhã';
 
   return dataLocalDeISO(iso).toLocaleDateString('pt-BR', {
     weekday: 'long',
@@ -59,38 +84,26 @@ export function formatarDiaAgenda(iso: string): string {
   });
 }
 
-/** `2026-08-13T14:30:00Z` → `hoje às 14:30`. Usado nas listas do painel. */
+/** `2026-08-13T17:30:00Z` → `hoje às 14:30`. Usado nas listas do painel. */
 export function formatarQuando(iso: string): string {
-  return `${formatarDiaAgenda(iso.slice(0, 10)).toLowerCase()} às ${formatarHora(iso)}`;
+  const { dia, hora } = emBrasilia(new Date(iso));
+  return `${formatarDiaAgenda(dia).toLowerCase()} às ${hora}`;
 }
 
 /**
- * O formato que `<input type="datetime-local">` exige.
- *
- * Montado pelos componentes locais da data, e não por `toISOString()`: este
- * último converte para UTC, e o campo apareceria com a hora deslocada.
+ * O formato que `<input type="datetime-local">` exige, em horário de Brasília
+ * — o mesmo fuso em que a API lê o campo de volta.
  */
 export function paraCampoDatetimeLocal(iso: string): string {
-  const data = new Date(iso);
-
-  return (
-    `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(data.getDate())}` +
-    `T${doisDigitos(data.getHours())}:${doisDigitos(data.getMinutes())}`
-  );
+  const { dia, hora } = emBrasilia(new Date(iso));
+  return `${dia}T${hora}`;
 }
 
 /** Sugestão padrão para agendar: a próxima hora fechada. */
 export function proximaHoraCheia(): string {
-  const data = new Date();
-  data.setHours(data.getHours() + 1, 0, 0, 0);
-
-  return paraCampoDatetimeLocal(data.toISOString());
-}
-
-function paraISO(data: Date): string {
-  return `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(data.getDate())}`;
-}
-
-function doisDigitos(valor: number): string {
-  return String(valor).padStart(2, '0');
+  // Brasília tem offset de horas inteiras: virar a hora em UTC é virar lá também.
+  const UMA_HORA = 60 * 60 * 1000;
+  return paraCampoDatetimeLocal(
+    new Date((Math.floor(Date.now() / UMA_HORA) + 1) * UMA_HORA).toISOString(),
+  );
 }

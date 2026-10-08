@@ -80,7 +80,7 @@ export function CartaoAberto({
         if (evento.target === janela.current) janela.current?.close();
       }}
       className={cn(
-        'bg-card text-card-foreground m-auto w-full max-w-2xl rounded-xl border p-0 shadow-[var(--sombra-media)]',
+        'bg-card text-card-foreground m-auto w-full max-w-2xl rounded-xl border p-0 shadow-(--sombra-media)',
         'backdrop:bg-black/50 backdrop:backdrop-blur-sm',
       )}
     >

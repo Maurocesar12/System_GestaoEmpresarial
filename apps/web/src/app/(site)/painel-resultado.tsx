@@ -66,7 +66,7 @@ export function PainelResultado() {
     <Revelar>
       <div
         aria-hidden
-        className="bg-card overflow-hidden rounded-xl border shadow-[var(--sombra-media)]"
+        className="bg-card overflow-hidden rounded-xl border shadow-(--sombra-media)"
       >
         <div className="flex items-start justify-between gap-4 p-5 sm:p-6">
           <div>

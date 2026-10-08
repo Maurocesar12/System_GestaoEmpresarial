@@ -1,6 +1,6 @@
 'use client';
 
-import type { UsuarioAutenticado } from '@gestao/shared-types';
+import { ROTULO_PAPEL, type UsuarioAutenticado } from '@gestao/shared-types';
 import { ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -35,13 +35,6 @@ interface Props {
   aoSair: () => Promise<void>;
   children: ReactNode;
 }
-
-const ROTULO_PAPEL: Record<UsuarioAutenticado['papel'], string> = {
-  admin: 'Administrador',
-  financeiro: 'Financeiro',
-  atendente: 'Atendente',
-  tecnico: 'Técnico',
-};
 
 const CHAVE_MENU_ENCOLHIDO = 'gestao:menu-encolhido';
 
@@ -219,7 +212,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
           onClick={alternarMenuEncolhido}
           aria-label={menuEncolhido ? 'Expandir menu' : 'Encolher menu'}
           title={menuEncolhido ? 'Expandir menu' : 'Encolher menu'}
-          className="bg-card text-muted-foreground hover:border-primary hover:text-primary absolute top-5 -right-3 flex size-7 items-center justify-center rounded-full border shadow-[var(--sombra-sutil)] transition-colors"
+          className="bg-card text-muted-foreground hover:border-primary hover:text-primary absolute top-5 -right-3 flex size-7 items-center justify-center rounded-full border shadow-(--sombra-sutil) transition-colors"
         >
           {menuEncolhido ? (
             <ChevronRight aria-hidden className="size-4" />
@@ -256,7 +249,7 @@ export function ShellPainel({ usuario, aoSair, children }: Props) {
             className="absolute inset-0 h-full w-full bg-black/40"
           />
 
-          <div className="bg-superficie absolute inset-y-0 left-0 flex h-dvh w-64 flex-col border-r shadow-[var(--sombra-media)]">
+          <div className="bg-superficie absolute inset-y-0 left-0 flex h-dvh w-64 flex-col border-r shadow-(--sombra-media)">
             <div className="flex items-start justify-between">
               {identificacao(false)}
 

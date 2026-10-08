@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CODIGOS_ERRO, type Atendimento, type AtendimentoFormInput } from '@gestao/shared-types';
+import { Injectable } from '@nestjs/common';
+import type { Atendimento, AtendimentoFormInput } from '@gestao/shared-types';
 import { uuidv7 } from '../../../common/uuid';
 import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { naoEncontrado } from '../../../common/erros';
 
 /** O registro do banco, derivado do schema em vez de redigitado à mão. */
 type AtendimentoBanco = Prisma.AtendimentoGetPayload<object>;
@@ -34,10 +35,7 @@ export class AtendimentosService {
       });
 
       if (!cliente) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Cliente não encontrado.',
-        });
+        throw naoEncontrado('Cliente não encontrado.');
       }
 
       return tx.atendimento.create({
@@ -62,10 +60,7 @@ export class AtendimentosService {
     );
 
     if (removidos.count === 0) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Atendimento não encontrado.',
-      });
+      throw naoEncontrado('Atendimento não encontrado.');
     }
   }
 

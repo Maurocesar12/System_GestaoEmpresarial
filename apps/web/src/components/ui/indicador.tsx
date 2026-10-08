@@ -62,7 +62,7 @@ export function Indicador({
   );
 
   const classes = cn(
-    'bg-card rounded-lg border p-4 shadow-[var(--sombra-sutil)] transition-colors',
+    'bg-card rounded-lg border p-4 shadow-(--sombra-sutil) transition-colors',
     BORDA_DO_TOM[tom],
     destaque && 'ring-primary/20 ring-1',
   );

@@ -169,9 +169,7 @@ function NovaCategoria({ onErro }: { onErro: (erro?: string) => void }) {
           de contabilidade que o dono de PME não usa — e escolher errado aqui
           distorce o custo por dia e a margem sem nenhum sinal de que houve erro.
         */}
-        <p className="text-muted-foreground max-w-52 text-xs">
-          {EXPLICACAO_TIPO_CUSTO[tipoCusto]}
-        </p>
+        <p className="text-muted-foreground max-w-52 text-xs">{EXPLICACAO_TIPO_CUSTO[tipoCusto]}</p>
       </div>
 
       <Botao type="submit" variante="secundario" carregando={criando}>

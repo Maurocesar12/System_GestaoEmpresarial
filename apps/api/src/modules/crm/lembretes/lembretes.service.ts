@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   ROTULO_STATUS_LEMBRETE,
@@ -12,6 +12,8 @@ import { uuidv7 } from '../../../common/uuid';
 import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { naoEncontrado } from '../../../common/erros';
+import { fimDoDia, inicioDoDia, instanteDeHorarioLocal } from '../../../common/fuso';
 
 const INCLUDE_PADRAO = {
   cliente: { select: { nome: true, email: true, telefone: true } },
@@ -33,8 +35,8 @@ export class LembretesService {
 
     if (de || ate) {
       where.dataEnvio = {
-        ...(de ? { gte: new Date(`${de}T00:00:00`) } : {}),
-        ...(ate ? { lte: new Date(`${ate}T23:59:59.999`) } : {}),
+        ...(de ? { gte: inicioDoDia(de) } : {}),
+        ...(ate ? { lte: fimDoDia(ate) } : {}),
       };
     }
 
@@ -64,10 +66,7 @@ export class LembretesService {
     );
 
     if (!lembrete) {
-      throw new NotFoundException({
-        codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-        mensagem: 'Lembrete não encontrado.',
-      });
+      throw naoEncontrado('Lembrete não encontrado.');
     }
 
     return this.paraResposta(lembrete);
@@ -81,10 +80,7 @@ export class LembretesService {
       });
 
       if (!cliente) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Cliente não encontrado.',
-        });
+        throw naoEncontrado('Cliente não encontrado.');
       }
 
       return tx.lembreteFollowUp.create({
@@ -93,7 +89,7 @@ export class LembretesService {
           tenantId: tenantAtual(),
           clienteId: dados.clienteId,
           canal: dados.canal,
-          dataEnvio: new Date(dados.dataEnvio),
+          dataEnvio: instanteDeHorarioLocal(dados.dataEnvio),
         },
         include: INCLUDE_PADRAO,
       });
@@ -110,10 +106,7 @@ export class LembretesService {
       });
 
       if (!atual) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Lembrete não encontrado.',
-        });
+        throw naoEncontrado('Lembrete não encontrado.');
       }
 
       if (atual.status !== 'pendente') {

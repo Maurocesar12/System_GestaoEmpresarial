@@ -32,10 +32,9 @@ export const estilosBotao = cva(
     variants: {
       variante: {
         /** Ação principal da tela. No máximo uma por tela — se tudo é primário, nada é. */
-        primario:
-          'bg-primary text-primary-foreground hover:bg-primary/90 shadow-[var(--sombra-sutil)]',
+        primario: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-(--sombra-sutil)',
         /** Ação secundária: mesma importância visual da superfície, com contorno. */
-        secundario: 'border bg-card hover:bg-accent text-foreground shadow-[var(--sombra-sutil)]',
+        secundario: 'border bg-card hover:bg-accent text-foreground shadow-(--sombra-sutil)',
         /** Ação terciária, sem peso: filtros, ações de linha de tabela. */
         sutil: 'hover:bg-accent text-muted-foreground hover:text-foreground',
         /** Ação destrutiva confirmada — excluir, cancelar em definitivo. */

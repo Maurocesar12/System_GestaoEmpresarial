@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   DIAS_PARA_ALERTA,
@@ -15,6 +15,7 @@ import { Prisma, type MarcoFunil } from '../../../generated/prisma/client';
 import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
+import { naoEncontrado } from '../../../common/erros';
 
 /**
  * Funil de vendas.
@@ -192,17 +193,11 @@ export class FunilService {
       ]);
 
       if (!cliente) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Cliente não encontrado.',
-        });
+        throw naoEncontrado('Cliente não encontrado.');
       }
 
       if (!etapa) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Etapa não encontrada.',
-        });
+        throw naoEncontrado('Etapa não encontrada.');
       }
 
       const posicaoAnterior = await tx.clienteFunil.findUnique({
@@ -333,10 +328,7 @@ export class FunilService {
       const etapa = await tx.etapaFunil.findUnique({ where: { id: etapaId } });
 
       if (!etapa) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Etapa não encontrada.',
-        });
+        throw naoEncontrado('Etapa não encontrada.');
       }
 
       // Só uma etapa por marco (o banco garante com índice único). Liberar a
@@ -388,10 +380,7 @@ export class FunilService {
       const existente = await tx.etapaFunil.findUnique({ where: { id } });
 
       if (!existente) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Etapa não encontrada.',
-        });
+        throw naoEncontrado('Etapa não encontrada.');
       }
 
       return tx.etapaFunil.update({ where: { id }, data: { nome } });
@@ -415,10 +404,7 @@ export class FunilService {
       });
 
       if (!etapa) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Etapa não encontrada.',
-        });
+        throw naoEncontrado('Etapa não encontrada.');
       }
 
       if (etapa._count.clientes > 0) {
@@ -447,10 +433,7 @@ export class FunilService {
 
       const desconhecido = etapaIds.find((id) => !idsConhecidos.has(id));
       if (desconhecido) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Uma das etapas informadas não existe.',
-        });
+        throw naoEncontrado('Uma das etapas informadas não existe.');
       }
 
       if (etapaIds.length !== existentes.length) {

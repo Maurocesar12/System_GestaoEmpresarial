@@ -128,7 +128,7 @@ function CartaoAviso({ aviso, aoFechar }: { aviso: Aviso; aoFechar: () => void }
       role={aviso.tom === 'erro' ? 'alert' : 'status'}
       aria-live={aviso.tom === 'erro' ? 'assertive' : 'polite'}
       className={cn(
-        'pointer-events-auto flex w-full max-w-sm items-start gap-2.5 rounded-lg border px-3.5 py-3 text-sm shadow-[var(--sombra-media)]',
+        'pointer-events-auto flex w-full max-w-sm items-start gap-2.5 rounded-lg border px-3.5 py-3 text-sm shadow-(--sombra-media)',
         'animate-in slide-in-from-bottom-2 fade-in duration-200',
         ESTILO[aviso.tom],
       )}

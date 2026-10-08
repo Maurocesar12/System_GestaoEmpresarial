@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   DIAS_DO_MES_REFERENCIA,
@@ -26,6 +26,7 @@ import {
 } from './datas';
 import { FinanceiroService } from './financeiro.service';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
+import { naoEncontrado } from '../../common/erros';
 
 /** Em quantos meses a reserva deve alcançar a meta, quando há uma. */
 const MESES_PARA_COMPLETAR_RESERVA = 12;
@@ -129,10 +130,7 @@ export class ProLaboreService {
       });
 
       if (!alvo) {
-        throw new NotFoundException({
-          codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
-          mensagem: 'Pró-labore não encontrado.',
-        });
+        throw naoEncontrado('Pró-labore não encontrado.');
       }
 
       await tx.proLabore.deleteMany({ where: { id } });
