@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Activity, KanbanSquare } from 'lucide-react';
 import { formatarBRL, type BlocoFunil, type PainelTempoReal } from '@gestao/shared-types';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
+import { DicaConceito } from '@/components/ui/dica-conceito';
 import { Selo } from '@/components/ui/selo';
 
 /** Resumo do funil e das contas em aberto no painel. */
@@ -19,7 +20,7 @@ export function BlocoDoFunil({ funil }: { funil: BlocoFunil }) {
   return (
     <Cartao className="flex flex-col">
       <CartaoCabecalho>
-        <CartaoTitulo className="flex items-center gap-2">
+        <CartaoTitulo className="flex items-center gap-2" conceito="funil">
           <KanbanSquare aria-hidden className="text-muted-foreground size-4" />
           Funil de vendas
         </CartaoTitulo>
@@ -96,32 +97,44 @@ export function ContasEmAberto({
 
       <CartaoConteudo className="grid gap-4 sm:grid-cols-2">
         <div>
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            A receber
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              A receber
+            </p>
+            <DicaConceito conceito="a-receber" />
+          </div>
           <p className="text-sucesso mt-1 text-xl font-semibold tabular-nums">
             {formatarBRL(financeiro.aReceber)}
           </p>
           {financeiro.vencidosAReceber.quantidade > 0 && (
-            <Selo tom="atencao" className="mt-2">
-              {financeiro.vencidosAReceber.quantidade} vencida(s) ·{' '}
-              {formatarBRL(financeiro.vencidosAReceber.valor)}
-            </Selo>
+            <div className="mt-2 flex items-center gap-1.5">
+              <Selo tom="atencao">
+                {financeiro.vencidosAReceber.quantidade} vencida(s) ·{' '}
+                {formatarBRL(financeiro.vencidosAReceber.valor)}
+              </Selo>
+              <DicaConceito conceito="vencido" />
+            </div>
           )}
         </div>
 
         <div>
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            A pagar
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              A pagar
+            </p>
+            <DicaConceito conceito="a-pagar" />
+          </div>
           <p className="mt-1 text-xl font-semibold tabular-nums">
             {formatarBRL(financeiro.aPagar)}
           </p>
           {financeiro.vencidosAPagar.quantidade > 0 && (
-            <Selo tom="perigo" className="mt-2">
-              {financeiro.vencidosAPagar.quantidade} vencida(s) ·{' '}
-              {formatarBRL(financeiro.vencidosAPagar.valor)}
-            </Selo>
+            <div className="mt-2 flex items-center gap-1.5">
+              <Selo tom="perigo">
+                {financeiro.vencidosAPagar.quantidade} vencida(s) ·{' '}
+                {formatarBRL(financeiro.vencidosAPagar.valor)}
+              </Selo>
+              <DicaConceito conceito="vencido" />
+            </div>
           )}
         </div>
       </CartaoConteudo>

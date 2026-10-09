@@ -40,6 +40,7 @@ export default async function PaginaReservas() {
           detalhe={
             resumo.reservas.length === 1 ? '1 reserva' : `${resumo.reservas.length} reservas`
           }
+          conceito="reserva"
         />
 
         <Indicador
@@ -54,6 +55,24 @@ export default async function PaginaReservas() {
                 : `abaixo dos ${COBERTURA_CONFORTAVEL} meses recomendados`
           }
           destaque
+          conceito="cobertura"
+          passos={
+            cobertura === null
+              ? undefined
+              : [
+                  { rotulo: 'Guardado', valor: formatarBRL(resumo.totalGuardado) },
+                  {
+                    rotulo: 'Custo fixo mensal',
+                    valor: formatarBRL(resumo.custoFixoMensal),
+                    operador: '÷',
+                  },
+                  {
+                    rotulo: 'Cobertura',
+                    valor: `${cobertura.toLocaleString('pt-BR')} meses`,
+                    operador: '=',
+                  },
+                ]
+          }
         />
 
         <Indicador

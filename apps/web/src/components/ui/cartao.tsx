@@ -1,5 +1,7 @@
 import type { HTMLAttributes } from 'react';
+import type { IdConceito } from '@/lib/glossario';
 import { cn } from '@/lib/utils';
+import { DicaConceito } from './dica-conceito';
 
 /**
  * Superfície de conteúdo.
@@ -35,8 +37,33 @@ export function CartaoCabecalho({ className, ...props }: HTMLAttributes<HTMLDivE
   );
 }
 
-export function CartaoTitulo({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 {...props} className={cn('text-sm font-semibold tracking-tight', className)} />;
+interface CartaoTituloProps extends HTMLAttributes<HTMLHeadingElement> {
+  /** Coloca um "?" depois do título, explicando o termo. */
+  conceito?: IdConceito;
+}
+
+/**
+ * Título do cartão.
+ *
+ * Com `conceito`, o "?" fica **ao lado** do `<h2>`, e não dentro dele: o nome
+ * acessível de um título vem do conteúdo, e o leitor de tela leria "Margem por
+ * serviço O que é Margem?" como se o botão fizesse parte do título.
+ */
+export function CartaoTitulo({ className, conceito, ...props }: CartaoTituloProps) {
+  const titulo = (
+    <h2 {...props} className={cn('text-sm font-semibold tracking-tight', className)} />
+  );
+
+  if (!conceito) {
+    return titulo;
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {titulo}
+      <DicaConceito conceito={conceito} />
+    </div>
+  );
 }
 
 export function CartaoConteudo({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

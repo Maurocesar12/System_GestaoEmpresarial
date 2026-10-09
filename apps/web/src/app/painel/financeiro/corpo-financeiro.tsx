@@ -12,6 +12,7 @@ import {
 import { BarraMagnitude, BarraProporcao } from '@/components/ui/barra-proporcao';
 import { estilosBotao } from '@/components/ui/botao';
 import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/components/ui/cartao';
+import { DicaConceito } from '@/components/ui/dica-conceito';
 import { EstadoVazio } from '@/components/ui/estado-vazio';
 import {
   BarraFiltros,
@@ -103,12 +104,14 @@ export async function CorpoDoPainel({
           valor={formatarBRL(fluxo.entradas)}
           detalhe="recebido no período"
           tom="positivo"
+          conceito="entradas"
         />
         <Indicador
           titulo="Saídas"
           valor={formatarBRL(fluxo.saidas)}
           detalhe="pago no período"
           tom="negativo"
+          conceito="saidas"
         />
         <Indicador
           titulo="Saldo"
@@ -116,11 +119,18 @@ export async function CorpoDoPainel({
           tom={saldoNegativo ? 'negativo' : 'positivo'}
           detalhe={saldoNegativo ? 'saiu mais do que entrou' : 'sobrou no período'}
           destaque
+          conceito="saldo"
+          passos={[
+            { rotulo: 'Entradas', valor: formatarBRL(fluxo.entradas) },
+            { rotulo: 'Saídas', valor: formatarBRL(fluxo.saidas), operador: '−' },
+            { rotulo: 'Saldo', valor: formatarBRL(fluxo.saldo), operador: '=' },
+          ]}
         />
         <Indicador
           titulo="Custo fixo"
           valor={formatarBRL(fluxo.custoFixo)}
           detalhe="o que custa igual todo mês"
+          conceito="custo-fixo"
         />
         <Indicador
           titulo="Custo por dia"
@@ -130,6 +140,20 @@ export async function CorpoDoPainel({
               ? 'custo fixo + pró-labore, por dia'
               : 'só custo fixo — sem pró-labore registrado'
           }
+          conceito="custo-por-dia"
+          passos={[
+            { rotulo: 'Custo fixo por dia', valor: formatarBRL(custo.custoFixoDiario) },
+            {
+              rotulo: 'Pró-labore por dia',
+              valor: formatarBRL(custo.proLaboreDiario),
+              operador: '+',
+            },
+            {
+              rotulo: 'Custo por dia',
+              valor: formatarBRL(custo.custoOperacionalDiario),
+              operador: '=',
+            },
+          ]}
         />
       </FaixaDeIndicadores>
 
@@ -139,7 +163,7 @@ export async function CorpoDoPainel({
 
       <Cartao>
         <CartaoCabecalho>
-          <CartaoTitulo className="flex items-center gap-2">
+          <CartaoTitulo className="flex items-center gap-2" conceito="margem">
             <TrendingUp aria-hidden className="text-muted-foreground size-4" />
             Margem por serviço
           </CartaoTitulo>
@@ -165,7 +189,9 @@ export async function CorpoDoPainel({
                 <TabelaColuna numerica>Receita</TabelaColuna>
                 <TabelaColuna numerica>Custo</TabelaColuna>
                 <TabelaColuna numerica>Margem</TabelaColuna>
-                <TabelaColuna numerica>%</TabelaColuna>
+                <TabelaColuna numerica conceito="margem-percentual">
+                  %
+                </TabelaColuna>
               </TabelaCabecalho>
 
               <TabelaCorpo>
@@ -218,7 +244,7 @@ export async function CorpoDoPainel({
 
       <Cartao>
         <CartaoCabecalho>
-          <CartaoTitulo className="flex items-center gap-2">
+          <CartaoTitulo className="flex items-center gap-2" conceito="data-do-pagamento">
             <Receipt aria-hidden className="text-muted-foreground size-4" />
             Lançamentos do período
           </CartaoTitulo>
@@ -420,6 +446,20 @@ function ComposicaoDasSaidas({ fluxo }: { fluxo: FluxoDeCaixa }) {
             { rotulo: 'Sem categoria', valor: naoClassificado, serie: 4 },
           ]}
         />
+
+        {/* Os três nomes da barra são jargão para quem acabou de chegar. */}
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span>Entenda:</span>
+          <span className="inline-flex items-center gap-1.5">
+            Fixo <DicaConceito conceito="custo-fixo" />
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            Variável <DicaConceito conceito="custo-variavel" />
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            Sem categoria <DicaConceito conceito="sem-categoria" />
+          </span>
+        </div>
 
         {naoClassificado > 0 && (
           <p className="text-muted-foreground text-xs">

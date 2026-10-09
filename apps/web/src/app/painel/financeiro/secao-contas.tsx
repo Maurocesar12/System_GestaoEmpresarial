@@ -19,6 +19,7 @@ import {
   TabelaRolavel,
 } from '@/components/ui/tabela';
 import { formatarDataCompleta } from '@/lib/formatacao';
+import type { IdConceito } from '@/lib/glossario';
 import { AcoesBaixa } from './acoes-baixa';
 
 /**
@@ -43,10 +44,20 @@ export function SecaoContas({ resumo, contas }: { resumo: ResumoContas; contas: 
       </div>
 
       <FaixaDeIndicadores>
-        <ResumoDeContas titulo="A receber" dados={resumo.aReceber} />
-        <ResumoDeContas titulo="Vencido a receber" dados={resumo.vencidoAReceber} alerta />
-        <ResumoDeContas titulo="A pagar" dados={resumo.aPagar} />
-        <ResumoDeContas titulo="Vencido a pagar" dados={resumo.vencidoAPagar} alerta />
+        <ResumoDeContas titulo="A receber" dados={resumo.aReceber} conceito="a-receber" />
+        <ResumoDeContas
+          titulo="Vencido a receber"
+          dados={resumo.vencidoAReceber}
+          conceito="vencido"
+          alerta
+        />
+        <ResumoDeContas titulo="A pagar" dados={resumo.aPagar} conceito="a-pagar" />
+        <ResumoDeContas
+          titulo="Vencido a pagar"
+          dados={resumo.vencidoAPagar}
+          conceito="vencido"
+          alerta
+        />
       </FaixaDeIndicadores>
 
       {contas.length === 0 ? (
@@ -132,10 +143,12 @@ export function SecaoContas({ resumo, contas }: { resumo: ResumoContas; contas: 
 function ResumoDeContas({
   titulo,
   dados,
+  conceito,
   alerta = false,
 }: {
   titulo: string;
   dados: { total: string; quantidade: number };
+  conceito: IdConceito;
   alerta?: boolean;
 }) {
   // O destaque só aparece quando há valor vencido. Um cartão vermelho zerado
@@ -148,6 +161,7 @@ function ResumoDeContas({
       valor={formatarBRL(dados.total)}
       tom={emAlerta ? 'negativo' : 'neutro'}
       destaque={emAlerta}
+      conceito={conceito}
       detalhe={
         <span className="flex items-center gap-1.5">
           {emAlerta && <AlertTriangle aria-hidden className="text-destructive size-3" />}

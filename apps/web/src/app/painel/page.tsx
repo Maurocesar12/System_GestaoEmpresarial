@@ -13,6 +13,7 @@ import {
 import { FaixaDeIndicadores, Indicador } from '@/components/ui/indicador';
 import { apiComSessao } from '@/lib/api-servidor';
 import { formatarQuando } from '@/lib/formatacao';
+import type { IdConceito } from '@/lib/glossario';
 import { lerUsuarioDaSessao } from '@/lib/sessao';
 import { cn } from '@/lib/utils';
 import { pode } from '@/lib/permissoes';
@@ -89,6 +90,7 @@ export default async function PaginaPainel() {
             detalhe={`${leads.seteDias} nos últimos 7 dias`}
             href="#leads"
             destaque={leads.hoje > 0}
+            conceito="lead"
           />
         )}
 
@@ -98,6 +100,7 @@ export default async function PaginaPainel() {
             valor={formatarBRL(comercial.abertos.valor)}
             detalhe={`${comercial.abertos.quantidade} proposta(s) em aberto`}
             href="/painel/orcamentos?status=aberto"
+            conceito="em-negociacao"
           />
         )}
 
@@ -108,6 +111,7 @@ export default async function PaginaPainel() {
             detalhe={`${Math.round(comercial.taxaConversaoMes * 100)}% das respondidas · ticket ${formatarBRL(comercial.ticketMedio)}`}
             href="/painel/orcamentos?status=aprovado"
             tom={Number(comercial.aprovadosMes.valor) > 0 ? 'positivo' : 'neutro'}
+            conceito="fechado-no-mes"
           />
         )}
 
@@ -118,6 +122,12 @@ export default async function PaginaPainel() {
             detalhe={`${formatarBRL(financeiro.entradasMes)} entraram · ${formatarBRL(financeiro.saidasMes)} saíram`}
             href="/painel/financeiro"
             tom={Number(financeiro.saldoMes) < 0 ? 'negativo' : 'positivo'}
+            conceito="caixa-do-mes"
+            passos={[
+              { rotulo: 'Entraram no mês', valor: formatarBRL(financeiro.entradasMes) },
+              { rotulo: 'Saíram no mês', valor: formatarBRL(financeiro.saidasMes), operador: '−' },
+              { rotulo: 'Caixa do mês', valor: formatarBRL(financeiro.saldoMes), operador: '=' },
+            ]}
           />
         )}
 
@@ -219,6 +229,7 @@ export default async function PaginaPainel() {
         {comercial && (
           <Bloco
             titulo="Propostas vencendo"
+            conceito="proposta-vencendo"
             href="/painel/orcamentos?status=aberto"
             rotuloLink="ver orçamentos"
             icone={FileText}
@@ -259,6 +270,7 @@ export default async function PaginaPainel() {
         {funil && funil.paradas.length > 0 && (
           <Bloco
             titulo="Negociações paradas"
+            conceito="negociacao-parada"
             href="/painel/funil"
             rotuloLink="ver funil"
             icone={Hourglass}
@@ -310,6 +322,7 @@ export default async function PaginaPainel() {
  */
 function Bloco<T>({
   titulo,
+  conceito,
   href,
   rotuloLink,
   icone: Icone,
@@ -319,6 +332,8 @@ function Bloco<T>({
   renderizar,
 }: {
   titulo: string;
+  /** Termo do título que merece explicação ("?" ao lado). */
+  conceito?: IdConceito;
   href: string;
   rotuloLink: string;
   icone: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
@@ -331,7 +346,7 @@ function Bloco<T>({
   return (
     <Cartao className="flex flex-col">
       <CartaoCabecalho>
-        <CartaoTitulo className="flex items-center gap-2">
+        <CartaoTitulo className="flex items-center gap-2" conceito={conceito}>
           <Icone aria-hidden className="text-muted-foreground size-4" />
           {titulo}
         </CartaoTitulo>

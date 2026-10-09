@@ -55,8 +55,13 @@ export default async function PaginaMaterial({ params }: Props) {
           titulo="Custo médio"
           valor={formatarBRL(Number(material.custoMedio).toFixed(2))}
           detalhe="por unidade"
+          conceito="custo-medio"
         />
-        <Indicador titulo="Valor em estoque" valor={formatarBRL(material.valorEmEstoque)} />
+        <Indicador
+          titulo="Valor em estoque"
+          valor={formatarBRL(material.valorEmEstoque)}
+          conceito="valor-em-estoque"
+        />
       </FaixaDeIndicadores>
 
       {podeGerenciar && (

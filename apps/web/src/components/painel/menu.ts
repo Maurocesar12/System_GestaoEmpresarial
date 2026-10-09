@@ -18,6 +18,7 @@ import {
   Boxes,
   BadgePercent,
   Megaphone,
+  Lightbulb,
   type LucideIcon,
 } from 'lucide-react';
 import { type Permissao, type UsuarioAutenticado } from '@gestao/shared-types';
@@ -62,6 +63,8 @@ export const MENU: readonly GrupoMenu[] = [
         icone: BadgePercent,
         permissao: null,
       },
+      // Só definições, nenhum dado da empresa: por isso não pede permissão.
+      { href: '/painel/ajuda', rotulo: 'Entenda os números', icone: Lightbulb, permissao: null },
     ],
   },
   {

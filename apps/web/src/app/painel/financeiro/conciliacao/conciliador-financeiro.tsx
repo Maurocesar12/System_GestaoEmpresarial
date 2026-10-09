@@ -155,7 +155,7 @@ export function ConciliadorFinanceiro() {
 
       <Cartao>
         <CartaoCabecalho>
-          <CartaoTitulo className="flex items-center gap-2">
+          <CartaoTitulo className="flex items-center gap-2" conceito="conciliacao">
             <FileSpreadsheet aria-hidden className="text-muted-foreground size-4" />
             Importação de extrato bancário
           </CartaoTitulo>

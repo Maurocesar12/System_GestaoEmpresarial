@@ -90,9 +90,11 @@ export default async function PaginaProLabore({
           titulo="Retirada atual"
           valor={semDefinicao ? '—' : formatarBRL(sugestao.valorVigente!)}
           detalhe={semDefinicao ? 'ainda não definida' : 'valor vigente hoje'}
+          conceito="pro-labore"
         />
         <Indicador
           titulo="Teto sugerido"
+          conceito="teto-pro-labore"
           valor={formatarBRL(sugestao.tetoSugerido)}
           detalhe={
             sugestao.mesesAnalisados === 0
@@ -105,6 +107,20 @@ export default async function PaginaProLabore({
           titulo="Folga"
           valor={formatarBRL(sugestao.folga)}
           tom={sugestao.acimaDoTeto ? 'negativo' : 'positivo'}
+          conceito="folga"
+          passos={
+            semDefinicao
+              ? undefined
+              : [
+                  { rotulo: 'Teto sugerido', valor: formatarBRL(sugestao.tetoSugerido) },
+                  {
+                    rotulo: 'Retirada atual',
+                    valor: formatarBRL(sugestao.valorVigente!),
+                    operador: '−',
+                  },
+                  { rotulo: 'Folga', valor: formatarBRL(sugestao.folga), operador: '=' },
+                ]
+          }
           detalhe={
             semDefinicao
               ? 'defina a retirada para comparar'

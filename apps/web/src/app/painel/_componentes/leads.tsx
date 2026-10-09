@@ -66,7 +66,7 @@ export function CartaoLeads({
   return (
     <Cartao id="leads" className="flex scroll-mt-4 flex-col">
       <CartaoCabecalho>
-        <CartaoTitulo className="flex items-center gap-2">
+        <CartaoTitulo className="flex items-center gap-2" conceito="lead">
           <Inbox aria-hidden className="text-muted-foreground size-4" />
           Leads que chegaram
         </CartaoTitulo>
@@ -181,7 +181,7 @@ export function CartaoReativacao({
   return (
     <Cartao id="reativacao" className="flex scroll-mt-4 flex-col">
       <CartaoCabecalho>
-        <CartaoTitulo className="flex items-center gap-2">
+        <CartaoTitulo className="flex items-center gap-2" conceito="reativacao">
           <HeartHandshake aria-hidden className="text-muted-foreground size-4" />
           Clientes para reativar
         </CartaoTitulo>

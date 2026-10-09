@@ -306,6 +306,20 @@
   }
 
   /*
+    Balão de explicação dos conceitos. Aparece com a mesma entrada suave das
+    rotas, e só enquanto aberto: `:popover-open` evita animar o elemento
+    escondido.
+  */
+  .balao-conceito:popover-open {
+    animation: entrada-suave var(--duracao-normal) var(--curva);
+  }
+
+  /* O "?" fica marcado enquanto o balão dele está aberto. */
+  .dica-conceito:has(+ .balao-conceito:popover-open) {
+    color: var(--foreground);
+  }
+
+  /*
    * Entrada progressiva das seções comerciais quando chegam à tela.
    *
    * Conduzida pela rolagem, não por JavaScript: `animation-timeline: view()`

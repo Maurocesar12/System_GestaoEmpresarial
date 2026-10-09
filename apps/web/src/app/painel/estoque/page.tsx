@@ -68,12 +68,14 @@ export default async function PaginaEstoque({ searchParams }: Props) {
           titulo="Valor em estoque"
           valor={formatarBRL(resumo.valorEmEstoque)}
           detalhe="saldo × custo médio"
+          conceito="valor-em-estoque"
         />
         <Indicador
           titulo="Para repor"
           valor={String(resumo.abaixoDoMinimo)}
           tom={resumo.abaixoDoMinimo > 0 ? 'negativo' : undefined}
           detalhe="no mínimo ou abaixo"
+          conceito="para-repor"
         />
       </FaixaDeIndicadores>
 
@@ -109,7 +111,9 @@ export default async function PaginaEstoque({ searchParams }: Props) {
               <TabelaColuna>Material</TabelaColuna>
               <TabelaColuna numerica>Saldo</TabelaColuna>
               <TabelaColuna numerica>Mínimo</TabelaColuna>
-              <TabelaColuna numerica>Custo médio</TabelaColuna>
+              <TabelaColuna numerica conceito="custo-medio">
+                Custo médio
+              </TabelaColuna>
               <TabelaColuna numerica>Valor</TabelaColuna>
             </TabelaCabecalho>
             <TabelaCorpo>

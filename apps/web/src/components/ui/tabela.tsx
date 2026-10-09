@@ -1,5 +1,7 @@
 import type { HTMLAttributes, ReactNode, ThHTMLAttributes, TdHTMLAttributes } from 'react';
+import type { IdConceito } from '@/lib/glossario';
 import { cn } from '@/lib/utils';
+import { DicaConceito } from './dica-conceito';
 
 /**
  * A tabela e sua rolagem horizontal, sem moldura.
@@ -39,14 +41,31 @@ export function TabelaCabecalho({ children }: { children: ReactNode }) {
 interface ColunaProps extends ThHTMLAttributes<HTMLTableCellElement> {
   /** Números alinham à direita: é assim que se compara ordem de grandeza. */
   numerica?: boolean;
+  /** Coloca um "?" ao lado do título da coluna, explicando o termo. */
+  conceito?: IdConceito;
 }
 
-export function TabelaColuna({ numerica = false, className, ...props }: ColunaProps) {
+export function TabelaColuna({
+  numerica = false,
+  conceito,
+  className,
+  children,
+  ...props
+}: ColunaProps) {
   return (
     <th
       {...props}
       className={cn('px-4 py-2.5 text-xs font-medium', numerica && 'text-right', className)}
-    />
+    >
+      {conceito ? (
+        <span className={cn('inline-flex items-center gap-1.5', numerica && 'justify-end')}>
+          {children}
+          <DicaConceito conceito={conceito} />
+        </span>
+      ) : (
+        children
+      )}
+    </th>
   );
 }
 
