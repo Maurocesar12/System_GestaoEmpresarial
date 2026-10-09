@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react';
 import { PercentualMargem } from '@/components/ui/percentual-margem';
 import { cn } from '@/lib/utils';
+import { CONTA_DO_EXEMPLO, resumirContaDoExemplo } from './conteudo';
 import { Revelar } from './revelar';
 
 /**
@@ -35,9 +36,15 @@ import { Revelar } from './revelar';
  * `PainelDeExemplo`.
  */
 
+// A instalação vem da mesma conta que a jornada mostra ("Como funciona"): quem
+// compara os dois números não pode achar valores diferentes para o mesmo serviço.
 const SERVICOS = [
   { nome: 'Revisão completa', receita: 1240, custo: 380 },
-  { nome: 'Instalação de ar-condicionado', receita: 980, custo: 410 },
+  {
+    nome: CONTA_DO_EXEMPLO.servico,
+    receita: CONTA_DO_EXEMPLO.receita,
+    custo: resumirContaDoExemplo().custo,
+  },
   { nome: 'Troca de óleo', receita: 210, custo: 124 },
 ] as const;
 

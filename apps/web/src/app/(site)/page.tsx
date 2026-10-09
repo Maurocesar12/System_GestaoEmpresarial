@@ -1,31 +1,54 @@
 import type { Metadata } from 'next';
-import { ArrowRight, Check, Database, KeyRound, Lock, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Database,
+  FileDown,
+  KeyRound,
+  Lock,
+  Smartphone,
+  Sparkles,
+} from 'lucide-react';
 import Link from 'next/link';
 import { estilosBotao } from '@/components/ui/botao';
 import { cn } from '@/lib/utils';
-import { MODULOS, PASSOS, RECURSOS, RECURSOS_IA } from './conteudo';
+import { MODULOS, PALAVRAS, PERGUNTAS, RECURSOS, RECURSOS_IA } from './conteudo';
 import { ComoAIAFunciona, DemonstracaoPrevisao } from './demonstracao-previsao';
+import { JornadaDoServico } from './jornada-do-servico';
 import { PainelResultado } from './painel-resultado';
 import { Hero } from './hero';
 import { Revelar } from './revelar';
 
 export const metadata: Metadata = {
-  title: 'CRM e financeiro para empresas de serviço',
+  title: 'Sistema de gestão para empresas de serviço',
   description:
-    'Orçamento, agenda e financeiro na mesma linha. Saiba quanto cada serviço deixou de lucro, sem fechar planilha no fim do mês. 14 dias grátis.',
+    'Clientes, orçamentos, agenda e dinheiro no mesmo lugar. Veja quanto sobrou de cada serviço, sem montar planilha. 14 dias grátis, sem cartão de crédito.',
 };
 
+/**
+ * A ordem é a de uma conversa com quem nunca viu o produto: o que é, como
+ * funciona na prática, o que isso entrega, as palavras que costumam travar, o
+ * que vem junto, a inteligência artificial, a segurança, o preço e, por fim, as
+ * dúvidas — que só aparecem depois de a pessoa ter o que perguntar.
+ *
+ * O "como funciona" vem **antes** do resultado: quem entende o caminho (o
+ * dinheiro nasce ligado ao serviço) entende por que a sobra aparece sozinha. Ao
+ * contrário, o painel de resultado era um número sem origem.
+ */
 export default function PaginaInicial() {
   return (
     <>
       <Hero />
       <Recursos />
-      <Resultado />
       <ComoFunciona />
+      <Resultado />
+      <SemEconomes />
       <OQueVemJunto />
       <InteligenciaArtificial />
       <Seguranca />
       <Planos />
+      <Duvidas />
       <ChamadaFinal />
     </>
   );
@@ -64,11 +87,12 @@ function Recursos() {
     <section id="recursos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <CabecalhoSecao
-          rotulo="O que o sistema faz"
-          titulo="Tudo o que o seu dia a dia pede — no mesmo lugar."
+          rotulo="O que é isto"
+          titulo="Um sistema para quem vende serviço — e está cansado de juntar tudo na mão."
         >
           Hoje é o WhatsApp para falar com cliente, o caderno para anotar serviço e a planilha para
-          as contas. Aqui é um lugar só — e as três coisas conversam entre si.
+          as contas. Aqui é um lugar só — e as três coisas conversam entre si: o que você anota num
+          canto aparece sozinho nos outros. Veja as seis situações do dia a dia que ele resolve.
         </CabecalhoSecao>
 
         {/*
@@ -93,6 +117,8 @@ function Recursos() {
                 <recurso.icone aria-hidden className="size-5" />
               </span>
               <h3 className="font-semibold tracking-tight">{recurso.titulo}</h3>
+              {/* A dúvida vem primeiro: quem se reconhece nela quer ler a resposta. */}
+              <p className="text-sm font-medium italic">{recurso.pergunta}</p>
               <p className="text-muted-foreground text-sm leading-relaxed">{recurso.descricao}</p>
             </article>
           ))}
@@ -112,20 +138,34 @@ function Resultado() {
             rotulo="O resultado"
             titulo="Você sabe quanto sobrou, sem esperar o mês fechar."
           >
-            O sistema já sabe responder, porque cada recebimento nasceu ligado ao serviço que o
-            gerou e cada custo, ao trabalho que o consumiu. Não é relatório que alguém monta no fim
-            do mês — é a conta que se fecha sozinha desde o primeiro lançamento.
+            Como você viu no exemplo da Maria, cada recebimento nasce ligado ao serviço que o gerou,
+            e cada custo, ao trabalho que o consumiu. Por isso a sobra de cada serviço já está
+            calculada: não é relatório que alguém monta no fim do mês, é a conta que vai se fechando
+            sozinha a cada serviço registrado.
           </CabecalhoSecao>
 
-          <ul className="flex flex-col gap-3 text-sm">
+          <ul className="flex flex-col gap-4 text-sm">
             {[
-              'Margem por tipo de serviço, não só o total da empresa',
-              'Retirada do dono comparada ao que o caixa sustenta',
-              'Conta a receber separada do que já entrou de verdade',
+              {
+                destaque: 'Margem por tipo de serviço, não só o total da empresa.',
+                explica: 'Você vê qual serviço compensa e qual dá trabalho e pouco retorno.',
+              },
+              {
+                destaque: 'Retirada do dono comparada ao que o caixa sustenta.',
+                explica:
+                  'Um limite sugerido para você tirar dinheiro sem deixar a operação no vermelho.',
+              },
+              {
+                destaque: 'Conta a receber separada do que já entrou de verdade.',
+                explica: 'O dinheiro prometido não se mistura com o que já está no caixa.',
+              },
             ].map((item) => (
-              <li key={item} className="flex gap-3">
+              <li key={item.destaque} className="flex gap-3">
                 <Check aria-hidden className="text-sucesso mt-0.5 size-4 shrink-0" />
-                {item}
+                <span>
+                  <span className="font-medium">{item.destaque}</span>{' '}
+                  <span className="text-muted-foreground">{item.explica}</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -189,35 +229,78 @@ function OQueVemJunto() {
   );
 }
 
+/**
+ * A explicação de como o sistema funciona, em forma de história.
+ *
+ * Antes eram quatro passos abstratos ("chega um cliente… a conta aparece
+ * pronta") que serviriam para qualquer sistema do mundo. Agora é um caso
+ * concreto, que se abre etapa por etapa: o que a pessoa faz, o que o sistema faz
+ * sozinho e o que aparece para ela. A curiosidade está em abrir a próxima
+ * etapa — e o convencimento, na coluna do meio.
+ */
 function ComoFunciona() {
   return (
     <section id="como-funciona" className="bg-superficie scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <CabecalhoSecao
           rotulo="Como funciona"
-          titulo="Você digita uma vez. O sistema usa o resto do caminho."
+          titulo="Acompanhe um serviço de ponta a ponta — e veja onde o sistema trabalha por você."
         >
-          É essa ligação que faz a conta fechar sozinha. Quando a venda mora num lugar e o dinheiro
-          em outro, alguém precisa juntar os dois no fim do mês — e é aí que a conta para de bater.
+          Vamos seguir a Maria, que quer instalar um ar-condicionado por R$ 980. Em cada etapa
+          mostramos o que você faz, o que o sistema faz sozinho e o que aparece para você. No fim,
+          você vai ver como nasce a resposta para a pergunta que mais importa: quanto sobrou?
         </CabecalhoSecao>
 
-        <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {/*
-            Sem `cartao-elevavel` aqui: a classe anima borda e sombra, e estes
-            blocos não têm nem uma nem outra — o hover levantava uma sombra sem
-            superfície embaixo. Pior que o efeito quebrado, ele prometia que o
-            passo era clicável, e não é.
-          */}
-          {PASSOS.map((passo, indice) => (
-            <li key={passo.titulo} className="flex flex-col gap-3 pt-6">
-              <span className="text-muted-foreground text-sm font-semibold tabular-nums">
-                {String(indice + 1).padStart(2, '0')}
-              </span>
-              <h3 className="font-semibold tracking-tight">{passo.titulo}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">{passo.descricao}</p>
-            </li>
+        <p className="text-muted-foreground mt-8 text-sm font-medium">
+          Toque em cada etapa para abrir.
+        </p>
+
+        <div className="mt-3 max-w-4xl">
+          <JornadaDoServico />
+        </div>
+
+        <p className="text-muted-foreground mt-6 max-w-2xl text-sm leading-relaxed">
+          O segredo está no meio do caminho: o que você registra em uma etapa já é usado nas
+          seguintes. Quando a venda mora num lugar e o dinheiro em outro, alguém precisa juntar os
+          dois no fim do mês — e é aí que a conta para de bater.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * As palavras que travam quem não é do ramo.
+ *
+ * Fica logo depois do resultado, onde "margem", "fluxo de caixa" e
+ * "pró-labore" aparecem pela primeira vez em volume. Quem não conhece o termo
+ * não pergunta: conclui que o sistema "não é para mim" e vai embora. Aqui cada
+ * palavra vem com uma frase e uma conta de cabeça.
+ */
+function SemEconomes() {
+  return (
+    <section id="palavras" className="bg-superficie scroll-mt-16 border-b">
+      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
+        <CabecalhoSecao
+          rotulo="Sem economês"
+          titulo="Seis palavras de finanças, explicadas como numa conversa."
+        >
+          Você vai vê-las pelo sistema. Dentro dele, cada uma tem um botão “?” ao lado do número,
+          que explica na hora o que significa e como é calculado. Aqui vai um adiantamento.
+        </CabecalhoSecao>
+
+        <dl className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {PALAVRAS.map((palavra) => (
+            <div key={palavra.termo} className="bg-card flex flex-col gap-2 rounded-lg border p-5">
+              <dt className="font-semibold tracking-tight">{palavra.termo}</dt>
+              <dd className="text-sm leading-relaxed">{palavra.significa}</dd>
+              <dd className="text-muted-foreground border-t pt-2 text-sm leading-relaxed">
+                <span className="text-foreground font-medium">Na prática: </span>
+                {palavra.exemplo}
+              </dd>
+            </div>
           ))}
-        </ol>
+        </dl>
       </div>
     </section>
   );
@@ -244,8 +327,9 @@ function InteligenciaArtificial() {
 
             <p className="text-muted-foreground leading-relaxed">
               A conta é do sistema: histórico do que entrou e saiu, mais as contas a pagar e a
-              receber que já estão registradas. A IA entra depois — para ler esse cenário, apontar o
-              risco e dizer por onde começar.
+              receber que já estão registradas. A inteligência artificial (IA) entra depois — como
+              um analista que lê esse cenário, aponta o risco e diz por onde começar. Mexa nos
+              cenários abaixo para ver como o caixa muda.
             </p>
           </div>
 
@@ -333,6 +417,18 @@ const GARANTIAS = [
     descricao:
       'Sua senha é guardada de forma que nem nós conseguimos ler, e a sessão se renova sozinha sem deixar brecha aberta no navegador.',
   },
+  {
+    icone: Smartphone,
+    titulo: 'Entrada em duas etapas',
+    descricao:
+      'Além da senha, cada pessoa confirma um código gerado por um aplicativo autenticador no celular. Mesmo que alguém descubra a senha, não entra sem o seu aparelho.',
+  },
+  {
+    icone: FileDown,
+    titulo: 'Seus dados vão com você',
+    descricao:
+      'O dono pode exportar tudo da empresa quando quiser. Se cancelar a conta, os dados são apagados em definitivo depois de 30 dias — não ficam guardados “por precaução”.',
+  },
 ];
 
 /**
@@ -383,11 +479,28 @@ function Planos() {
     <section id="planos" className="scroll-mt-16 border-b">
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <CabecalhoSecao rotulo="Preço" titulo="Dois planos. Sem letra miúda, sem pegadinha.">
-          O Básico organiza a rotina comercial e financeira; o Premium amplia a equipe e a carteira
-          e acrescenta a inteligência artificial sobre os seus números. Os 14 dias de teste valem
-          para os dois.
+          O Básico organiza clientes, orçamentos, agenda e financeiro; o Premium comporta mais
+          pessoas na equipe e mais clientes, e acrescenta a inteligência artificial sobre os seus
+          números. Os 14 dias de teste valem para os dois.
         </CabecalhoSecao>
-        <div className="mt-12 grid gap-6 lg:grid-cols-2">
+        <dl className="text-muted-foreground mt-6 grid max-w-3xl gap-3 text-sm leading-relaxed sm:grid-cols-2">
+          <div>
+            <dt className="text-foreground font-medium">O que é “usuário”?</dt>
+            <dd>
+              Cada pessoa da sua equipe que entra no sistema com login e senha próprios — você
+              decide o que cada uma enxerga.
+            </dd>
+          </div>
+          <div>
+            <dt className="text-foreground font-medium">O que é uma “previsão”?</dt>
+            <dd>
+              Cada vez que você pede à inteligência artificial para projetar o seu caixa dos
+              próximos meses.
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-10 grid gap-6 lg:grid-cols-2">
           <CartaoPlano
             nome="Básico"
             preco="100"
@@ -395,7 +508,7 @@ function Planos() {
               '2 usuários incluídos',
               'Até 5 usuários · R$ 20 por adicional',
               '500 clientes',
-              'CRM, agenda e financeiro',
+              'Clientes, orçamentos, agenda e financeiro',
               'Importação e exportação de dados',
             ]}
           />
@@ -474,17 +587,56 @@ function CartaoPlano({
   );
 }
 
+/**
+ * As dúvidas, em sanfona.
+ *
+ * `<details>` sem `name`: ao contrário da jornada, aqui a pessoa costuma querer
+ * ler duas ou três respostas lado a lado, e fechar uma ao abrir a outra seria
+ * atrapalhar. Sem JavaScript, e com todo o texto no HTML — o que também ajuda
+ * a página a ser encontrada por quem pesquisa a pergunta.
+ */
+function Duvidas() {
+  return (
+    <section id="duvidas" className="bg-superficie scroll-mt-16 border-b">
+      <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:py-24">
+        <CabecalhoSecao rotulo="Dúvidas" titulo="O que costumam perguntar antes de testar.">
+          Respostas diretas, inclusive sobre o que o sistema ainda não faz. É melhor você saber
+          agora do que descobrir depois.
+        </CabecalhoSecao>
+
+        <div className="flex flex-col gap-3">
+          {PERGUNTAS.map((item) => (
+            <details key={item.pergunta} className="group bg-card rounded-lg border">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4 text-sm font-semibold select-none sm:p-5 [&::-webkit-details-marker]:hidden">
+                {item.pergunta}
+                <ChevronDown
+                  aria-hidden
+                  className="text-muted-foreground size-5 shrink-0 transition-transform group-open:rotate-180"
+                />
+              </summary>
+              <p className="text-muted-foreground border-t p-4 text-sm leading-relaxed sm:p-5">
+                {item.resposta}
+              </p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ChamadaFinal() {
   return (
     <section className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
       <div className="flex flex-col items-start gap-6">
         <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-balance">
-          Cadastre sua empresa. O resto já vem pronto.
+          Quer ver a conta da sua empresa se fechando sozinha?
         </h2>
         <p className="text-muted-foreground max-w-xl leading-relaxed">
-          O acompanhamento de negociações já nasce montado, com as etapas que a maioria das empresas
-          de serviço usa. Dá para ajustar depois — mas você pode cadastrar o primeiro cliente agora
-          mesmo.
+          O jeito mais rápido de entender é testar. Cadastre o primeiro cliente e faça um orçamento:
+          é o suficiente para o quadro de negociações e o painel começarem a se mexer. O
+          acompanhamento já nasce montado, com as etapas que a maioria das empresas de serviço usa —
+          dá para ajustar depois.
         </p>
         <div className="flex flex-col items-start gap-2">
           <Link href="/cadastro" className={estilosBotao({ tamanho: 'lg' })}>

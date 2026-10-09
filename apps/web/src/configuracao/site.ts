@@ -13,7 +13,8 @@ const urlPublica =
 export const SITE = {
   nome: 'Gestão Empresarial',
   nomeCurto: 'Gestão',
-  descricao: 'CRM e financeiro no mesmo lugar, para pequenas e médias empresas de serviço.',
+  descricao:
+    'Clientes, orçamentos, agenda e financeiro no mesmo lugar, para pequenas e médias empresas de serviço.',
   idioma: 'pt-BR',
   locale: 'pt_BR',
   corMarca: '#111111',

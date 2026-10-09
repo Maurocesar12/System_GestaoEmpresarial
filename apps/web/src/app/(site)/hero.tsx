@@ -20,7 +20,7 @@ const ATALHOS = [
   {
     icone: CalendarDays,
     titulo: 'Uma rotina conectada',
-    descricao: 'Venda virou agenda sozinha.',
+    descricao: 'Digite uma vez, use no resto.',
     href: '#como-funciona',
   },
   {
@@ -51,15 +51,16 @@ export function Hero() {
               <span>Sem esperar o fim do mês.</span>
             </h1>
             <p className={styles['hero-description']}>
-              Orçamento, agenda e financeiro na mesma linha. Você não fecha planilha: o sistema já
-              sabe quanto cada serviço deixou de lucro.
+              Clientes, orçamentos, agenda e dinheiro no mesmo lugar, para quem vende serviço. Ao
+              registrar o serviço feito, o sistema já mostra quanto sobrou dele — sem você montar
+              planilha.
             </p>
             <div className={styles['hero-actions']}>
               <Link href="/cadastro" className={styles['hero-primary']}>
                 Testar grátis por 14 dias <ArrowRight aria-hidden />
               </Link>
               <a href="#como-funciona" className={styles['hero-secondary']}>
-                <ArrowDown aria-hidden /> Ver como funciona
+                <ArrowDown aria-hidden /> Ver como funciona, passo a passo
               </a>
             </div>
             <ul className={styles['hero-assurances']}>
