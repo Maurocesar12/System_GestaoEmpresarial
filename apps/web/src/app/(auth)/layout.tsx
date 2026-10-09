@@ -44,8 +44,8 @@ export default function LayoutAutenticacao({ children }: { children: React.React
             O que foi vendido e o que entrou no caixa, no mesmo lugar.
           </h2>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Clientes, funil, orçamentos e agenda conversando com o financeiro — sem planilha
-            paralela para fechar o mês.
+            Clientes, funil, orçamentos e agenda conversando com o financeiro, sem planilha paralela
+            para fechar o mês.
           </p>
         </div>
 

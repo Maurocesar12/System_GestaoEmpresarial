@@ -138,7 +138,7 @@ export async function CorpoDoPainel({
           detalhe={
             custo.proLaboreMensal
               ? 'custo fixo + pró-labore, por dia'
-              : 'só custo fixo — sem pró-labore registrado'
+              : 'só custo fixo, sem pró-labore registrado'
           }
           conceito="custo-por-dia"
           passos={[
@@ -258,7 +258,7 @@ export async function CorpoDoPainel({
             na lista e "Entradas: R$ 0" acima, e concluía que o sistema errou.
           */}
           <p className="text-muted-foreground shrink-0 text-xs">
-            Pela data do lançamento — inclui o que ainda não foi pago.
+            Pela data do lançamento, inclui o que ainda não foi pago.
           </p>
         </CartaoCabecalho>
 
@@ -464,7 +464,7 @@ function ComposicaoDasSaidas({ fluxo }: { fluxo: FluxoDeCaixa }) {
         {naoClassificado > 0 && (
           <p className="text-muted-foreground text-xs">
             {formatarBRL(fluxo.custoNaoClassificado)} sem categoria. Enquanto estiver assim, esse
-            valor não entra nem no custo fixo nem no variável —{' '}
+            valor não entra nem no custo fixo nem no variável,{' '}
             <Link
               href="/painel/financeiro/categorias"
               className="text-primary underline-offset-4 hover:underline"

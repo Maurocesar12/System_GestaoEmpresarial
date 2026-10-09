@@ -298,7 +298,7 @@ export class FinanceiroService {
         entidade: 'lancamento',
         entidadeId: primeira.id,
         acao: 'criou',
-        resumo: `Parcelamento criado: ${dados.descricao} em ${dados.parcelas}x — total ${dados.valor}`,
+        resumo: `Parcelamento criado: ${dados.descricao} em ${dados.parcelas}x, total ${dados.valor}`,
         depois: { grupoId, parcelas: dados.parcelas, total: dados.valor },
       });
 
@@ -535,7 +535,7 @@ export class FinanceiroService {
       }
 
       if (!atual.pagoEm) {
-        throw conflito('Este lançamento está em aberto — não há baixa para estornar.');
+        throw conflito('Este lançamento está em aberto, então não há baixa para estornar.');
       }
 
       const alterado = await tx.lancamentoFinanceiro.update({

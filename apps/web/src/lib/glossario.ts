@@ -159,7 +159,7 @@ export const GLOSSARIO = {
   'custo-fixo': {
     titulo: 'Custo fixo',
     categoria: 'custos',
-    resumo: 'Gasto que existe todo mês, mesmo sem vender nada — como aluguel e internet.',
+    resumo: 'Gasto que existe todo mês, mesmo sem vender nada, como aluguel e internet.',
     comoCalcula: 'Soma das saídas pagas no período cuja categoria foi marcada como custo fixo.',
     comoLer:
       'A classificação vem da categoria. Se o número não reflete a sua realidade, ajuste o tipo de custo da categoria.',
@@ -169,7 +169,7 @@ export const GLOSSARIO = {
   'custo-variavel': {
     titulo: 'Custo variável',
     categoria: 'custos',
-    resumo: 'Gasto que cresce ou diminui conforme o volume de trabalho — como material.',
+    resumo: 'Gasto que cresce ou diminui conforme o volume de trabalho, como material.',
     comoCalcula: 'Soma das saídas pagas no período cuja categoria foi marcada como custo variável.',
     comoLer:
       'Quanto mais você vende, mais ele tende a subir. Por isso ele é comparado com a receita, e não com o calendário.',
@@ -207,7 +207,7 @@ export const GLOSSARIO = {
     comoCalcula:
       'Receita do serviço menos o custo dele: as saídas ligadas ao serviço, os materiais usados do estoque e as comissões.',
     comoLer:
-      'Compare os serviços entre si. Só funciona bem se as entradas e saídas estiverem vinculadas a um serviço — o que fica sem vínculo é avisado abaixo da tabela.',
+      'Compare os serviços entre si. Só funciona bem se as entradas e saídas estiverem vinculadas a um serviço, e o que fica sem vínculo é avisado abaixo da tabela.',
     exemplo:
       'Receita de R$ 1.000. Custos: R$ 300 em lançamentos, R$ 100 em materiais e R$ 100 em comissões, ou seja, R$ 500. A margem é R$ 500.',
     onde: { rotulo: 'Financeiro > Movimento', href: '/painel/financeiro' },
@@ -218,7 +218,7 @@ export const GLOSSARIO = {
     categoria: 'custos',
     resumo: 'De cada R$ 100 que entram com o serviço, quanto sobra como margem.',
     comoCalcula:
-      'Margem dividida pela receita, vezes 100. Sem receita no período a conta não existe, e o sistema mostra um traço (—) em vez de 0%.',
+      'Margem dividida pela receita, vezes 100. Sem receita no período a conta não existe, e o sistema mostra um traço em vez de 0%.',
     comoLer:
       'Abaixo de 20% a margem merece atenção (amarelo); abaixo de zero o serviço está dando prejuízo (vermelho). O valor em reais mostra o tamanho; o percentual mostra a eficiência.',
     exemplo:
@@ -285,7 +285,7 @@ export const GLOSSARIO = {
     categoria: 'vendas',
     resumo: 'De cada 100 propostas respondidas no mês, quantas o cliente aprovou.',
     comoCalcula:
-      'Propostas aprovadas dividido por (aprovadas + recusadas), contando só as respondidas desde o dia 1º do mês. As que seguem em aberto não entram — assim a taxa não despenca só porque você emitiu mais propostas.',
+      'Propostas aprovadas dividido por (aprovadas + recusadas), contando só as respondidas desde o dia 1º do mês. As que seguem em aberto não entram, assim a taxa não despenca só porque você emitiu mais propostas.',
     comoLer:
       'Taxa baixa com muitas propostas pode indicar preço ou proposta mal explicada. Sem nenhuma proposta respondida no mês, a taxa fica em 0%.',
     exemplo:
@@ -307,7 +307,7 @@ export const GLOSSARIO = {
   'proposta-vencendo': {
     titulo: 'Propostas vencendo',
     categoria: 'vendas',
-    resumo: 'Propostas em aberto cuja validade está acabando — ou já acabou.',
+    resumo: 'Propostas em aberto cuja validade está acabando, ou já acabou.',
     comoCalcula:
       'Orçamentos abertos com data de validade nos próximos 7 dias. As que já passaram da validade continuam na lista, marcadas como vencidas.',
     comoLer:
@@ -369,7 +369,7 @@ export const GLOSSARIO = {
     comoCalcula:
       'A cada compra: (saldo atual × custo atual + quantidade comprada × preço pago) ÷ nova quantidade total. Com o saldo zerado ou negativo, o custo passa a ser o da compra.',
     comoLer:
-      'É o custo usado quando o material é consumido num serviço — por isso ele entra na margem.',
+      'É o custo usado quando o material é consumido num serviço, por isso ele entra na margem.',
     exemplo:
       'Você tinha 10 unidades a R$ 5 e comprou mais 10 a R$ 7. O custo médio passa a ser R$ 6.',
     onde: { rotulo: 'Operação > Estoque', href: '/painel/estoque' },
@@ -400,7 +400,7 @@ export const GLOSSARIO = {
   reserva: {
     titulo: 'Reserva financeira',
     categoria: 'estoque',
-    resumo: 'Dinheiro separado para um fim — impostos, 13º, equipamento, emergência.',
+    resumo: 'Dinheiro separado para um fim, como impostos, 13º, equipamento ou emergência.',
     comoCalcula:
       'Cada reserva tem um valor guardado e, se você quiser, uma meta. Aportes e resgates ficam registrados no histórico.',
     comoLer:

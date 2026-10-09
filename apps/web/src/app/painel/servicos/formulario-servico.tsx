@@ -124,7 +124,7 @@ export function FormularioServico({ servico }: { servico?: Servico }) {
           }`}
         >
           Margem: <strong className="tabular-nums">{margem.toFixed(1)}%</strong>
-          {simulacao?.abaixoDoCusto && ' — o preço está abaixo do custo.'}
+          {simulacao?.abaixoDoCusto && ', o preço está abaixo do custo.'}
         </p>
       )}
 

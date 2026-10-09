@@ -52,7 +52,7 @@ export function Hero() {
             </h1>
             <p className={styles['hero-description']}>
               Clientes, orçamentos, agenda e dinheiro no mesmo lugar, para quem vende serviço. Ao
-              registrar o serviço feito, o sistema já mostra quanto sobrou dele — sem você montar
+              registrar o serviço feito, o sistema já mostra quanto sobrou dele, sem você montar
               planilha.
             </p>
             <div className={styles['hero-actions']}>

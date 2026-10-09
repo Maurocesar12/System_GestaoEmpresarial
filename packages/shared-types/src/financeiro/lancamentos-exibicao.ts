@@ -12,9 +12,10 @@ export const MAX_ANEXOS_LANCAMENTO = 5;
  * custo operacional e a margem, sem nenhum aviso de que houve erro.
  */
 export const EXPLICACAO_TIPO_CUSTO: Record<TipoCusto, string> = {
-  fixo: 'Sai todo mês no mesmo valor, independente do movimento — aluguel, internet, contador.',
-  variavel: 'Acompanha o movimento: quanto mais serviço, maior a conta — material, combustível.',
-  receita: 'Dinheiro entrando — venda de serviço, mensalidade, produto.',
+  fixo: 'Sai todo mês no mesmo valor, independente do movimento, como aluguel, internet e contador.',
+  variavel:
+    'Acompanha o movimento: quanto mais serviço, maior a conta, como material e combustível.',
+  receita: 'Dinheiro entrando, como venda de serviço, mensalidade ou produto.',
 };
 
 export const ROTULO_TIPO_CUSTO: Record<TipoCusto, string> = {

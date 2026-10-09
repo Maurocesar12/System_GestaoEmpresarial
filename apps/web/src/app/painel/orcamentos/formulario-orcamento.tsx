@@ -133,7 +133,7 @@ export function FormularioOrcamento({
           {servicos.map((servico) => (
             <option key={servico.id} value={servico.id}>
               {servico.nome}
-              {servico.precoPadrao ? ` — ${formatarBRL(servico.precoPadrao)}` : ''}
+              {servico.precoPadrao ? `, ${formatarBRL(servico.precoPadrao)}` : ''}
             </option>
           ))}
         </select>

@@ -13,7 +13,7 @@ import { z } from 'zod';
  */
 export const dinheiroSchema = z
   .string()
-  .regex(/^-?\d+(\.\d{1,2})?$/, 'Valor monetário inválido — use o formato "1234.56"');
+  .regex(/^-?\d+(\.\d{1,2})?$/, 'Valor monetário inválido, use o formato "1234.56"');
 
 export type Dinheiro = z.infer<typeof dinheiroSchema>;
 

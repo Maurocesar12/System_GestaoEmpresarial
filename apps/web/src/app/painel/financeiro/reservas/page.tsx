@@ -98,7 +98,7 @@ export default async function PaginaReservas() {
         <p className="text-foreground font-medium">Por que {COBERTURA_CONFORTAVEL} meses?</p>
         <p>
           É o tempo que costuma separar um susto de uma crise. Empresa de serviço raramente quebra
-          por prejuízo — quebra por descasamento: um cliente grande atrasa, e a folha vence do mesmo
+          por prejuízo, quebra por descasamento: um cliente grande atrasa, e a folha vence do mesmo
           jeito. Com três meses de custo fixo guardados, dá para atravessar isso sem antecipar
           recebível no banco.
         </p>

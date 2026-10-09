@@ -53,7 +53,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     resposta:
       'Comece por aqui: cadastre seus **serviços** (com o custo de cada um), depois seus **clientes**, monte o primeiro **orçamento** e registre as entradas e saídas no **financeiro**.\n\n' +
       'Feito isso, o Painel já começa a fazer sentido: ele mostra o que chegou, o que está parado e o que vence.\n\n' +
-      '**Dica:** comece pelos serviços — sem o custo de cada um, o sistema não tem como calcular sua margem depois.',
+      '**Dica:** comece pelos serviços, pois sem o custo de cada um o sistema não tem como calcular sua margem depois.',
     relacionados: ['painel', 'servicos', 'clientes-cadastro'],
   },
   {
@@ -73,7 +73,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'O painel mostra o que importa agora: alertas no topo (leads sem contato, contas vencidas, compromissos atrasados) e, logo abaixo, leads novos, clientes para reativar, funil, agenda e caixa.\n\n' +
-      'Ele se atualiza sozinho a cada 30 segundos — dá para pausar se você estiver lendo com calma.\n\n' +
+      'Ele se atualiza sozinho a cada 30 segundos, e dá para pausar se você estiver lendo com calma.\n\n' +
       '**Dica:** cada pessoa só vê os blocos que a sua permissão libera. Se falta algum número, é permissão, não bug.',
     relacionados: ['leads', 'reativacao', 'permissoes'],
   },
@@ -98,7 +98,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       'documento',
     ],
     resposta:
-      'Vá em **Clientes > Novo cliente**. Só o nome é obrigatório — o resto (telefone, e-mail, CPF/CNPJ) pode completar depois.\n\n' +
+      'Vá em **Clientes > Novo cliente**. Só o nome é obrigatório, o resto (telefone, e-mail, CPF/CNPJ) pode completar depois.\n\n' +
       'Se a pessoa acabou de ligar, use o botão "Novo lead" direto no Início: cadastra na hora, sem sair da tela.\n\n' +
       '**Dica:** pode digitar telefone e documento sem máscara, o sistema formata sozinho. E todo cliente novo já entra na primeira etapa do funil.',
     relacionados: ['clientes-importar', 'funil', 'campos-personalizados'],
@@ -121,7 +121,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     resposta:
       'Em **Clientes > Importar planilha**: você sobe o arquivo, confere as colunas e confirma. Funciona até com planilhas grandes.\n\n' +
       'Linha repetida (mesmo CPF, CNPJ ou e-mail) é pulada, não trava a importação inteira, e o motivo aparece pra você conferir.\n\n' +
-      '**Dica:** se o total passar do limite de clientes do seu plano, nada é importado — a mensagem já avisa quantas vagas sobram.',
+      '**Dica:** se o total passar do limite de clientes do seu plano, nada é importado, e a mensagem já avisa quantas vagas sobram.',
     relacionados: ['clientes-cadastro', 'plano'],
   },
   {
@@ -145,7 +145,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     resposta:
       'É no **Início**, no cartão "Leads que chegaram": todo cliente cadastrado nos últimos 30 dias, do mais novo pro mais antigo.\n\n' +
       'A situação (aguardando contato, em contato, proposta enviada, fechado) é calculada sozinha. Quem espera contato há mais de 24h aparece destacado.\n\n' +
-      'Para cadastrar um lead novo, use o botão "Novo lead" no próprio cartão — pede só o nome, o resto você completa depois na ficha.\n\n' +
+      'Para cadastrar um lead novo, use o botão "Novo lead" no próprio cartão, que pede só o nome, e o resto você completa depois na ficha.\n\n' +
       '**Dica:** preencha a origem sempre que souber de onde a pessoa veio, é o que faz o resumo por canal valer a pena.',
     relacionados: ['reativacao', 'clientes-cadastro', 'funil'],
   },
@@ -168,7 +168,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'No **Início**, no cartão "Clientes para reativar": quem está há mais de 60 dias sem contato e sem nada em aberto.\n\n' +
-      'A lista vem ordenada por quanto o cliente já gastou com você, e cada linha diz o motivo — comprou e sumiu, recusou a proposta, nunca fechou.\n\n' +
+      'A lista vem ordenada por quanto o cliente já gastou com você, e cada linha diz o motivo, como comprou e sumiu, recusou a proposta ou nunca fechou.\n\n' +
       '**Dica:** assim que você registra um contato ou marca um retorno, o cliente sai da lista sozinho.',
     relacionados: ['leads', 'lembretes', 'atendimentos'],
   },
@@ -188,7 +188,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Abra a ficha do cliente em **Clientes** e registre no bloco de atendimentos: data e o que foi conversado.\n\n' +
-      '**Dica:** vale o hábito — isso tira o cliente da fila de "aguardando contato" e da lista de reativação, além de ficar guardado pra quem atender da próxima vez.',
+      '**Dica:** vale o hábito, pois isso tira o cliente da fila de "aguardando contato" e da lista de reativação, além de ficar guardado pra quem atender da próxima vez.',
     relacionados: ['leads', 'reativacao', 'clientes-cadastro'],
   },
   {
@@ -207,7 +207,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Configurações**: campos personalizados criam informações que só a sua empresa precisa (texto, número, data ou lista), e etiquetas coloridas ajudam a separar clientes por prioridade ou tipo.\n\n' +
-      '**Dica:** dá pra marcar um campo como obrigatório — a partir daí, ninguém cadastra cliente sem preenchê-lo.',
+      '**Dica:** dá pra marcar um campo como obrigatório, e a partir daí ninguém cadastra cliente sem preenchê-lo.',
     relacionados: ['clientes-cadastro', 'funil'],
   },
 
@@ -230,7 +230,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       'negociacao',
     ],
     resposta:
-      'Em **Relacionamento > Funil**. Cada coluna é uma etapa, cada cartão é um cliente — arraste para mover, livre pra frente, pra trás ou pulando etapa.\n\n' +
+      'Em **Relacionamento > Funil**. Cada coluna é uma etapa, cada cartão é um cliente, e você arrasta para mover, livre pra frente, pra trás ou pulando etapa.\n\n' +
       '**Dica:** cliente parado mais de 7 dias na mesma etapa aparece destacado nos alertas do painel. E quem ainda não está em etapa nenhuma aparece como "fora do funil", pronto pra ser puxado pro quadro.',
     relacionados: ['funil-etapas', 'orcamentos', 'leads'],
   },
@@ -250,7 +250,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Funil > Etapas** (só administradores): criar, renomear, reordenar e excluir etapas.\n\n' +
-      'Cada etapa pode ganhar um marco — "orçamento enviado" ou "fechado" — que é o que dispara a automação sozinha.\n\n' +
+      'Cada etapa pode ganhar um marco, "orçamento enviado" ou "fechado", que é o que dispara a automação sozinha.\n\n' +
       '**Dica:** pode renomear a etapa à vontade, a automação segue o marco, não o nome.',
     relacionados: ['funil', 'orcamentos'],
   },
@@ -275,8 +275,8 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Operação > Orçamentos**: cliente, serviço, valor e validade opcional.\n\n' +
-      'Três estados — aberto, aprovado, recusado — e dá pra reabrir se a conversa voltar. Aprovar já move o cliente pro funil sozinho.\n\n' +
-      '**Dica:** só dá pra editar enquanto está aberto. Depois de aprovado, o valor fica travado — mudar seria alterar um compromisso já fechado.',
+      'Três estados, aberto, aprovado ou recusado, e dá pra reabrir se a conversa voltar. Aprovar já move o cliente pro funil sozinho.\n\n' +
+      '**Dica:** só dá pra editar enquanto está aberto. Depois de aprovado, o valor fica travado, pois mudar seria alterar um compromisso já fechado.',
     relacionados: ['funil-etapas', 'servicos', 'financeiro-lancamentos'],
   },
   {
@@ -299,7 +299,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     resposta:
       'Em **Operação > Agenda**: cliente, serviço, data e hora.\n\n' +
       'O ciclo é agendado → confirmado → executado (ou cancelado, com opção de reagendar). Passou da hora e ainda tá agendado? Aparece atrasado no painel.\n\n' +
-      '**Dica:** marcar como executado é definitivo — é o gesto que fecha a operação e já prepara o lançamento financeiro do serviço.',
+      '**Dica:** marcar como executado é definitivo, pois é o gesto que fecha a operação e já prepara o lançamento financeiro do serviço.',
     relacionados: ['servicos', 'financeiro-lancamentos', 'painel'],
   },
   {
@@ -319,7 +319,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Operação > Serviços**: nome, categoria opcional, custo base e preço padrão.\n\n' +
-      '**Dica:** preencha sempre o custo base — é o que sai do seu bolso pra entregar o serviço, e é o que permite ao relatório dizer qual serviço realmente dá lucro. Serviço parado? Desative em vez de excluir, assim ele some das listas novas mas continua nos relatórios antigos.',
+      '**Dica:** preencha sempre o custo base, pois é o que sai do seu bolso pra entregar o serviço, e é o que permite ao relatório dizer qual serviço realmente dá lucro. Serviço parado? Desative em vez de excluir, assim ele some das listas novas mas continua nos relatórios antigos.',
     relacionados: ['financeiro-margem', 'orcamentos'],
   },
   {
@@ -340,7 +340,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Relacionamento > Lembretes**: escolha o cliente, o canal e a data.\n\n' +
-      'Por **e-mail**, o envio é automático. Por **WhatsApp**, ainda não — depende de aprovação da Meta, então esses ficam marcados como falha, com o motivo explicado.\n\n' +
+      'Por **e-mail**, o envio é automático. Por **WhatsApp**, ainda não, pois depende de aprovação da Meta, então esses ficam marcados como falha, com o motivo explicado.\n\n' +
       '**Dica:** lembrete pendente com data já passada aparece como atrasado no painel, pra você não perder o retorno.',
     relacionados: ['reativacao', 'painel'],
   },
@@ -387,7 +387,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       'plano de contas',
     ],
     resposta:
-      'Em **Financeiro > Categorias**: além do nome, cada categoria de saída tem um tipo de custo — fixo (existe mesmo sem venda, tipo aluguel) ou variável (cresce com o volume, tipo material).\n\n' +
+      'Em **Financeiro > Categorias**: além do nome, cada categoria de saída tem um tipo de custo, fixo (existe mesmo sem venda, tipo aluguel) ou variável (cresce com o volume, tipo material).\n\n' +
       '**Dica:** saída sem categoria aparece como "não classificado" no fluxo de caixa, pra nenhum valor ficar escondido.',
     relacionados: ['financeiro-lancamentos', 'financeiro-fluxo'],
   },
@@ -410,8 +410,8 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'O fluxo de caixa soma o que foi pago no período: entradas menos saídas.\n\n' +
-      'Dois avisos importantes: o saldo do período não é o saldo do banco (é só o movimento daquele intervalo), e saldo positivo não é lucro (isso depende de impostos e do seu regime — confirme com seu contador).\n\n' +
-      '**Dica:** número estranho? É quase sempre baixa faltando — um lançamento sem baixa não entra no caixa do mês.',
+      'Dois avisos importantes: o saldo do período não é o saldo do banco (é só o movimento daquele intervalo), e saldo positivo não é lucro (isso depende de impostos e do seu regime, confirme com seu contador).\n\n' +
+      '**Dica:** número estranho? É quase sempre baixa faltando, pois um lançamento sem baixa não entra no caixa do mês.',
     relacionados: ['financeiro-lancamentos', 'financeiro-margem', 'previsao'],
   },
   {
@@ -427,7 +427,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       'comparar servicos',
     ],
     resposta:
-      'O relatório de margem compara, por serviço, o que entrou com o custo registrado — mostra qual serviço realmente paga a conta.\n\n' +
+      'O relatório de margem compara, por serviço, o que entrou com o custo registrado, e mostra qual serviço realmente paga a conta.\n\n' +
       '**Dica:** só funciona bem se o custo base do serviço estiver preenchido e os lançamentos vinculados a ele.',
     relacionados: ['servicos', 'financeiro-fluxo'],
   },
@@ -449,7 +449,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Financeiro > Conciliação**, você compara o sistema com o extrato do banco e resolve as diferenças. Importação em lote e exportação ficam em **Financeiro > Dados**.\n\n' +
-      '**Dica:** a regra é sempre a mesma — só dê baixa depois de confirmar que o dinheiro realmente entrou ou saiu.',
+      '**Dica:** a regra é sempre a mesma, só dê baixa depois de confirmar que o dinheiro realmente entrou ou saiu.',
     relacionados: ['financeiro-lancamentos', 'financeiro-fluxo'],
   },
   {
@@ -497,7 +497,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     resposta:
       'Em **Financeiro > Previsão com IA** (plano Premium): escolha quantos meses olhar pra trás e quantos projetar.\n\n' +
       'Ela cruza histórico, contas a pagar/receber, propostas em aberto, agenda e compromissos recorrentes, trazendo cenário pessimista, base e otimista.\n\n' +
-      '**Dica:** é estimativa, não garantia — quanto mais em dia as baixas, mais perto da realidade fica a projeção.',
+      '**Dica:** é estimativa, não garantia, e quanto mais em dia as baixas, mais perto da realidade fica a projeção.',
     relacionados: ['plano', 'financeiro-fluxo', 'chat-ia'],
   },
 
@@ -542,11 +542,11 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'As permissões são por ação, não por tela inteira:\n\n' +
-      '• **Administrador** — tudo.\n' +
-      '• **Financeiro** — módulo financeiro, serviços e IA.\n' +
-      '• **Atendente** — clientes, funil, orçamentos, agenda e lembretes.\n' +
-      '• **Técnico** — leitura do CRM, funil e agenda.\n\n' +
-      '**Dica:** menu sumiu? É permissão faltando — peça pro administrador ajustar em **Equipe**.',
+      '• **Administrador** pode tudo.\n' +
+      '• **Financeiro** acessa o módulo financeiro, serviços e IA.\n' +
+      '• **Atendente** acessa clientes, funil, orçamentos, agenda e lembretes.\n' +
+      '• **Técnico** tem leitura do CRM, funil e agenda.\n\n' +
+      '**Dica:** menu sumiu? É permissão faltando, peça pro administrador ajustar em **Equipe**.',
     relacionados: ['equipe', 'painel'],
   },
   {
@@ -571,8 +571,8 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Administração > Plano**, são dois:\n\n' +
-      '• **Básico (R$ 100/mês)** — CRM, funil, agenda, financeiro completo e esta ajuda. 2 usuários, até 500 clientes.\n' +
-      '• **Premium (R$ 200/mês)** — tudo isso, mais o assistente com IA e a previsão financeira, com mais usuários e sem limite de clientes.\n\n' +
+      '• **Básico (R$ 100/mês)** inclui CRM, funil, agenda, financeiro completo e esta ajuda. 2 usuários, até 500 clientes.\n' +
+      '• **Premium (R$ 200/mês)** inclui tudo isso, mais o assistente com IA e a previsão financeira, com mais usuários e sem limite de clientes.\n\n' +
       '**Dica:** a tela mostra seu uso atual e a mensalidade estimada, já com usuários extras.',
     relacionados: ['chat-ia', 'previsao', 'equipe'],
   },
@@ -594,8 +594,8 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Somos dois assistentes diferentes:\n\n' +
-      '• **Eu**, a ajuda do sistema — explico como usar as telas, em todos os planos, sem tocar nos seus dados.\n' +
-      '• O **assistente com IA** (Premium) — conversa sobre seus números de verdade: caixa, funil, propostas.\n\n' +
+      '• **Eu**, a ajuda do sistema, explico como usar as telas, em todos os planos, sem tocar nos seus dados.\n' +
+      '• O **assistente com IA** (Premium) conversa sobre seus números de verdade: caixa, funil, propostas.\n\n' +
       '**Dica:** nenhum dos dois altera cadastros nem envia mensagens por você.',
     relacionados: ['plano', 'previsao', 'permissoes'],
   },
@@ -615,7 +615,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     ],
     resposta:
       'Em **Administração > Histórico** (só administradores): toda criação, alteração e exclusão fica registrada com autor, data e os valores de antes e depois.\n\n' +
-      '**Dica:** ele não restaura registros excluídos, mas guarda o que tinha neles — geralmente dá pra recadastrar sem perder nada.',
+      '**Dica:** ele não restaura registros excluídos, mas guarda o que tinha neles, e geralmente dá pra recadastrar sem perder nada.',
     relacionados: ['permissoes', 'equipe'],
   },
   {
@@ -652,9 +652,9 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
       'meus dados',
     ],
     resposta:
-      'Esqueceu a senha? Use "Recuperar senha" na tela de entrada — o link chega no seu e-mail.\n\n' +
+      'Esqueceu a senha? Use "Recuperar senha" na tela de entrada, e o link chega no seu e-mail.\n\n' +
       'A sessão se renova sozinha enquanto você usa o sistema.\n\n' +
-      '**Dica:** seus dados ficam isolados por empresa em várias camadas — nenhuma empresa enxerga os dados de outra.',
+      '**Dica:** seus dados ficam isolados por empresa em várias camadas, e nenhuma empresa enxerga os dados de outra.',
     relacionados: ['permissoes', 'equipe'],
   },
 ];

@@ -70,7 +70,7 @@ export default async function PaginaEtapas() {
           proposta enviada; ao aprovar, para a de fechamento.
         </p>
         <p>
-          Essas duas etapas são reconhecidas por marcação interna, não pelo nome — você pode
+          Essas duas etapas são reconhecidas por marcação interna, não pelo nome, então você pode
           renomeá-las à vontade que a automação continua funcionando. Etapas que você criar entram
           como comuns, sem comportamento automático.
         </p>

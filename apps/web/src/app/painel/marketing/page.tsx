@@ -120,7 +120,7 @@ export default async function PaginaMarketing({ searchParams }: Props) {
             <EstadoVazio
               icone={Megaphone}
               titulo="Nenhum lead no período"
-              descricao="Preencha a origem ao cadastrar um cliente, ou use o formulário do site — é o que faz este relatório valer alguma coisa."
+              descricao="Preencha a origem ao cadastrar um cliente, ou use o formulário do site, e é o que faz este relatório valer alguma coisa."
               className="border-0"
             />
           </CartaoConteudo>

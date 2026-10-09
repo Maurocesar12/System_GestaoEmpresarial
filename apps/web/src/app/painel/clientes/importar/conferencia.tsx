@@ -42,8 +42,8 @@ export function Conferencia({
         <div className="flex flex-col gap-1">
           <h2 className="font-semibold tracking-tight">De onde vem cada informação</h2>
           <p className="text-muted-foreground text-sm">
-            Reconhecemos as colunas pelo título. Ajuste o que estiver trocado — a planilha original
-            não muda.
+            Reconhecemos as colunas pelo título. Ajuste o que estiver trocado, pois a planilha
+            original não muda.
           </p>
         </div>
 

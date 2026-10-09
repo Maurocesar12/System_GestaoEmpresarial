@@ -119,7 +119,7 @@ export default async function PaginaServico({ params }: Props) {
             <h2 className="text-sm font-medium">Desativar serviço</h2>
             <p className="text-muted-foreground text-sm">
               Ele some das listas de orçamento, mas continua visível nos registros antigos. Nada é
-              apagado — o relatório de margem dos meses anteriores permanece correto.
+              apagado, e o relatório de margem dos meses anteriores permanece correto.
             </p>
           </div>
 

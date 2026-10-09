@@ -88,10 +88,10 @@ function Recursos() {
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <CabecalhoSecao
           rotulo="O que é isto"
-          titulo="Um sistema para quem vende serviço — e está cansado de juntar tudo na mão."
+          titulo="Um sistema para quem vende serviço e está cansado de juntar tudo na mão."
         >
           Hoje é o WhatsApp para falar com cliente, o caderno para anotar serviço e a planilha para
-          as contas. Aqui é um lugar só — e as três coisas conversam entre si: o que você anota num
+          as contas. Aqui é um lugar só, e as três coisas conversam entre si: o que você anota num
           canto aparece sozinho nos outros. Veja as seis situações do dia a dia que ele resolve.
         </CabecalhoSecao>
 
@@ -244,7 +244,7 @@ function ComoFunciona() {
       <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
         <CabecalhoSecao
           rotulo="Como funciona"
-          titulo="Acompanhe um serviço de ponta a ponta — e veja onde o sistema trabalha por você."
+          titulo="Acompanhe um serviço de ponta a ponta e veja onde o sistema trabalha por você."
         >
           Vamos seguir a Maria, que quer instalar um ar-condicionado por R$ 980. Em cada etapa
           mostramos o que você faz, o que o sistema faz sozinho e o que aparece para você. No fim,
@@ -262,7 +262,7 @@ function ComoFunciona() {
         <p className="text-muted-foreground mt-6 max-w-2xl text-sm leading-relaxed">
           O segredo está no meio do caminho: o que você registra em uma etapa já é usado nas
           seguintes. Quando a venda mora num lugar e o dinheiro em outro, alguém precisa juntar os
-          dois no fim do mês — e é aí que a conta para de bater.
+          dois no fim do mês, e é aí que a conta para de bater.
         </p>
       </div>
     </section>
@@ -327,9 +327,9 @@ function InteligenciaArtificial() {
 
             <p className="text-muted-foreground leading-relaxed">
               A conta é do sistema: histórico do que entrou e saiu, mais as contas a pagar e a
-              receber que já estão registradas. A inteligência artificial (IA) entra depois — como
-              um analista que lê esse cenário, aponta o risco e diz por onde começar. Mexa nos
-              cenários abaixo para ver como o caixa muda.
+              receber que já estão registradas. A inteligência artificial (IA) entra depois, como um
+              analista que lê esse cenário, aponta o risco e diz por onde começar. Mexa nos cenários
+              abaixo para ver como o caixa muda.
             </p>
           </div>
 
@@ -403,7 +403,7 @@ const GARANTIAS = [
     icone: Database,
     titulo: 'Os dados da sua empresa são só seus',
     descricao:
-      'Nenhuma outra empresa consegue ver o que é seu. Essa separação foi a primeira coisa construída, antes de qualquer tela, e o próprio banco de dados recusa o acesso — não depende de ninguém lembrar de checar.',
+      'Nenhuma outra empresa consegue ver o que é seu. Essa separação foi a primeira coisa construída, antes de qualquer tela, e o próprio banco de dados recusa o acesso, e não depende de ninguém lembrar de checar.',
   },
   {
     icone: KeyRound,
@@ -427,7 +427,7 @@ const GARANTIAS = [
     icone: FileDown,
     titulo: 'Seus dados vão com você',
     descricao:
-      'O dono pode exportar tudo da empresa quando quiser. Se cancelar a conta, os dados são apagados em definitivo depois de 30 dias — não ficam guardados “por precaução”.',
+      'O dono pode exportar tudo da empresa quando quiser. Se cancelar a conta, os dados são apagados em definitivo depois de 30 dias, e não ficam guardados “por precaução”.',
   },
 ];
 
@@ -451,7 +451,7 @@ function Seguranca() {
           titulo="Seus dados são só seus. E isso é testado, não prometido."
         >
           A separação entre empresas foi construída antes de qualquer tela, e é verificada de
-          propósito — com testes que tentam invadir o dado de outra empresa e precisam falhar.
+          propósito, com testes que tentam invadir o dado de outra empresa e precisam falhar.
         </CabecalhoSecao>
 
         <ul className="flex flex-col gap-8">
@@ -487,7 +487,7 @@ function Planos() {
           <div>
             <dt className="text-foreground font-medium">O que é “usuário”?</dt>
             <dd>
-              Cada pessoa da sua equipe que entra no sistema com login e senha próprios — você
+              Cada pessoa da sua equipe que entra no sistema com login e senha próprios, e você
               decide o que cada uma enxerga.
             </dd>
           </div>
@@ -635,8 +635,8 @@ function ChamadaFinal() {
         <p className="text-muted-foreground max-w-xl leading-relaxed">
           O jeito mais rápido de entender é testar. Cadastre o primeiro cliente e faça um orçamento:
           é o suficiente para o quadro de negociações e o painel começarem a se mexer. O
-          acompanhamento já nasce montado, com as etapas que a maioria das empresas de serviço usa —
-          dá para ajustar depois.
+          acompanhamento já nasce montado, com as etapas que a maioria das empresas de serviço usa,
+          e dá para ajustar depois.
         </p>
         <div className="flex flex-col items-start gap-2">
           <Link href="/cadastro" className={estilosBotao({ tamanho: 'lg' })}>

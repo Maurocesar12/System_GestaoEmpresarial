@@ -42,7 +42,7 @@ export default function ErroPainel({
 
         <p className="text-muted-foreground max-w-md text-sm">
           {pareceApiFora
-            ? 'Não conseguimos carregar seus dados agora. Isso costuma ser temporário — tente de novo em alguns instantes.'
+            ? 'Não conseguimos carregar seus dados agora. Isso costuma ser temporário, tente de novo em alguns instantes.'
             : 'Não foi possível carregar esta tela. Tente de novo; se continuar, avise o suporte.'}
         </p>
       </div>

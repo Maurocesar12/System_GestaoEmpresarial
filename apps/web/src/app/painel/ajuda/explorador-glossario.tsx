@@ -181,7 +181,7 @@ export function ExploradorGlossario({ conceitos }: { conceitos: ConceitoComId[] 
         <EstadoVazio
           icone={Search}
           titulo="Nenhum termo encontrado"
-          descricao="Tente outra palavra — por exemplo “lucro”, “caixa” ou “estoque” — ou volte à lista completa."
+          descricao="Tente outra palavra, por exemplo “lucro”, “caixa” ou “estoque”, ou volte à lista completa."
           acao={
             <button
               type="button"

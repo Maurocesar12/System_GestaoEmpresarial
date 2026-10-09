@@ -63,7 +63,7 @@ export function GerenciadorRecorrencias({
             <EstadoVazio
               icone={Repeat}
               titulo="Nenhuma recorrência cadastrada"
-              descricao="Cadastre o aluguel, os salários e as mensalidades uma vez — o sistema lança todo mês por você."
+              descricao="Cadastre o aluguel, os salários e as mensalidades uma vez, o sistema lança todo mês por você."
               className="border-0"
             />
           </CartaoConteudo>
@@ -330,8 +330,8 @@ function NovaRecorrencia({
               value={tipo}
               onChange={(evento) => trocarTipo(evento.target.value as TipoLancamento)}
             >
-              <option value="saida">Saída — despesa que repete</option>
-              <option value="entrada">Entrada — mensalidade ou contrato</option>
+              <option value="saida">Saída, despesa que repete</option>
+              <option value="entrada">Entrada, mensalidade ou contrato</option>
             </Selecao>
 
             <Selecao
@@ -352,7 +352,7 @@ function NovaRecorrencia({
             rotulo="Descrição"
             value={descricao}
             onChange={(evento) => setDescricao(evento.target.value)}
-            placeholder={tipo === 'saida' ? 'Aluguel do galpão' : 'Mensalidade — contrato mensal'}
+            placeholder={tipo === 'saida' ? 'Aluguel do galpão' : 'Mensalidade, contrato mensal'}
           />
 
           <div className="grid gap-4 sm:grid-cols-3">

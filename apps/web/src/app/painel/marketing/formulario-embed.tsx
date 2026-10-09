@@ -76,7 +76,7 @@ export function FormularioEmbed({
       </div>
 
       <p className="text-muted-foreground text-xs">
-        Gerar uma chave nova invalida esta na hora — é assim que você corta um formulário que
+        Gerar uma chave nova invalida esta na hora, e é assim que você corta um formulário que
         começou a receber cadastro falso.
       </p>
 

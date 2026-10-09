@@ -57,7 +57,7 @@ export class ChatIaService {
         descricao: 'Conversa sobre os seus números',
         saudacao:
           `Olá! Sou o assistente com IA do ${empresa.nome}. ` +
-          'Posso analisar caixa, funil, propostas, agenda e follow-ups — e explicar o que os números querem dizer. ' +
+          'Posso analisar caixa, funil, propostas, agenda e follow-ups, e explicar o que os números querem dizer. ' +
           'Vejo apenas o que o seu usuário tem permissão para ver.',
         sugestoes: SUGESTOES_PREMIUM,
         planoNome: empresa.planoNome,
@@ -70,8 +70,8 @@ export class ChatIaService {
       titulo: 'Ajuda do sistema',
       descricao: 'Tire dúvidas sobre como usar',
       saudacao:
-        'Oi! Sou o assistente de ajuda. Pergunte sobre qualquer tela — clientes, funil, orçamentos, ' +
-        'agenda, financeiro, equipe — que eu explico como usar, do jeito mais simples possível.',
+        'Oi! Sou o assistente de ajuda. Pergunte sobre qualquer tela, como clientes, funil, orçamentos, ' +
+        'agenda, financeiro ou equipe, que eu explico como usar, do jeito mais simples possível.',
       sugestoes: [...SUGESTOES_DE_AJUDA],
       planoNome: empresa.planoNome,
       convite: `Quer conversar sobre os seus números de verdade? O assistente com IA é do plano Premium, por R$ ${PACOTE_IA_PRECO_MENSAL_BRL}/mês.`,

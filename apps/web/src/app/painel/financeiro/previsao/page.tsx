@@ -71,8 +71,8 @@ function PrevisaoNoPremium({ planoNome }: { planoNome: string }) {
             <div>
               <h2 className="text-base font-semibold">O que a previsão com IA entrega</h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                Ela lê o negócio inteiro, e não só o extrato — é isso que separa uma projeção de uma
-                média dos últimos meses.
+                Ela lê o negócio inteiro, e não só o extrato, e é isso que separa uma projeção de
+                uma média dos últimos meses.
               </p>
             </div>
           </div>

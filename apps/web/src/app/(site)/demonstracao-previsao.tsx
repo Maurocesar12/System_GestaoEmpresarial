@@ -59,7 +59,7 @@ const PASSOS = [
     icone: Sigma,
     titulo: 'O sistema faz a conta',
     texto:
-      'Soma o que entrou, o que saiu e as contas a pagar e receber já registradas. Esta parte é aritmética do sistema — não é a IA que inventa o número.',
+      'Soma o que entrou, o que saiu e as contas a pagar e receber já registradas. Esta parte é aritmética do sistema, não é a IA que inventa o número.',
   },
   {
     icone: Lock,
@@ -71,7 +71,7 @@ const PASSOS = [
     icone: PenLine,
     titulo: 'A IA lê e escreve',
     texto:
-      'Sobre esse cenário, ela aponta o nível de risco, o que merece atenção e o que fazer primeiro — em português, não em gráfico para você decifrar.',
+      'Sobre esse cenário, ela aponta o nível de risco, o que merece atenção e o que fazer primeiro, em português, não em gráfico para você decifrar.',
   },
   {
     icone: UserCheck,

@@ -84,13 +84,13 @@ export default async function PaginaRecorrencias() {
           que aparece no dia em que vence chega tarde para se organizar.
         </p>
         <p>
-          O lançamento gerado é igual a qualquer outro — você dá baixa nele, anexa o comprovante e
+          O lançamento gerado é igual a qualquer outro, e você dá baixa nele, anexa o comprovante e
           ele entra no fluxo de caixa normalmente. Mexer nele não altera a recorrência, e pausar a
           recorrência não apaga o que já foi gerado.
         </p>
         <p>
           Quem vence <strong className="text-foreground font-semibold">dia 31</strong> cai no último
-          dia nos meses mais curtos, e volta ao 31 no mês seguinte — o vencimento não escorrega de
+          dia nos meses mais curtos, e volta ao 31 no mês seguinte, e o vencimento não escorrega de
           lugar com o tempo.
         </p>
       </section>

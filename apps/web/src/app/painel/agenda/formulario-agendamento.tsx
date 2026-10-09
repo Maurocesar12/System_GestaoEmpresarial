@@ -181,7 +181,7 @@ export function FormularioAgendamento({
             <option value="">Sem orçamento</option>
             {orcamentosDoCliente.map((orcamento) => (
               <option key={orcamento.id} value={orcamento.id}>
-                {orcamento.servicoNome ?? 'Sem serviço'} — {formatarBRL(orcamento.valor)}
+                {orcamento.servicoNome ?? 'Sem serviço'}, {formatarBRL(orcamento.valor)}
               </option>
             ))}
           </select>

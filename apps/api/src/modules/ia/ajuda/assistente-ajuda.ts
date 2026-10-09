@@ -135,7 +135,7 @@ export class AssistenteAjuda {
     if (!topico) {
       return {
         resposta:
-          'Não consegui identificar o assunto — mas posso ajudar com:\n\n' +
+          'Não consegui identificar o assunto, mas posso ajudar com:\n\n' +
           ASSUNTOS_PRINCIPAIS.map((assunto) => `• ${assunto}`).join('\n') +
           '\n\nTenta citar a tela ou uma palavra que aparece nela, tipo "orçamento" ou "baixa", que eu acho rapidinho.',
         referencias: [],
@@ -173,10 +173,10 @@ export class AssistenteAjuda {
     if (contemAlgum(texto, capacidades)) {
       return {
         resposta:
-          'Sou o assistente de ajuda do sistema. Explico como usar cada tela — onde fica, o que cada campo significa, por que um número aparece daquele jeito.\n\n' +
+          'Sou o assistente de ajuda do sistema. Explico como usar cada tela, onde fica, o que cada campo significa, por que um número aparece daquele jeito.\n\n' +
           'Posso falar sobre:\n\n' +
           ASSUNTOS_PRINCIPAIS.map((assunto) => `• ${assunto}`).join('\n') +
-          '\n\nNão consulto os dados da sua empresa nem altero nada. Se quiser conversar sobre os seus números — caixa, funil, propostas —, isso é o assistente com IA do plano Premium.',
+          '\n\nNão consulto os dados da sua empresa nem altero nada. Se quiser conversar sobre os seus números, como caixa, funil e propostas, isso é o assistente com IA do plano Premium.',
         referencias: [{ titulo: 'Planos e assinatura', href: '/painel/plano' }],
         sugestoes: [...SUGESTOES_DE_AJUDA],
         topico: null,
@@ -195,7 +195,7 @@ export class AssistenteAjuda {
     if (contemAlgum(texto, cumprimentos) && texto.length <= 20) {
       return {
         resposta:
-          'Oi! Sou o assistente de ajuda do sistema. Pergunte sobre qualquer tela — clientes, funil, orçamentos, agenda, financeiro, equipe — que eu explico como usar.',
+          'Oi! Sou o assistente de ajuda do sistema. Pergunte sobre qualquer tela, como clientes, funil, orçamentos, agenda, financeiro ou equipe, que eu explico como usar.',
         referencias: [],
         sugestoes: [...SUGESTOES_DE_AJUDA],
         topico: null,

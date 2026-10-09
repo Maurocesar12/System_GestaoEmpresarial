@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { SITE } from '@/configuracao/site';
 
-export const alt = `${SITE.nome} — ${SITE.descricao}`;
+export const alt = `${SITE.nome}, ${SITE.descricao}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 

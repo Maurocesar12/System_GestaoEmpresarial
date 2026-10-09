@@ -270,7 +270,7 @@ export class OrcamentosService {
         throw new BadRequestException({
           codigo: CODIGOS_ERRO.CONFLITO,
           mensagem:
-            'Orçamento aprovado não pode ser excluído — ele faz parte do histórico do cliente e do financeiro.',
+            'Orçamento aprovado não pode ser excluído, pois ele faz parte do histórico do cliente e do financeiro.',
         });
       }
 

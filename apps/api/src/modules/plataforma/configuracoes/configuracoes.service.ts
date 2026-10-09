@@ -104,7 +104,7 @@ export class ConfiguracoesService {
     try {
       await this.notificador.enviar({
         destinatario: dados.email,
-        assunto: `Teste de e-mail — ${empresa.nome}`,
+        assunto: `Teste de e-mail, ${empresa.nome}`,
         corpo:
           `Este é um teste de envio do sistema ${empresa.nome}.\n\n` +
           'Se você recebeu esta mensagem, a configuração de e-mail está funcionando.',

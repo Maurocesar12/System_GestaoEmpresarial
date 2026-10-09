@@ -250,7 +250,7 @@ export class AgendamentosService {
         throw new BadRequestException({
           codigo: CODIGOS_ERRO.CONFLITO,
           mensagem:
-            'Agendamento executado não pode ser excluído — ele faz parte do histórico do cliente.',
+            'Agendamento executado não pode ser excluído, pois ele faz parte do histórico do cliente.',
         });
       }
 

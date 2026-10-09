@@ -92,8 +92,8 @@ function PainelIndisponivel() {
           Não conseguimos falar com o servidor
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Seus dados estão a salvo — apenas esta tela não conseguiu carregar. Costuma ser
-          passageiro: tente de novo em alguns segundos.
+          Seus dados estão a salvo, apenas esta tela não conseguiu carregar. Costuma ser passageiro:
+          tente de novo em alguns segundos.
         </p>
       </div>
 

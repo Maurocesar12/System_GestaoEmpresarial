@@ -165,7 +165,7 @@ export default async function PaginaProLabore({
             <p>
               A conta usa o que <strong className="text-foreground">entrou de fato</strong>, e não o
               faturado: dinheiro que ainda não caiu não paga conta nenhuma. O mês corrente fica de
-              fora — incluí-lo pela metade puxaria a média para baixo todo dia 1º.
+              fora, pois incluí-lo pela metade puxaria a média para baixo todo dia 1º.
             </p>
 
             {sugestao.mesesAnalisados < MESES_MINIMOS && (
@@ -233,7 +233,7 @@ export default async function PaginaProLabore({
                         {formatarDataCompleta(vigencia.vigenciaInicio)}
                         {vigencia.vigenciaFim
                           ? ` a ${formatarDataCompleta(vigencia.vigenciaFim)}`
-                          : ' — em diante'}
+                          : ', em diante'}
                       </span>
 
                       <SeloDaVigencia vigencia={vigencia} hoje={hoje} />

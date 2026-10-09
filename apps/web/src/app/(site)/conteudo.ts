@@ -60,14 +60,14 @@ export const RECURSOS: readonly Recurso[] = [
     titulo: 'Seus clientes num lugar só',
     pergunta: '“O que eu combinei com ele da última vez?”',
     descricao:
-      'Cada cliente tem uma ficha com tudo o que já aconteceu: serviços feitos, valores, datas e as conversas que você anotou. Antes de ligar, você lê o histórico em dez segundos — sem caçar mensagem antiga nem folhear caderno.',
+      'Cada cliente tem uma ficha com tudo o que já aconteceu: serviços feitos, valores, datas e as conversas que você anotou. Antes de ligar, você lê o histórico em dez segundos, sem caçar mensagem antiga nem folhear caderno.',
   },
   {
     icone: KanbanSquare,
     titulo: 'Nenhuma negociação esquecida',
     pergunta: '“Aquele orçamento deu em quê?”',
     descricao:
-      'Um quadro mostra cada cliente na etapa em que está, do primeiro contato ao fechamento — como post-its numa parede, só que organizados. Quem está parado há 7 dias ou mais ganha destaque, e o painel avisa.',
+      'Um quadro mostra cada cliente na etapa em que está, do primeiro contato ao fechamento, como post-its numa parede, só que organizados. Quem está parado há 7 dias ou mais ganha destaque, e o painel avisa.',
   },
   {
     icone: FileText,
@@ -88,14 +88,14 @@ export const RECURSOS: readonly Recurso[] = [
     titulo: 'O retorno acontece no dia certo',
     pergunta: '“Prometi ligar de novo e passou um mês.”',
     descricao:
-      'Você marca a data do próximo contato. Nesse dia, o sistema envia um e-mail ao cliente (que tenha e-mail cadastrado), em nome da sua empresa, e o painel mostra o que está pendente ou atrasado — você não depende da memória.',
+      'Você marca a data do próximo contato. Nesse dia, o sistema envia um e-mail ao cliente (que tenha e-mail cadastrado), em nome da sua empresa, e o painel mostra o que está pendente ou atrasado, e você não depende da memória.',
   },
   {
     icone: Wallet,
     titulo: 'Você descobre o que dá lucro',
     pergunta: '“Qual serviço meu realmente compensa?”',
     descricao:
-      'O dinheiro que entra e o que sai ficam ligados ao serviço que os gerou. Assim o sistema separa o que cada serviço rendeu do que ele custou — material, comissão, despesas — e mostra quais deixam mais sobra, sem você montar planilha.',
+      'O dinheiro que entra e o que sai ficam ligados ao serviço que os gerou. Assim o sistema separa o que cada serviço rendeu do que ele custou, como material, comissão e despesas, e mostra quais deixam mais sobra, sem você montar planilha.',
   },
 ];
 
@@ -174,7 +174,7 @@ export const JORNADA: readonly EtapaDaJornada[] = [
   {
     titulo: 'A Maria liga pedindo uma instalação',
     chamada: 'Você anota quem ela é e quanto vai cobrar.',
-    voceFaz: `Cadastra a Maria — só o nome é obrigatório — e faz o orçamento de ${RECEITA} para a instalação do ar-condicionado.`,
+    voceFaz: `Cadastra a Maria, só o nome é obrigatório, e faz o orçamento de ${RECEITA} para a instalação do ar-condicionado.`,
     sistemaFaz: `Coloca a Maria no quadro de negociações, na etapa de proposta enviada, e soma os ${RECEITA} ao total que você tem em negociação.`,
     voceVe: `No painel inicial, “Em negociação” sobe ${RECEITA}. Você não precisou atualizar nenhuma outra tela.`,
   },
@@ -183,7 +183,7 @@ export const JORNADA: readonly EtapaDaJornada[] = [
     chamada: 'Você marca a proposta como aprovada.',
     voceFaz: 'Marca o orçamento como aprovado.',
     sistemaFaz:
-      'Move a Maria para a etapa de fechado e trava o valor da proposta — assim ninguém altera, sem querer, um combinado que já foi fechado.',
+      'Move a Maria para a etapa de fechado e trava o valor da proposta, assim ninguém altera, sem querer, um combinado que já foi fechado.',
     voceVe:
       'O valor sai de “Em negociação” e entra em “Fechado no mês”. A taxa de propostas aprovadas também se atualiza.',
   },
@@ -198,19 +198,19 @@ export const JORNADA: readonly EtapaDaJornada[] = [
   },
   {
     titulo: 'O serviço é feito',
-    chamada: 'Um clique em “executado” — e o sistema faz o resto.',
+    chamada: 'Um clique em “executado”, e o sistema faz o resto.',
     voceFaz: `Marca como executado, confere os materiais usados (a lista padrão do serviço já vem preenchida) e informa se os ${RECEITA} já foram recebidos ou ainda vão ser.`,
     sistemaFaz: `Tudo de uma vez, ou nada: registra o serviço no histórico da Maria, tira do estoque o material usado, calcula a comissão de quem fez (se você usa comissão) e lança os ${RECEITA} no financeiro, já ligados a esse serviço.`,
     voceVe:
-      'Na ficha da Maria, o serviço aparece no histórico. No estoque, o saldo do material já baixou. No financeiro, o recebimento — ou a conta a receber — já está lançado.',
+      'Na ficha da Maria, o serviço aparece no histórico. No estoque, o saldo do material já baixou. No financeiro, o recebimento, ou a conta a receber, já está lançado.',
   },
   {
     titulo: 'No fim do mês, a conta já está pronta',
-    chamada: 'Quanto sobrou — serviço por serviço.',
+    chamada: 'Quanto sobrou, serviço por serviço.',
     voceFaz:
       'Lançou a despesa de combustível ligada à instalação, no dia em que pagou. Fora isso, nada: é só abrir o painel financeiro.',
     sistemaFaz:
-      'Soma o que entrou com tudo o que esse serviço custou — material do estoque, comissão e despesas ligadas a ele — e calcula a sobra de cada tipo de serviço.',
+      'Soma o que entrou com tudo o que esse serviço custou, como material do estoque, comissão e despesas ligadas a ele, e calcula a sobra de cada tipo de serviço.',
     voceVe: `A instalação deixou ${reais(CONTA.sobra)} de sobra: de cada R$ 100 recebidos, R$ ${CONTA.percentual} ficaram com você. É assim para todos os serviços, lado a lado.`,
     mostraConta: true,
   },
@@ -234,7 +234,7 @@ export const PALAVRAS: readonly Palavra[] = [
   {
     termo: 'Margem',
     significa: 'O que sobra de um serviço depois de pagar o que ele custou.',
-    exemplo: 'Cobrou R$ 100 e gastou R$ 40? A margem é R$ 60 — ou 60%.',
+    exemplo: 'Cobrou R$ 100 e gastou R$ 40? A margem é R$ 60, ou 60%.',
   },
   {
     termo: 'Fluxo de caixa',
@@ -253,7 +253,7 @@ export const PALAVRAS: readonly Palavra[] = [
     termo: 'Pró-labore',
     significa: 'A retirada mensal do dono, tratada como um custo do negócio.',
     exemplo:
-      'Assim o seu dinheiro não se mistura com o da empresa — e o sistema sugere um teto do quanto dá para retirar.',
+      'Assim o seu dinheiro não se mistura com o da empresa, e o sistema sugere um teto do quanto dá para retirar.',
   },
   {
     termo: 'A receber e a pagar',
@@ -306,21 +306,21 @@ export const RECURSOS_IA: readonly RecursoIA[] = [
     titulo: 'Fotografe a nota',
     pergunta: '"Tenho um monte de recibo para lançar e nunca sobra tempo."',
     descricao:
-      'Tire uma foto do comprovante e o lançamento aparece preenchido: valor, data e categoria. Você confere e confirma — o trabalho vira conferir, não digitar.',
+      'Tire uma foto do comprovante e o lançamento aparece preenchido: valor, data e categoria. Você confere e confirma, e o trabalho vira conferir, não digitar.',
   },
   {
     icone: TrendingUp,
     titulo: 'Sugestão de preço',
     pergunta: '"Será que estou cobrando barato demais nesse serviço?"',
     descricao:
-      'A partir do que você realmente gastou e recebeu em cada tipo de trabalho, o sistema aponta onde o preço não está cobrindo o custo — e quanto seria preciso cobrar para fechar a conta.',
+      'A partir do que você realmente gastou e recebeu em cada tipo de trabalho, o sistema aponta onde o preço não está cobrindo o custo, e quanto seria preciso cobrar para fechar a conta.',
   },
   {
     icone: Bell,
     titulo: 'Aviso do que vai esfriar',
     pergunta: '"Aquele orçamento sumiu e eu nem percebi."',
     descricao:
-      'Comparando com o que costuma acontecer no seu histórico, o sistema avisa quais negociações estão perdendo força a tempo de você agir — em vez de descobrir depois que o cliente fechou com outro.',
+      'Comparando com o que costuma acontecer no seu histórico, o sistema avisa quais negociações estão perdendo força a tempo de você agir, em vez de descobrir depois que o cliente fechou com outro.',
   },
   {
     icone: MessageSquareText,
@@ -443,7 +443,7 @@ export const MODULOS: readonly Modulo[] = [
     resumo: 'A equipe usando o sistema sem ver o que não deve.',
     itens: [
       'Convite por e-mail com papel definido',
-      'Permissão por ação — quem atende não vê faturamento',
+      'Permissão por ação, então quem atende não vê faturamento',
       'Histórico de quem alterou o quê, e quando',
     ],
   },
@@ -469,32 +469,32 @@ export const PERGUNTAS: readonly Pergunta[] = [
   {
     pergunta: 'Preciso entender de finanças ou de tecnologia?',
     resposta:
-      'Não. Foi feito para quem toca o negócio, não para quem estuda finanças. Ao lado dos números importantes há um botão “?” que explica, em palavras simples, o que cada um significa e como é calculado — e o painel inicial mostra primeiro o que precisa da sua atenção hoje.',
+      'Não. Foi feito para quem toca o negócio, não para quem estuda finanças. Ao lado dos números importantes há um botão “?” que explica, em palavras simples, o que cada um significa e como é calculado, e o painel inicial mostra primeiro o que precisa da sua atenção hoje.',
   },
   {
     pergunta: 'Funciona para o meu tipo de negócio?',
     resposta:
-      'Foi pensado para quem vende serviço: faz orçamento, marca horário e volta a falar com o cliente — como oficinas, clínicas, assistências técnicas e instaladores. Se o seu negócio é só vender produto no balcão, ele não foi feito para isso.',
+      'Foi pensado para quem vende serviço: faz orçamento, marca horário e volta a falar com o cliente, como oficinas, clínicas, assistências técnicas e instaladores. Se o seu negócio é só vender produto no balcão, ele não foi feito para isso.',
   },
   {
     pergunta: 'Já tenho meus clientes numa planilha. Dá para trazer?',
     resposta:
-      'Dá. Você envia a planilha (Excel ou CSV), o sistema mostra uma conferência antes de importar e pula as linhas repetidas — mesmo CPF, CNPJ ou e-mail — dizendo o motivo. Os lançamentos financeiros também entram por planilha.',
+      'Dá. Você envia a planilha (Excel ou CSV), o sistema mostra uma conferência antes de importar e pula as linhas repetidas, mesmo CPF, CNPJ ou e-mail, dizendo o motivo. Os lançamentos financeiros também entram por planilha.',
   },
   {
     pergunta: 'Meus funcionários vão ver quanto a empresa fatura?',
     resposta:
-      'Só se você deixar. Cada pessoa entra com um papel — atendente, técnico, financeiro — e as permissões podem ser ajustadas uma a uma. Quem atende cliente enxerga o atendimento, sem ver o dinheiro.',
+      'Só se você deixar. Cada pessoa entra com um papel, como atendente, técnico ou financeiro, e as permissões podem ser ajustadas uma a uma. Quem atende cliente enxerga o atendimento, sem ver o dinheiro.',
   },
   {
-    pergunta: 'O que a inteligência artificial faz — e o que ela não faz?',
+    pergunta: 'O que a inteligência artificial faz, e o que ela não faz?',
     resposta:
-      'Ela lê os números do seu negócio e explica em português: o risco do caixa, o que merece atenção, por onde começar. Ela não cadastra, não apaga, não paga conta e não manda mensagem por você — quem decide é sempre uma pessoa. Está no plano Premium.',
+      'Ela lê os números do seu negócio e explica em português: o risco do caixa, o que merece atenção, por onde começar. Ela não cadastra, não apaga, não paga conta e não manda mensagem por você, e quem decide é sempre uma pessoa. Está no plano Premium.',
   },
   {
     pergunta: 'Os lembretes vão por WhatsApp?',
     resposta:
-      'Hoje o envio automático é por e-mail, para o e-mail cadastrado do cliente. O WhatsApp ainda não envia, porque depende da aprovação de uma conta pela Meta — e o sistema avisa quando um lembrete assim não pôde ser enviado.',
+      'Hoje o envio automático é por e-mail, para o e-mail cadastrado do cliente. O WhatsApp ainda não envia, porque depende da aprovação de uma conta pela Meta, e o sistema avisa quando um lembrete assim não pôde ser enviado.',
   },
   {
     pergunta: 'O sistema emite nota fiscal ou calcula imposto?',
