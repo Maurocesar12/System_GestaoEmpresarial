@@ -3,8 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { CODIGOS_ERRO } from '@gestao/shared-types';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Env } from '../../config/env.schema';
-import { PrismaService } from '../../infra/prisma/prisma.service';
+import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
 import { uuidv7 } from '../../common/uuid';
+
+/**
+ * Quanto tempo depois de uma rotação o token antigo ainda é aceito como corrida
+ * entre requisições (e não como reuso). Cobre o proxy do web disparando vários
+ * refreshes quando o cookie de acesso expira, e abas abertas ao mesmo tempo.
+ */
+export const JANELA_TOLERANCIA_MS = 20_000;
 
 /**
  * Refresh tokens com rotação (arquitetura §9.1).
@@ -87,14 +94,7 @@ export class RefreshTokenService {
     }
 
     if (registro.revogadoEm) {
-      // Token já usado sendo apresentado outra vez: sinal de credencial roubada.
-      this.logger.warn(
-        `Refresh token reutilizado (usuário ${registro.usuarioId}). Derrubando todas as sessões.`,
-      );
-
-      await this.revogarTodasAsSessoes(tenantId, registro.usuarioId);
-
-      throw this.sessaoInvalida('Sessão encerrada por segurança. Entre novamente.');
+      return this.tratarReapresentacao(tenantId, registro);
     }
 
     if (registro.expiraEm < new Date()) {
@@ -105,11 +105,19 @@ export class RefreshTokenService {
 
     // Revogar o antigo e criar o novo na mesma transação: se o processo cair no
     // meio, o usuário não fica sem nenhum token válido nem com dois válidos.
-    await this.prisma.comTenantExplicito(tenantId, async (tx) => {
-      await tx.refreshToken.update({
-        where: { id: registro.id },
-        data: { revogadoEm: new Date() },
+    // A revogação é condicional (`revogadoEm: null`): duas requisições que
+    // leram o token ainda válido disputam aqui, e só uma o revoga. Sem isso as
+    // duas criariam um token novo, e um token roubado geraria sessão paralela.
+    const ganhou = await this.prisma.comTenantExplicito(tenantId, async (tx) => {
+      const agora = new Date();
+      const revogados = await tx.refreshToken.updateMany({
+        where: { id: registro.id, revogadoEm: null },
+        data: { revogadoEm: agora, rotacionadoEm: agora },
       });
+
+      if (revogados.count === 0) {
+        return false;
+      }
 
       await tx.refreshToken.create({
         data: {
@@ -120,9 +128,63 @@ export class RefreshTokenService {
           expiraEm: this.calcularExpiracao(),
         },
       });
+
+      return true;
     });
 
-    return { tenantId, usuarioId: registro.usuarioId, token: novoToken };
+    if (ganhou) {
+      return { tenantId, usuarioId: registro.usuarioId, token: novoToken };
+    }
+
+    // Perdeu a corrida: o estado mudou desde a leitura, então decide de novo.
+    const atual = await this.prisma.comTenantExplicito(tenantId, (tx) =>
+      tx.refreshToken.findUnique({ where: { tokenHash } }),
+    );
+
+    if (!atual?.revogadoEm) {
+      throw this.sessaoInvalida('Sessão inválida. Entre novamente.');
+    }
+
+    return this.tratarReapresentacao(tenantId, atual);
+  }
+
+  /**
+   * Decide o que fazer com um token já revogado que apareceu de novo.
+   *
+   * Dentro da janela depois de uma **rotação**, é a corrida de duas abas (ou de
+   * várias requisições de uma mesma tela) renovando a sessão ao mesmo tempo: o
+   * cookie ainda era o antigo nas duas. Elas recebem um token novo cada uma, e
+   * a sessão segue. O custo, assumido: quem reapresentar um token roubado nesses
+   * poucos segundos também ganha uma sessão.
+   *
+   * Fora da janela, ou se o token foi revogado por logout ou por derrubada de
+   * sessões (`rotacionadoEm` nulo), é reuso: derruba todas as sessões do dono.
+   */
+  private async tratarReapresentacao(
+    tenantId: string,
+    registro: { usuarioId: string; expiraEm: Date; rotacionadoEm: Date | null },
+  ): Promise<{ tenantId: string; usuarioId: string; token: string }> {
+    const dentroDaJanela =
+      registro.rotacionadoEm !== null &&
+      Date.now() - registro.rotacionadoEm.getTime() <= JANELA_TOLERANCIA_MS &&
+      registro.expiraEm > new Date();
+
+    if (dentroDaJanela) {
+      return {
+        tenantId,
+        usuarioId: registro.usuarioId,
+        token: await this.emitir(tenantId, registro.usuarioId),
+      };
+    }
+
+    // Token já usado sendo apresentado outra vez: sinal de credencial roubada.
+    this.logger.warn(
+      `Refresh token reutilizado (usuário ${registro.usuarioId}). Derrubando todas as sessões.`,
+    );
+
+    await this.revogarTodasAsSessoes(tenantId, registro.usuarioId);
+
+    throw this.sessaoInvalida('Sessão encerrada por segurança. Entre novamente.');
   }
 
   /** Encerra a sessão correspondente a um token. Usado no logout. */
@@ -137,22 +199,48 @@ export class RefreshTokenService {
       return;
     }
 
-    await this.prisma.comTenantExplicito(tenantId, (tx) =>
-      tx.refreshToken.updateMany({
-        where: { tokenHash: this.calcularHash(token), revogadoEm: null },
+    await this.prisma.comTenantExplicito(tenantId, async (tx) => {
+      const tokenHash = this.calcularHash(token);
+      const registro = await tx.refreshToken.findUnique({
+        where: { tokenHash },
+        select: { usuarioId: true },
+      });
+
+      await tx.refreshToken.updateMany({
+        where: { tokenHash, revogadoEm: null },
         data: { revogadoEm: new Date() },
-      }),
-    );
+      });
+
+      // Sair não pode ser desfeito por um token antigo da mesma sessão que
+      // ainda esteja na janela de tolerância da rotação.
+      if (registro) {
+        await this.fecharJanelaDeTolerancia(tx, registro.usuarioId);
+      }
+    });
   }
 
   /** Derruba todas as sessões de um usuário. */
   async revogarTodasAsSessoes(tenantId: string, usuarioId: string): Promise<void> {
-    await this.prisma.comTenantExplicito(tenantId, (tx) =>
-      tx.refreshToken.updateMany({
+    await this.prisma.comTenantExplicito(tenantId, async (tx) => {
+      await tx.refreshToken.updateMany({
         where: { usuarioId, revogadoEm: null },
         data: { revogadoEm: new Date() },
-      }),
-    );
+      });
+
+      await this.fecharJanelaDeTolerancia(tx, usuarioId);
+    });
+  }
+
+  /**
+   * Tira dos tokens já trocados o direito à tolerância. Sem isto, derrubar as
+   * sessões de um usuário (desativação, troca de papel, 2FA) deixaria os
+   * últimos segundos de tokens rotacionados capazes de gerar sessão nova.
+   */
+  private fecharJanelaDeTolerancia(tx: TransacaoComTenant, usuarioId: string) {
+    return tx.refreshToken.updateMany({
+      where: { usuarioId, rotacionadoEm: { not: null } },
+      data: { rotacionadoEm: null },
+    });
   }
 
   /** `<tenantId>.<256 bits aleatórios>` — não é adivinhável por força bruta. */

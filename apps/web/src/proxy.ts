@@ -50,6 +50,13 @@ interface SessaoRenovada {
   usuario?: unknown;
 }
 
+type ResultadoRenovacao =
+  | { tipo: 'renovada'; sessao: SessaoRenovada }
+  /** A API julgou o token e o recusou: não adianta tentar de novo. */
+  | { tipo: 'recusada' }
+  /** A API não chegou a julgar (429, 5xx, rede): o token pode estar válido. */
+  | { tipo: 'indisponivel' };
+
 export async function proxy(request: NextRequest) {
   const accessToken = request.cookies.get(COOKIE_ACCESS)?.value;
   const refreshToken = request.cookies.get(COOKIE_REFRESH)?.value;
@@ -58,19 +65,25 @@ export async function proxy(request: NextRequest) {
   // Sessão expirada mas recuperável: tenta renovar antes de qualquer decisão
   // sobre redirecionar.
   if (!accessToken && refreshToken) {
-    const sessao = await renovar(refreshToken);
+    const resultado = await renovar(refreshToken);
 
-    if (sessao) {
+    if (resultado.tipo === 'renovada') {
       const resposta = decidirRota(request, true, csp);
-      gravarCookies(resposta, sessao, request.nextUrl.protocol === 'https:');
+      gravarCookies(resposta, resultado.sessao, request.nextUrl.protocol === 'https:');
       return resposta;
     }
 
-    // Renovação recusada — expirou, foi revogada no logout, ou o token foi
-    // detectado como reutilizado. Limpa o que sobrou e segue sem sessão.
     const resposta = decidirRota(request, false, csp);
-    resposta.cookies.delete(COOKIE_REFRESH);
-    resposta.cookies.delete(COOKIE_USUARIO);
+
+    // Só a recusa definitiva apaga o cookie — expirou, foi revogada no logout,
+    // ou o token foi detectado como reutilizado. Falha transitória (429, 5xx,
+    // API fora do ar) mantém o refresh token: ele continua válido, e apagá-lo
+    // derrubaria a sessão por um soluço da API. A próxima requisição tenta de novo.
+    if (resultado.tipo === 'recusada') {
+      resposta.cookies.delete(COOKIE_REFRESH);
+      resposta.cookies.delete(COOKIE_USUARIO);
+    }
+
     return resposta;
   }
 
@@ -122,7 +135,7 @@ function decidirRota(request: NextRequest, temSessao: boolean, csp: string): Nex
  * Runtime, que é mais restrito que Node, e manter a chamada mínima evita
  * arrastar dependências que não funcionariam lá.
  */
-async function renovar(refreshToken: string): Promise<SessaoRenovada | null> {
+async function renovar(refreshToken: string): Promise<ResultadoRenovacao> {
   try {
     const resposta = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {
       method: 'POST',
@@ -131,15 +144,21 @@ async function renovar(refreshToken: string): Promise<SessaoRenovada | null> {
       cache: 'no-store',
     });
 
-    if (!resposta.ok) {
-      return null;
+    if (resposta.ok) {
+      return { tipo: 'renovada', sessao: (await resposta.json()) as SessaoRenovada };
     }
 
-    return (await resposta.json()) as SessaoRenovada;
+    // 429 e 5xx não dizem nada sobre o token: é a API (ou o limite de taxa)
+    // que não conseguiu responder agora.
+    if (resposta.status === 429 || resposta.status >= 500) {
+      return { tipo: 'indisponivel' };
+    }
+
+    return { tipo: 'recusada' };
   } catch {
-    // API fora do ar: trata como sessão não renovada. A tela de entrada explica
-    // melhor a situação do que uma página de erro.
-    return null;
+    // API fora do ar: sessão não renovada, mas o token não foi julgado. A tela
+    // de entrada explica melhor a situação do que uma página de erro.
+    return { tipo: 'indisponivel' };
   }
 }
 

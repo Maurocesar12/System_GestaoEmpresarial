@@ -375,6 +375,10 @@ model RefreshToken {
   /// Preenchido quando o token é usado. Um token já revogado sendo apresentado
   /// de novo indica roubo de credencial — e derruba a família inteira.
   revogadoEm DateTime? @map("revogado_em")
+  /// Preenchido só quando o token foi trocado por rotação (e não por logout ou
+  /// derrubada de sessões). Durante uma janela curta depois disso, reapresentar
+  /// o token é uma corrida legítima entre abas, e não roubo.
+  rotacionadoEm DateTime? @map("rotacionado_em")
 
   criadoEm DateTime @default(now()) @map("criado_em")
 

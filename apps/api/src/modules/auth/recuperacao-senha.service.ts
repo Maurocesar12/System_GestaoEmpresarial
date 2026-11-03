@@ -100,6 +100,11 @@ export class RecuperacaoSenhaService {
         where: { usuarioId: payload.sub, revogadoEm: null },
         data: { revogadoEm: new Date() },
       });
+      // Tokens recém-trocados por rotação não podem mais gerar sessão nova.
+      await tx.refreshToken.updateMany({
+        where: { usuarioId: payload.sub, rotacionadoEm: { not: null } },
+        data: { rotacionadoEm: null },
+      });
     });
   }
 

@@ -57,7 +57,10 @@ describe('RecuperacaoSenhaService', () => {
   it('altera senha, revoga renovações e recusa reutilização', async () => {
     const token = await emitir();
     await service.redefinir(token, 'SenhaNova123!');
-    expect(revogar).toHaveBeenCalledTimes(1);
+    expect(revogar).toHaveBeenCalledTimes(2);
+    expect(revogar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: { rotacionadoEm: null } }),
+    );
     await expect(service.redefinir(token, 'OutraSenha123!')).rejects.toThrow('Link inválido');
   });
 

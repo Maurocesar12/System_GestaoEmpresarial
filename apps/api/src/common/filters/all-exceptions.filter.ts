@@ -28,6 +28,66 @@ const CODIGO_POR_STATUS: Partial<Record<HttpStatus, CodigoErro>> = {
 const STATUS_ERRO_SERVIDOR: number = HttpStatus.INTERNAL_SERVER_ERROR;
 
 /**
+ * Erros do Prisma que são consequência de concorrência ou de dado inválido, e
+ * não defeito do servidor. Sem esta tabela todos viravam 500, e quem perdia uma
+ * corrida lia "Erro interno" em vez de saber que era só tentar de novo.
+ *
+ * Reconhecidos pelo `code` (e não por `instanceof`), como no resto da API, para
+ * não depender de qual cópia do runtime do Prisma lançou o erro.
+ */
+const ERROS_PRISMA: Record<string, { status: HttpStatus; erro: ApiError }> = {
+  // Unique violada: o duplicado que a checagem prévia não viu a tempo.
+  P2002: {
+    status: HttpStatus.CONFLICT,
+    erro: {
+      codigo: CODIGOS_ERRO.CONFLITO,
+      mensagem: 'Já existe um registro com esses dados. Atualize a tela e confira.',
+    },
+  },
+  // Chave estrangeira: o registro apontado foi removido (ou passou a ser usado) no meio.
+  P2003: {
+    status: HttpStatus.CONFLICT,
+    erro: {
+      codigo: CODIGOS_ERRO.CONFLITO,
+      mensagem:
+        'Este registro está ligado a outro que mudou agora há pouco. Atualize a tela e tente de novo.',
+    },
+  },
+  // Update/delete em linha que não existe mais.
+  P2025: {
+    status: HttpStatus.NOT_FOUND,
+    erro: {
+      codigo: CODIGOS_ERRO.NAO_ENCONTRADO,
+      mensagem: 'Registro não encontrado. Ele pode ter sido removido por outra pessoa.',
+    },
+  },
+  // Deadlock ou conflito de escrita: o banco desfez a transação; repetir resolve.
+  P2034: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    erro: {
+      codigo: CODIGOS_ERRO.ERRO_INTERNO,
+      mensagem: 'O sistema está ocupado. Tente novamente em instantes.',
+    },
+  },
+  // A transação esperou demais por conexão ou por lock.
+  P2028: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    erro: {
+      codigo: CODIGOS_ERRO.ERRO_INTERNO,
+      mensagem: 'O sistema está ocupado. Tente novamente em instantes.',
+    },
+  },
+};
+
+function erroPrismaConhecido(exception: unknown): (typeof ERROS_PRISMA)[string] | undefined {
+  if (typeof exception !== 'object' || exception === null || !('code' in exception)) {
+    return undefined;
+  }
+
+  return typeof exception.code === 'string' ? ERROS_PRISMA[exception.code] : undefined;
+}
+
+/**
  * Converte qualquer exceção no formato único de erro da API.
  *
  * Erro 5xx nunca devolve a mensagem original: stack trace e texto de exceção do
@@ -44,17 +104,31 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
     const requestId = randomUUID();
 
-    const status =
-      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    const prisma = exception instanceof HttpException ? undefined : erroPrismaConhecido(exception);
 
-    const corpo: ApiError =
-      status >= STATUS_ERRO_SERVIDOR
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : (prisma?.status ?? HttpStatus.INTERNAL_SERVER_ERROR);
+
+    // Erro 5xx genérico não devolve a mensagem original; o do Prisma já tem
+    // texto próprio, escrito para o usuário, e por isso é o único que passa.
+    const corpo: ApiError = prisma
+      ? { ...prisma.erro, requestId }
+      : status >= STATUS_ERRO_SERVIDOR
         ? {
             codigo: CODIGOS_ERRO.ERRO_INTERNO,
             mensagem: 'Erro interno. Tente novamente em instantes.',
             requestId,
           }
         : { ...this.extrairErro(exception, status), requestId };
+
+    if (prisma && status < STATUS_ERRO_SERVIDOR) {
+      // Continua rastreável: antes era um erro 500 com stack, agora seria mudo.
+      this.logger.warn(
+        `[${requestId}] ${request.method} ${request.url} — Prisma ${(exception as { code: string }).code}`,
+      );
+    }
 
     if (status >= STATUS_ERRO_SERVIDOR) {
       this.logger.error(
