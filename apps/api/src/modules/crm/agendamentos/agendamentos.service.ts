@@ -317,6 +317,8 @@ export class AgendamentosService {
         id: uuidv7(),
         tenantId: tenantAtual(),
         clienteId: agendamento.clienteId,
+        // Único no banco: o mesmo agendamento não vira dois atendimentos.
+        agendamentoId: agendamento.id,
         descricao,
         // A data do atendimento é a do compromisso, não a de hoje: marcar como
         // executado na segunda-feira um serviço feito na sexta não pode gravar

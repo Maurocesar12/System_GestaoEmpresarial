@@ -1,5 +1,11 @@
 import { ConflictException } from '@nestjs/common';
-import { exigirLinhaAfetada, gravarSeNaoMudou, nenhumaLinhaCasou } from './concorrencia';
+import {
+  VERSAO_SUBIU,
+  exigirLinhaAfetada,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+  nenhumaLinhaCasou,
+} from './concorrencia';
 
 const erroPrisma = (code: string) => Object.assign(new Error(`Prisma ${code}`), { code });
 
@@ -46,6 +52,24 @@ describe('gravarSeNaoMudou', () => {
     const original = erroPrisma('P2002');
 
     await expect(gravarSeNaoMudou(Promise.reject(original))).rejects.toBe(original);
+  });
+});
+
+describe('controle otimista por versão', () => {
+  it('sem versão da tela, o where não exige nada (cliente antigo segue funcionando)', () => {
+    expect(filtroDeVersao(undefined)).toEqual({});
+  });
+
+  it('com versão, ela entra no where', () => {
+    expect(filtroDeVersao(4)).toEqual({ versao: 4 });
+  });
+
+  it('a versão zero também conta: só `undefined` é "não mandou"', () => {
+    expect(filtroDeVersao(0)).toEqual({ versao: 0 });
+  });
+
+  it('a gravação sobe a versão no mesmo UPDATE', () => {
+    expect(VERSAO_SUBIU).toEqual({ versao: { increment: 1 } });
   });
 });
 

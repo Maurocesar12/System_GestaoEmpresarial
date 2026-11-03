@@ -45,6 +45,7 @@ import {
 } from '@gestao/shared-types';
 import { Permissoes } from '../../common/decorators/permissoes.decorator';
 import { CorpoValidado, QueryValidada } from '../../common/decorators/validado.decorator';
+import { VersaoEsperada } from '../../common/decorators/versao-esperada.decorator';
 import { FinanceiroService } from './financeiro.service';
 import { ProLaboreService } from './pro-labore.service';
 
@@ -233,8 +234,9 @@ export class FinanceiroController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @CorpoValidado(lancamentoFormSchema) dados: LancamentoFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Lancamento> {
-    return this.financeiro.atualizar(id, dados);
+    return this.financeiro.atualizar(id, dados, versao);
   }
 
   /**

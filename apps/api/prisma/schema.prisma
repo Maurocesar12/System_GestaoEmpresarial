@@ -435,6 +435,10 @@ model Cliente {
   /// ligados a ele, mas sem nada que identifique a pessoa.
   anonimizadoEm DateTime? @map("anonimizado_em")
 
+  /// Controle otimista (cabeçalho `If-Match`): sobe a cada alteração. A edição
+  /// que chega com a versão antiga perde com 409, em vez de apagar a de outra pessoa.
+  versao Int @default(1)
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -516,6 +520,12 @@ model Atendimento {
   descricao String   @db.Text
   data      DateTime @db.Date
 
+  /// O agendamento que gerou este registro, quando veio de uma execução. Único:
+  /// o mesmo agendamento nunca vira dois atendimentos, nem se a execução for
+  /// processada duas vezes. Nulo no registro manual.
+  agendamentoId String?      @unique @map("agendamento_id") @db.Uuid
+  agendamento   Agendamento? @relation(fields: [agendamentoId], references: [id], onDelete: SetNull)
+
   criadoEm DateTime @default(now()) @map("criado_em")
 
   @@index([tenantId, clienteId, data])
@@ -535,6 +545,9 @@ model Servico {
   precoPadrao Decimal? @map("preco_padrao") @db.Decimal(14, 2)
 
   ativo Boolean @default(true)
+
+  /// Controle otimista (cabeçalho `If-Match`). Sobe também ao desativar.
+  versao Int @default(1)
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
@@ -610,6 +623,7 @@ model Agendamento {
 
   movimentacoesEstoque MovimentacaoEstoque[]
   comissao             Comissao?
+  atendimento          Atendimento?
 
   @@index([tenantId, dataHora])
   @@index([tenantId, status])
@@ -755,6 +769,11 @@ model LancamentoFinanceiro {
   /// histórico financeiro.
   recorrenciaId String?               @map("recorrencia_id") @db.Uuid
   recorrencia   LancamentoRecorrente? @relation(fields: [recorrenciaId], references: [id], onDelete: SetNull)
+  /// Qual ocorrência do molde este lançamento é (a 0 é a primeira). Com
+  /// `recorrenciaId`, forma a unique que impede gerar a mesma ocorrência duas
+  /// vezes — o cursor condicional do agendador já evita, e isto é a garantia
+  /// que vale mesmo se alguém criar outro caminho de geração. Nulo fora de recorrência.
+  recorrenciaOcorrencia Int? @map("recorrencia_ocorrencia")
 
   categoriaId String?              @map("categoria_id") @db.Uuid
   categoria   CategoriaFinanceira? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
@@ -767,6 +786,11 @@ model LancamentoFinanceiro {
 
   anexos    AnexoLancamento[]
   comissoes Comissao[]
+
+  /// Controle otimista (cabeçalho `If-Match`). Sobe também na baixa e no
+  /// estorno, que mexem em `pago_em`: sem isso, uma tela de edição aberta antes
+  /// da baixa a desfaria ao salvar.
+  versao Int @default(1)
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
@@ -785,6 +809,7 @@ model LancamentoFinanceiro {
   /// A tela de um parcelamento busca as irmãs por aqui.
   @@index([tenantId, grupoId])
   @@index([tenantId, recorrenciaId])
+  @@unique([recorrenciaId, recorrenciaOcorrencia])
   @@map("lancamento_financeiro")
 }
 
@@ -898,7 +923,10 @@ model ProLabore {
 
   criadoEm DateTime @default(now()) @map("criado_em")
 
-  @@index([tenantId, vigenciaInicio])
+  /// Uma vigência por data de início, por empresa. Há ainda, só em SQL (o
+  /// Prisma não modela índice parcial), `pro_labore_uma_vigencia_aberta_key`:
+  /// no máximo uma vigência com `vigencia_fim` nulo por empresa.
+  @@unique([tenantId, vigenciaInicio])
   @@map("pro_labore")
 }
 
@@ -1051,6 +1079,11 @@ model MovimentacaoEstoque {
   @@index([tenantId, materialId, criadoEm])
   @@index([tenantId, tipo, data])
   @@index([tenantId, agendamentoId])
+  /// Um consumo por material em cada execução. Só o consumo preenche
+  /// `agendamentoId` (entrada e ajuste ficam nulos, e nulo não colide), então
+  /// a regra vale na prática só para ele: baixar o mesmo material duas vezes
+  /// para o mesmo agendamento é erro, e o banco recusa.
+  @@unique([agendamentoId, materialId])
   @@map("movimentacao_estoque")
 }
 

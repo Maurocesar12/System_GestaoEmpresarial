@@ -29,7 +29,12 @@ import { garantirCategoriaDoTipo } from './categoria-do-tipo';
 import { conferirAnexos } from './conferencia-anexo';
 import { hojeEmDia, paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
-import { gravarSeNaoMudou } from '../../common/concorrencia';
+import {
+  MENSAGEM_VERSAO,
+  VERSAO_SUBIU,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../common/concorrencia';
 import { naoEncontrado, conflito } from '../../common/erros';
 import * as conciliacaoBanco from './analise-conciliacao';
 import * as categoriasBanco from './categorias-financeiras';
@@ -319,7 +324,12 @@ export class FinanceiroService {
    * Buscar antes, por fora, custaria uma transação inteira a mais (`BEGIN` +
    * `set_config` + consulta + `COMMIT`) sem ganhar atomicidade nenhuma.
    */
-  async atualizar(id: string, dados: LancamentoFormInput): Promise<Lancamento> {
+  async atualizar(
+    id: string,
+    dados: LancamentoFormInput,
+    /** A versão que a tela abriu (`If-Match`); se mudou — inclusive por uma baixa —, 409. */
+    versao?: number,
+  ): Promise<Lancamento> {
     const anexos = await conferirAnexos(dados.anexos);
     const lancamento = await this.prisma.comTenant(async (tx) => {
       const [anterior] = await Promise.all([
@@ -332,11 +342,14 @@ export class FinanceiroService {
 
       await garantirCategoriaDoTipo(tx, dados, anterior.categoriaId);
 
-      await tx.lancamentoFinanceiro.update({
-        where: { id },
-        data: paraBanco(dados),
-        include: INCLUDE_RESUMO,
-      });
+      await gravarSeNaoMudou(
+        tx.lancamentoFinanceiro.update({
+          where: { id, ...filtroDeVersao(versao) },
+          data: { ...paraBanco(dados), ...VERSAO_SUBIU },
+          include: INCLUDE_RESUMO,
+        }),
+        MENSAGEM_VERSAO,
+      );
       await substituirAnexos(tx, id, anexos);
 
       const completo = await tx.lancamentoFinanceiro.findUniqueOrThrow({
@@ -504,7 +517,7 @@ export class FinanceiroService {
           where: { id, pagoEm: null },
           // Sem data informada, hoje: é o caso comum, e poupa o usuário de
           // digitar a data do dia.
-          data: { pagoEm: paraData(dados.pagoEm ?? hojeEmDia()) },
+          data: { pagoEm: paraData(dados.pagoEm ?? hojeEmDia()), ...VERSAO_SUBIU },
           include: INCLUDE_RESUMO,
         }),
         'Este lançamento já teve baixa registrada por outra pessoa. Atualize a tela.',
@@ -548,7 +561,7 @@ export class FinanceiroService {
       const alterado = await gravarSeNaoMudou(
         tx.lancamentoFinanceiro.update({
           where: { id, pagoEm: { not: null } },
-          data: { pagoEm: null },
+          data: { pagoEm: null, ...VERSAO_SUBIU },
           include: INCLUDE_RESUMO,
         }),
         'A baixa deste lançamento já foi estornada por outra pessoa. Atualize a tela.',

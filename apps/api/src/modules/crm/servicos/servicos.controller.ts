@@ -24,6 +24,7 @@ import {
   type SimulacaoMargemInput,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../../common/decorators/versao-esperada.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { ServicosService } from './servicos.service';
 
@@ -73,8 +74,9 @@ export class ServicosController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(servicoFormSchema)) dados: ServicoFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Servico> {
-    return this.servicos.atualizar(id, dados);
+    return this.servicos.atualizar(id, dados, versao);
   }
 
   @Delete(':id')

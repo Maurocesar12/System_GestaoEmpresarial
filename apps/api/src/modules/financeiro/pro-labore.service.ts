@@ -12,7 +12,7 @@ import {
 } from '@gestao/shared-types';
 import { uuidv7 } from '../../common/uuid';
 import { Prisma } from '../../generated/prisma/client';
-import { PrismaService } from '../../infra/prisma/prisma.service';
+import { PrismaService, type TransacaoComTenant } from '../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../infra/tenant/tenant-context';
 import { ZERO } from './decimal';
 import {
@@ -60,17 +60,36 @@ export class ProLaboreService {
   }
 
   /**
+   * Trava a empresa durante a alteração do histórico de vigências.
+   *
+   * Definir e remover leem as vigências vizinhas, decidem e gravam em várias
+   * linhas; em READ COMMITTED, duas alterações simultâneas leriam o mesmo
+   * histórico e deixariam vigências sobrepostas. O lock é de transação (cai
+   * sozinho no commit ou rollback) e por empresa, então uma não espera pela
+   * outra. As unique do banco — uma vigência por início, uma aberta por
+   * empresa — ficam como rede de segurança.
+   */
+  private async travarHistorico(tx: TransacaoComTenant): Promise<void> {
+    const chave = `pro_labore:${tenantAtual()}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${chave}::text))`;
+  }
+
+  /**
    * Define um novo valor a partir de uma data.
    *
-   * Fecha a vigência aberta anterior no dia anterior ao início da nova, em vez
-   * de sobrescrever: é isso que preserva o histórico. Tudo na mesma transação —
-   * se o fechamento falhasse depois da criação, existiriam duas vigências
-   * abertas ao mesmo tempo e "o valor atual" viraria ambíguo.
+   * Encaixa a nova vigência no histórico em vez de sobrescrever: é isso que
+   * preserva o passado. A anterior (a de início mais próximo antes da nova)
+   * termina no dia anterior ao início da nova; a nova termina no dia anterior ao
+   * início da seguinte, se houver — e fica aberta só quando é a mais recente.
+   * Sem esse segundo passo, cadastrar uma data retroativa deixava duas
+   * vigências abertas ao mesmo tempo e "o valor atual" ambíguo.
    */
   async definir(dados: ProLaboreFormInput): Promise<ProLabore> {
     const inicio = paraData(dados.vigenciaInicio)!;
 
     const criado = await this.prisma.comTenant(async (tx) => {
+      await this.travarHistorico(tx);
+
       const jaExiste = await tx.proLabore.findFirst({
         where: { vigenciaInicio: inicio },
         select: { id: true },
@@ -83,15 +102,38 @@ export class ProLaboreService {
         });
       }
 
+      const [anterior, seguinte] = await Promise.all([
+        tx.proLabore.findFirst({
+          where: { vigenciaInicio: { lt: inicio } },
+          orderBy: { vigenciaInicio: 'desc' },
+          select: { id: true },
+        }),
+        tx.proLabore.findFirst({
+          where: { vigenciaInicio: { gt: inicio } },
+          orderBy: { vigenciaInicio: 'asc' },
+          select: { vigenciaInicio: true },
+        }),
+      ]);
+
       // Um dia antes do novo início. Fechar no mesmo dia deixaria as duas
       // vigências válidas na data da virada.
-      const fim = new Date(inicio);
-      fim.setUTCDate(fim.getUTCDate() - 1);
+      const diaAntes = (dia: Date): Date => {
+        const antes = new Date(dia);
+        antes.setUTCDate(antes.getUTCDate() - 1);
+        return antes;
+      };
 
-      await tx.proLabore.updateMany({
-        where: { vigenciaFim: null, vigenciaInicio: { lt: inicio } },
-        data: { vigenciaFim: fim },
-      });
+      if (anterior) {
+        // Só encurta quem ainda cobre o início da nova (aberta ou com fim
+        // posterior): uma vigência que já terminou antes mantém o seu fim.
+        await tx.proLabore.updateMany({
+          where: {
+            id: anterior.id,
+            OR: [{ vigenciaFim: null }, { vigenciaFim: { gte: inicio } }],
+          },
+          data: { vigenciaFim: diaAntes(inicio) },
+        });
+      }
 
       const novo = await tx.proLabore.create({
         data: {
@@ -99,6 +141,7 @@ export class ProLaboreService {
           tenantId: tenantAtual(),
           valor: dados.valor,
           vigenciaInicio: inicio,
+          vigenciaFim: seguinte ? diaAntes(seguinte.vigenciaInicio) : null,
         },
       });
 
@@ -125,6 +168,8 @@ export class ProLaboreService {
    */
   async remover(id: string): Promise<void> {
     await this.prisma.comTenant(async (tx) => {
+      await this.travarHistorico(tx);
+
       const alvo = await tx.proLabore.findUnique({
         where: { id },
       });

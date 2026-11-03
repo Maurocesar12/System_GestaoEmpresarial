@@ -26,6 +26,7 @@ import {
   type ResultadoImportacao,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../../common/decorators/versao-esperada.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { ClientesService } from './clientes.service';
 import { conferirLinhasDeClientes } from './conferencia-importacao';
@@ -106,8 +107,9 @@ export class ClientesController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(clienteFormSchema)) dados: ClienteFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Cliente> {
-    return this.clientes.atualizar(id, dados);
+    return this.clientes.atualizar(id, dados, versao);
   }
 
   @Delete(':id')

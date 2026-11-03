@@ -12,6 +12,12 @@ import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/pr
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import type { Prisma } from '../../../generated/prisma/client';
 import { naoEncontrado, conflito } from '../../../common/erros';
+import {
+  MENSAGEM_VERSAO,
+  VERSAO_SUBIU,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../../common/concorrencia';
 
 /** O registro como vem do banco, com dinheiro em Decimal. */
 type ServicoBanco = Prisma.ServicoGetPayload<object>;
@@ -83,7 +89,7 @@ export class ServicosService {
    * anterior abria três para um único PATCH — uma para conferir a existência,
    * outra para conferir o nome, a terceira para gravar.
    */
-  async atualizar(id: string, dados: ServicoFormInput): Promise<Servico> {
+  async atualizar(id: string, dados: ServicoFormInput, versao?: number): Promise<Servico> {
     const servico = await this.prisma.comTenant(async (tx) => {
       const atual = await tx.servico.findUnique({ where: { id }, select: { nome: true } });
 
@@ -95,7 +101,13 @@ export class ServicosService {
         await this.garantirNomeDisponivel(tx, dados.nome);
       }
 
-      return tx.servico.update({ where: { id }, data: dados });
+      return gravarSeNaoMudou(
+        tx.servico.update({
+          where: { id, ...filtroDeVersao(versao) },
+          data: { ...dados, ...VERSAO_SUBIU },
+        }),
+        MENSAGEM_VERSAO,
+      );
     });
 
     return this.paraResposta(servico);
@@ -117,7 +129,8 @@ export class ServicosService {
         throw naoEncontrado('Serviço não encontrado.');
       }
 
-      return tx.servico.update({ where: { id }, data: { ativo: false } });
+      // Sobe a versão: uma tela de edição aberta antes não pode reativá-lo ao salvar.
+      return tx.servico.update({ where: { id }, data: { ativo: false, ...VERSAO_SUBIU } });
     });
 
     return this.paraResposta(servico);
@@ -149,6 +162,7 @@ export class ServicosService {
       custoBase,
       precoPadrao,
       ativo: registro.ativo,
+      versao: registro.versao,
       criadoEm: registro.criadoEm.toISOString(),
       margemPercentual: margemPercentual(custoBase, precoPadrao),
     };

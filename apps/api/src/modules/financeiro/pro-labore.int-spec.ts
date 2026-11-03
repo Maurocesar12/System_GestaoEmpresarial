@@ -25,6 +25,8 @@ describe('pró-labore e reservas (HTTP)', () => {
 
   let tokenA: string;
   let tokenB: string;
+  /** Empresa só dos testes de encaixe no histórico: não interfere nas outras duas. */
+  let tokenC: string;
 
   const req = (token: string) => ({
     get: (rota: string) =>
@@ -82,6 +84,7 @@ describe('pró-labore e reservas (HTTP)', () => {
 
     tokenA = await criarEmpresa('a');
     tokenB = await criarEmpresa('b');
+    tokenC = await criarEmpresa('c');
   });
 
   afterAll(async () => {
@@ -151,6 +154,114 @@ describe('pró-labore e reservas (HTTP)', () => {
       const { body } = await req(tokenA).get('/api/financeiro/pro-labore/vigente').expect(200);
 
       expect(body.valor).toBe('5000.00');
+    });
+  });
+
+  /**
+   * O histórico de vigências nunca se sobrepõe nem tem duas abertas.
+   *
+   * Cobre o bug que deixou uma empresa com duas vigências abertas (data
+   * retroativa) e a corrida de dois cadastros simultâneos, que o lock da
+   * empresa e as unique do banco (`..._vigencia_inicio_key`,
+   * `..._uma_vigencia_aberta_key`) impedem.
+   */
+  describe('encaixe no histórico', () => {
+    type Vigencia = {
+      id: string;
+      valor: string;
+      vigenciaInicio: string;
+      vigenciaFim: string | null;
+    };
+
+    const listar = async (): Promise<Vigencia[]> =>
+      (await req(tokenC).get('/api/financeiro/pro-labore').expect(200)).body;
+
+    const definir = (valor: string, vigenciaInicio: string) =>
+      req(tokenC).post('/api/financeiro/pro-labore').send({ valor, vigenciaInicio });
+
+    /** Do mais antigo ao mais novo: cada uma termina um dia antes da seguinte; só a última é aberta. */
+    function conferirHistoricoContinuo(vigencias: Vigencia[]): void {
+      const ordenadas = [...vigencias].sort((a, b) =>
+        a.vigenciaInicio.localeCompare(b.vigenciaInicio),
+      );
+
+      ordenadas.forEach((atual, indice) => {
+        const seguinte = ordenadas[indice + 1];
+
+        if (!seguinte) {
+          expect(atual.vigenciaFim).toBeNull();
+          return;
+        }
+
+        const dia = new Date(`${seguinte.vigenciaInicio}T00:00:00Z`);
+        dia.setUTCDate(dia.getUTCDate() - 1);
+        expect(atual.vigenciaFim).toBe(dia.toISOString().slice(0, 10));
+      });
+
+      expect(vigencias.filter((v) => v.vigenciaFim === null)).toHaveLength(1);
+    }
+
+    it('data retroativa: a nova fecha antes da vigência atual, e não fica aberta', async () => {
+      await definir('50.000,00', '2026-10-01').expect(201);
+      await definir('6.500,00', '2026-09-01').expect(201);
+
+      const vigencias = await listar();
+      const atual = vigencias.find((v) => v.vigenciaInicio === '2026-10-01');
+      const retroativa = vigencias.find((v) => v.vigenciaInicio === '2026-09-01');
+
+      expect(atual?.vigenciaFim).toBeNull();
+      expect(retroativa?.vigenciaFim).toBe('2026-09-30');
+      conferirHistoricoContinuo(vigencias);
+    });
+
+    it('data entre duas vigências: encurta a anterior e termina antes da seguinte', async () => {
+      await definir('7.000,00', '2026-09-15').expect(201);
+
+      const vigencias = await listar();
+
+      expect(vigencias.find((v) => v.vigenciaInicio === '2026-09-01')?.vigenciaFim).toBe(
+        '2026-09-14',
+      );
+      expect(vigencias.find((v) => v.vigenciaInicio === '2026-09-15')?.vigenciaFim).toBe(
+        '2026-09-30',
+      );
+      conferirHistoricoContinuo(vigencias);
+    });
+
+    it('dois cadastros simultâneos com datas diferentes: ambos entram, sem sobreposição', async () => {
+      const [a, b] = await Promise.all([
+        definir('8.000,00', '2027-01-01'),
+        definir('9.000,00', '2027-02-01'),
+      ]);
+
+      expect([a.status, b.status]).toEqual([201, 201]);
+      conferirHistoricoContinuo(await listar());
+    });
+
+    it('dois cadastros simultâneos com a mesma data: só um entra', async () => {
+      const [a, b] = await Promise.all([
+        definir('10.000,00', '2027-06-01'),
+        definir('11.000,00', '2027-06-01'),
+      ]);
+
+      // O lock serializa: o segundo já enxerga a data ocupada e recebe 400, em
+      // vez de 500 por violar a unique.
+      expect([a.status, b.status].sort()).toEqual([201, 400]);
+
+      const doDia = (await listar()).filter((v) => v.vigenciaInicio === '2027-06-01');
+      expect(doDia).toHaveLength(1);
+      conferirHistoricoContinuo(await listar());
+    });
+
+    it('remover a vigência aberta reabre a anterior, sem deixar duas abertas', async () => {
+      const antes = await listar();
+      const aberta = antes.find((v) => v.vigenciaFim === null)!;
+
+      await req(tokenC).delete(`/api/financeiro/pro-labore/${aberta.id}`).expect(204);
+
+      const depois = await listar();
+      expect(depois.filter((v) => v.vigenciaFim === null)).toHaveLength(1);
+      expect(depois).toHaveLength(antes.length - 1);
     });
   });
 

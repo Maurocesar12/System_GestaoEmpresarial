@@ -212,6 +212,7 @@ export function paraResposta(
     camposPersonalizados: registro.camposPersonalizados as Record<string, string>,
     etiquetas: registro.etiquetas?.map((item) => item.etiquetaId) ?? [],
     anonimizadoEm: registro.anonimizadoEm?.toISOString() ?? null,
+    versao: registro.versao,
     criadoEm: registro.criadoEm.toISOString(),
     atualizadoEm: registro.atualizadoEm.toISOString(),
   };

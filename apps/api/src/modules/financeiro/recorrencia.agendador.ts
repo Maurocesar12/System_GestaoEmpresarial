@@ -171,6 +171,9 @@ export class RecorrenciaAgendador {
           servicoId: molde.servicoId,
           clienteId: molde.clienteId,
           recorrenciaId,
+          // Qual ocorrência é esta. Unique com `recorrenciaId`: mesmo que o
+          // cursor falhe, a mesma ocorrência não vira dois lançamentos.
+          recorrenciaOcorrencia: ocorrenciasLidas,
         },
       });
 

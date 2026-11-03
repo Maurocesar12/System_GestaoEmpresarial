@@ -15,6 +15,12 @@ import { FunilService } from '../funil/funil.service';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
 import { naoEncontrado, conflito } from '../../../common/erros';
 import {
+  MENSAGEM_VERSAO,
+  VERSAO_SUBIU,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../../common/concorrencia';
+import {
   montarFiltro,
   garantirLimiteClientes,
   buscarRepetidos,
@@ -237,7 +243,8 @@ export class ClientesService {
     });
   }
 
-  async atualizar(id: string, dados: ClienteFormInput): Promise<Cliente> {
+  /** @param versao A versão que a tela abriu (`If-Match`); se mudou, 409. */
+  async atualizar(id: string, dados: ClienteFormInput, versao?: number): Promise<Cliente> {
     const cliente = await this.prisma.comTenant(async (tx) => {
       // Confere a existência dentro do escopo do tenant antes de alterar: sem
       // isso, o `update` de um id de outra empresa falharia com erro cru do
@@ -260,11 +267,14 @@ export class ClientesService {
       }
 
       await garantirPersonalizacao(tx, dados);
-      const alterado = await tx.cliente.update({
-        where: { id },
-        data: paraBancoCliente(dados),
-        include: { etiquetas: { select: { etiquetaId: true } } },
-      });
+      const alterado = await gravarSeNaoMudou(
+        tx.cliente.update({
+          where: { id, ...filtroDeVersao(versao) },
+          data: { ...paraBancoCliente(dados), ...VERSAO_SUBIU },
+          include: { etiquetas: { select: { etiquetaId: true } } },
+        }),
+        MENSAGEM_VERSAO,
+      );
       await salvarEtiquetas(tx, id, dados.etiquetas);
       await this.auditoria.registrar(tx, {
         entidade: 'cliente',

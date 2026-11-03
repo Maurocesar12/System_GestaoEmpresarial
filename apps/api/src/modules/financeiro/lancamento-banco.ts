@@ -214,6 +214,7 @@ export function paraResposta(registro: LancamentoBanco): Lancamento {
           }
         : null,
     recorrenciaId: registro.recorrenciaId,
+    versao: registro.versao,
     anexos: registro.anexos.map((anexo) => ({
       id: anexo.id,
       nome: anexo.nome,
