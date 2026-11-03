@@ -4,15 +4,19 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { AcaoOrcamento, Orcamento, OrcamentoFormEntrada } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoIdempotencia } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
+/** `chave` (Idempotency-Key) protege a criação contra duplo clique e reenvio. */
 export async function salvarOrcamento(
   id: string | null,
   dados: OrcamentoFormEntrada,
+  chave?: string,
 ): Promise<ResultadoAcao> {
   try {
     await apiComSessao<Orcamento>(id ? `/orcamentos/${id}` : '/orcamentos', {
       method: id ? 'PATCH' : 'POST',
+      headers: id ? undefined : cabecalhoIdempotencia(chave),
       body: JSON.stringify(dados),
     });
   } catch (erro) {

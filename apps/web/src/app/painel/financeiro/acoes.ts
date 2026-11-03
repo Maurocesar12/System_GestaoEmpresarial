@@ -10,16 +10,26 @@ import type {
   SimulacaoParcelas,
 } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoIdempotencia } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
+/**
+ * `chave` (Idempotency-Key) protege só a criação: duplo clique ou reenvio depois
+ * de a conexão cair não pode gerar dois lançamentos — ou duas séries de parcelas.
+ */
 export async function salvarLancamento(
   id: string | null,
   dados: LancamentoFormEntrada,
+  chave?: string,
 ): Promise<ResultadoAcao> {
   try {
     await apiComSessao<Lancamento>(
       id ? `/financeiro/lancamentos/${id}` : '/financeiro/lancamentos',
-      { method: id ? 'PATCH' : 'POST', body: JSON.stringify(dados) },
+      {
+        method: id ? 'PATCH' : 'POST',
+        headers: id ? undefined : cabecalhoIdempotencia(chave),
+        body: JSON.stringify(dados),
+      },
     );
   } catch (erro) {
     return traduzirErroAcao(erro);

@@ -31,22 +31,33 @@ function montar(estado: Record<string, unknown>) {
 
   const confere = (where: FiltroUsuario): boolean => {
     if (where.doisFatoresAtivadoEm === null && usuario.doisFatoresAtivadoEm !== null) return false;
-    const limite = where.OR?.[1]?.doisFatoresUltimoPasso?.lt;
+    const limite = where.AND?.[0]?.OR?.[1]?.doisFatoresUltimoPasso?.lt;
     if (
       limite !== undefined &&
       usuario.doisFatoresUltimoPasso !== null &&
       usuario.doisFatoresUltimoPasso >= limite
     )
       return false;
+    // Bloqueio ainda vigente: nem o código certo passa.
+    if (where.AND?.[1] && usuario.doisFatoresBloqueadoAte !== null) {
+      if (usuario.doisFatoresBloqueadoAte > new Date()) return false;
+    }
     return true;
   };
 
   const tx = {
     usuario: {
       findUnique: jest.fn(() => Promise.resolve({ ...usuario })),
-      update: jest.fn(({ data }: { data: object }) =>
-        Promise.resolve(Object.assign(usuario, data)),
-      ),
+      update: jest.fn(({ data }: { data: Record<string, unknown> }) => {
+        const { doisFatoresFalhas, ...resto } = data;
+        // `{ increment: n }` é feito pelo "banco", sobre o valor atual.
+        if (typeof doisFatoresFalhas === 'object' && doisFatoresFalhas !== null) {
+          usuario.doisFatoresFalhas += (doisFatoresFalhas as { increment: number }).increment;
+        } else if (doisFatoresFalhas !== undefined) {
+          usuario.doisFatoresFalhas = doisFatoresFalhas as number;
+        }
+        return Promise.resolve(Object.assign(usuario, resto));
+      }),
       updateMany: jest.fn(({ where, data }: { where: FiltroUsuario; data: object }) => {
         if (!confere(where)) return Promise.resolve({ count: 0 });
         Object.assign(usuario, data);
@@ -86,7 +97,7 @@ function montar(estado: Record<string, unknown>) {
 /** O recorte do `where` do Prisma que o serviço usa nos `updateMany`. */
 interface FiltroUsuario {
   doisFatoresAtivadoEm?: null;
-  OR?: Array<{ doisFatoresUltimoPasso?: { lt?: number } | null }>;
+  AND?: Array<{ OR?: Array<{ doisFatoresUltimoPasso?: { lt?: number } | null }> }>;
 }
 
 describe('DoisFatoresService', () => {
@@ -170,6 +181,39 @@ describe('DoisFatoresService', () => {
       await expect(
         servico.verificar('desafio', codigoDoPasso(segredo, passoAtual())),
       ).rejects.toMatchObject({ status: 429 });
+      expect(abrirSessao).not.toHaveBeenCalled();
+    });
+
+    it('tentativas em paralelo contam todas: o contador sobe no banco, não a partir do que foi lido', async () => {
+      const { servico, usuario } = configurado();
+
+      // Todas leem `falhas = 0` antes de qualquer uma gravar.
+      const resultados = await Promise.allSettled(
+        Array.from({ length: 4 }, () => servico.verificar('desafio', '000000')),
+      );
+
+      expect(resultados.every((r) => r.status === 'rejected')).toBe(true);
+      expect(usuario.doisFatoresFalhas).toBe(4);
+    });
+
+    it('palpite certo que chega depois do bloqueio gravado não abre a sessão', async () => {
+      const { servico, segredo, abrirSessao } = configurado({
+        doisFatoresBloqueadoAte: new Date(Date.now() + 60_000),
+      });
+
+      // Simula a rajada: a checagem inicial já passou, o bloqueio entrou depois.
+      const verificar = servico as unknown as {
+        buscar: () => Promise<unknown>;
+      };
+      const original = verificar.buscar.bind(servico);
+      verificar.buscar = async () => ({
+        ...((await original()) as object),
+        doisFatoresBloqueadoAte: null,
+      });
+
+      await expect(
+        servico.verificar('desafio', codigoDoPasso(segredo, passoAtual())),
+      ).rejects.toMatchObject({ status: 401 });
       expect(abrirSessao).not.toHaveBeenCalled();
     });
 

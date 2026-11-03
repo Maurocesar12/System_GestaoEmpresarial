@@ -117,16 +117,29 @@ export class DoisFatoresService {
       codigo.replace(/\s/g, ''),
     );
     if (passo === null) {
-      return this.registrarFalha(usuario.id, usuario.doisFatoresFalhas, token.tenantId);
+      return this.registrarFalha(usuario.id, token.tenantId);
     }
 
     // Grava o passo só se for posterior ao último aceito — no mesmo `UPDATE`,
     // para que duas requisições com o mesmo código não passem juntas.
+    //
+    // O bloqueio também entra no filtro: um lote de tentativas paralelas passa
+    // todo pela checagem de bloqueio lá em cima, antes de qualquer falha ser
+    // gravada. Sem isto, o palpite certo que chegasse depois do bloqueio ainda
+    // abriria a sessão.
     const { count } = await this.prisma.comTenantExplicito(token.tenantId, (tx) =>
       tx.usuario.updateMany({
         where: {
           id: usuario.id,
-          OR: [{ doisFatoresUltimoPasso: null }, { doisFatoresUltimoPasso: { lt: passo } }],
+          AND: [
+            { OR: [{ doisFatoresUltimoPasso: null }, { doisFatoresUltimoPasso: { lt: passo } }] },
+            {
+              OR: [
+                { doisFatoresBloqueadoAte: null },
+                { doisFatoresBloqueadoAte: { lte: new Date() } },
+              ],
+            },
+          ],
         },
         data: {
           doisFatoresUltimoPasso: passo,
@@ -143,23 +156,34 @@ export class DoisFatoresService {
     return this.auth.abrirSessao(token.sub, token.tenantId);
   }
 
-  private async registrarFalha(
-    usuarioId: string,
-    falhasAntes: number,
-    tenantId: string,
-  ): Promise<never> {
-    const falhas = falhasAntes + 1;
-    const bloquear = falhas >= LIMITE_FALHAS;
-
-    await this.prisma.comTenantExplicito(tenantId, (tx) =>
-      tx.usuario.update({
+  private async registrarFalha(usuarioId: string, tenantId: string): Promise<never> {
+    // O contador sobe no banco (`increment`) e o novo valor vem de volta. Somar
+    // 1 ao que foi lido antes faria N palpites paralelos contarem como um só, e
+    // o limite de cinco viraria um limite por rajada — exatamente o ataque que
+    // este contador existe para barrar. A linha fica travada até o fim da
+    // transação, então a decisão de bloquear também é serializada.
+    const falhas = await this.prisma.comTenantExplicito(tenantId, async (tx) => {
+      const { doisFatoresFalhas } = await tx.usuario.update({
         where: { id: usuarioId },
-        data: bloquear
-          ? { doisFatoresFalhas: 0, doisFatoresBloqueadoAte: new Date(Date.now() + BLOQUEIO_MS) }
-          : { doisFatoresFalhas: falhas },
-        select: { id: true },
-      }),
-    );
+        data: { doisFatoresFalhas: { increment: 1 } },
+        select: { doisFatoresFalhas: true },
+      });
+
+      if (doisFatoresFalhas >= LIMITE_FALHAS) {
+        await tx.usuario.update({
+          where: { id: usuarioId },
+          data: {
+            doisFatoresFalhas: 0,
+            doisFatoresBloqueadoAte: new Date(Date.now() + BLOQUEIO_MS),
+          },
+          select: { id: true },
+        });
+      }
+
+      return doisFatoresFalhas;
+    });
+
+    const bloquear = falhas >= LIMITE_FALHAS;
 
     if (bloquear) throw this.bloqueado();
 

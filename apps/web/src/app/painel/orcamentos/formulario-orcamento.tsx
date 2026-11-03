@@ -15,6 +15,7 @@ import { AvisoErro } from '@/components/ui/aviso-erro';
 import { Botao } from '@/components/ui/botao';
 import { Campo } from '@/components/ui/campo';
 import type { ResultadoAcao } from '@/lib/acoes';
+import { useChaveIdempotencia } from '@/lib/use-chave-idempotencia';
 import { salvarOrcamento } from './acoes';
 
 const CAMPOS = ['clienteId', 'servicoId', 'descricao', 'valor', 'validoAte', 'vendedorId'] as const;
@@ -42,6 +43,7 @@ export function FormularioOrcamento({
 }) {
   const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
+  const idempotencia = useChaveIdempotencia();
 
   const {
     register,
@@ -74,7 +76,9 @@ export function FormularioOrcamento({
     setFalha(undefined);
 
     iniciarEnvio(async () => {
-      const resultado = await salvarOrcamento(orcamento?.id ?? null, dados);
+      // Sucesso redireciona e desmonta a tela: não há o que renovar. Em falha a
+      // API libera a chave, e reenviar com ela é seguro.
+      const resultado = await salvarOrcamento(orcamento?.id ?? null, dados, idempotencia.chave());
 
       if (resultado?.campos) {
         for (const [campo, mensagens] of Object.entries(resultado.campos)) {

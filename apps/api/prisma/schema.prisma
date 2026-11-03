@@ -271,6 +271,7 @@ model Tenant {
   etiquetas             Etiqueta[]
   clientesEtiquetas     ClienteEtiqueta[]
   previsoesFinanceiras  PrevisaoFinanceira[]
+  chavesIdempotencia    ChaveIdempotencia[]
   materiais             Material[]
   servicosMateriais     ServicoMaterial[]
   movimentacoesEstoque  MovimentacaoEstoque[]
@@ -915,6 +916,31 @@ model ReservaFinanceira {
 
   @@unique([tenantId, nome])
   @@map("reserva_financeira")
+}
+
+/// Chave de idempotência (cabeçalho `Idempotency-Key`): o mesmo pedido enviado
+/// duas vezes (duplo clique, retry de rede) executa uma vez só e a segunda
+/// chamada recebe a resposta da primeira. `usuarioId` sem FK, como na auditoria.
+model ChaveIdempotencia {
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  usuarioId String @map("usuario_id") @db.Uuid
+  chave     String @db.VarChar(128)
+  /// Hash de método + caminho + corpo: reaproveitar a chave com outro pedido é erro.
+  impressao String @db.VarChar(64)
+
+  /// `em_andamento` até a resposta ser guardada; `concluida` depois.
+  status   String @default("em_andamento") @db.VarChar(20)
+  resposta Json?
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+  expiraEm DateTime @map("expira_em")
+
+  @@unique([tenantId, usuarioId, chave])
+  @@index([tenantId, expiraEm])
+  @@map("chave_idempotencia")
 }
 
 /// Previsão financeira gerada para a empresa. Os dados enviados ao provedor

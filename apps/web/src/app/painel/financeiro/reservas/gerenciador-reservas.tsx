@@ -10,6 +10,7 @@ import { Cartao, CartaoCabecalho, CartaoConteudo, CartaoTitulo } from '@/compone
 import { EstadoVazio } from '@/components/ui/estado-vazio';
 import { Selecao } from '@/components/ui/selecao';
 import { useSimulacao } from '@/lib/simulacao';
+import { useChaveIdempotencia } from '@/lib/use-chave-idempotencia';
 import { movimentarReserva, removerReserva, salvarReserva, simularReserva } from './acoes';
 
 const PERIODOS_PREVISAO = [3, 6, 12, 18, 24, 36] as const;
@@ -57,6 +58,7 @@ function CartaoReserva({
   const [movimentando, setMovimentando] = useState(false);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [processando, iniciar] = useTransition();
+  const idempotencia = useChaveIdempotencia();
 
   // Passa de 100 quando o dono guardou além da meta. A barra trava em 100 para
   // não estourar a caixa, mas o número ao lado mostra o valor real.
@@ -110,16 +112,22 @@ function CartaoReserva({
             className="flex flex-col gap-3 border-t pt-3"
             action={(dados) => {
               iniciar(async () => {
-                const resultado = await movimentarReserva(reserva.id, {
-                  tipo: dados.get('tipo') === 'resgate' ? 'resgate' : 'aporte',
-                  valor: String(dados.get('valor') ?? ''),
-                });
+                const resultado = await movimentarReserva(
+                  reserva.id,
+                  {
+                    tipo: dados.get('tipo') === 'resgate' ? 'resgate' : 'aporte',
+                    valor: String(dados.get('valor') ?? ''),
+                  },
+                  idempotencia.chave(),
+                );
 
                 if (resultado.erro) {
                   aoFalhar(resultado.erro);
                   return;
                 }
 
+                // Deu certo: o próximo aporte é outro pedido, com chave nova.
+                idempotencia.renovar();
                 setMovimentando(false);
               });
             }}

@@ -26,6 +26,7 @@ import { Selecao } from '@/components/ui/selecao';
 import { SeletorSegmentado, type OpcaoSegmentada } from '@/components/ui/seletor-segmentado';
 import type { ResultadoAcao } from '@/lib/acoes';
 import { useSimulacao } from '@/lib/simulacao';
+import { useChaveIdempotencia } from '@/lib/use-chave-idempotencia';
 import { salvarLancamento, simularParcelas } from './acoes';
 import { CampoAnexos } from './campo-anexos';
 
@@ -98,6 +99,7 @@ export function FormularioLancamento({
 }) {
   const [falha, setFalha] = useState<ResultadoAcao>();
   const [enviando, iniciarEnvio] = useTransition();
+  const idempotencia = useChaveIdempotencia();
 
   const anexosIniciais: AnexoLancamentoInput[] = (lancamento?.anexos ?? [])
     .filter((anexo) => anexo.conteudo)
@@ -224,7 +226,9 @@ export function FormularioLancamento({
     setFalha(undefined);
 
     iniciarEnvio(async () => {
-      const resultado = await salvarLancamento(lancamento?.id ?? null, dados);
+      // Sucesso redireciona e desmonta a tela: não há o que renovar. Em falha a
+      // API libera a chave, e reenviar com ela é seguro.
+      const resultado = await salvarLancamento(lancamento?.id ?? null, dados, idempotencia.chave());
 
       if (resultado?.campos) {
         for (const [campo, mensagens] of Object.entries(resultado.campos)) {

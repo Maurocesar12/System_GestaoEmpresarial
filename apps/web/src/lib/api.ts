@@ -19,6 +19,14 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * O cabeçalho `Idempotency-Key`, ou nada quando a tela não mandou chave.
+ * @example apiComSessao(url, { method: 'POST', headers: cabecalhoIdempotencia(chave), body })
+ */
+export function cabecalhoIdempotencia(chave?: string): Record<string, string> {
+  return chave ? { 'Idempotency-Key': chave } : {};
+}
+
 /** Prefixo global da API. `/health` é a única rota fora dele. */
 const PREFIXO = '/api';
 

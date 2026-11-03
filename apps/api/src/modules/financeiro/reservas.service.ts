@@ -17,6 +17,7 @@ import { primeiroDiaDeMesesAtras, ultimoDiaDoMesPassado } from './datas';
 import { FinanceiroService } from './financeiro.service';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 import { naoEncontrado, conflito } from '../../common/erros';
+import { gravarSeNaoMudou } from '../../common/concorrencia';
 
 /** Quantos meses fechados entram na média do custo fixo mensal. */
 const MESES_DA_MEDIA = 3;
@@ -124,7 +125,19 @@ export class ReservasService {
     return new Prisma.Decimal(fluxo.custoFixo).dividedBy(MESES_DA_MEDIA);
   }
 
+  /** O schema aceita sinal; reserva negativa não existe (e o banco também recusa). */
+  private exigirSaldoNaoNegativo(valorAtual: string): void {
+    if (new Prisma.Decimal(valorAtual).lessThan(ZERO)) {
+      throw new BadRequestException({
+        codigo: CODIGOS_ERRO.VALIDACAO,
+        mensagem: 'O valor guardado não pode ser negativo.',
+      });
+    }
+  }
+
   async criar(dados: ReservaFormInput): Promise<Reserva> {
+    this.exigirSaldoNaoNegativo(dados.valorAtual);
+
     const reserva = await this.prisma.comTenant(async (tx) => {
       const existente = await tx.reservaFinanceira.findFirst({
         where: { nome: dados.nome },
@@ -160,6 +173,8 @@ export class ReservasService {
   }
 
   async atualizar(id: string, dados: ReservaFormInput): Promise<Reserva> {
+    this.exigirSaldoNaoNegativo(dados.valorAtual);
+
     const reserva = await this.prisma.comTenant(async (tx) => {
       // A existência vem primeiro. Na ordem inversa, atualizar um id que não
       // existe usando um nome já ocupado responderia 409 "já existe uma reserva
@@ -176,10 +191,16 @@ export class ReservasService {
         throw conflito('Já existe uma reserva com este nome.');
       }
 
-      const alterada = await tx.reservaFinanceira.update({
-        where: { id },
-        data: { nome: dados.nome, valorAtual: dados.valorAtual, meta: dados.meta },
-      });
+      // Reescrever o saldo digitado por cima de um aporte ou resgate que entrou
+      // depois da leitura apagaria essa movimentação: só grava se o saldo ainda
+      // é o que a pessoa viu.
+      const alterada = await gravarSeNaoMudou(
+        tx.reservaFinanceira.update({
+          where: { id, valorAtual: anterior.valorAtual },
+          data: { nome: dados.nome, valorAtual: dados.valorAtual, meta: dados.meta },
+        }),
+        'O saldo desta reserva mudou agora há pouco (outro aporte ou resgate). Atualize a tela e confira antes de salvar.',
+      );
 
       await this.auditoria.registrar(tx, {
         entidade: 'reserva',
@@ -203,41 +224,60 @@ export class ReservasService {
    * pensa em "guardei quinhentos", não em "o novo total é 18.500" — e fazer a
    * conta de cabeça é onde entra o erro de digitação.
    *
-   * A leitura e a escrita ficam na mesma transação: duas movimentações
-   * simultâneas lendo o mesmo saldo antigo fariam a segunda apagar a primeira.
+   * A conta é feita pelo banco (`increment`/`decrement`), não aqui: ler o saldo,
+   * somar e gravar de volta, mesmo na mesma transação, deixa duas movimentações
+   * simultâneas partirem do mesmo saldo antigo — a segunda apagaria a primeira.
+   * No resgate, "há saldo suficiente" vai no `where` do mesmo `UPDATE`, então
+   * dois resgates que juntos estourariam o saldo não passam os dois.
    */
   async movimentar(id: string, dados: MovimentacaoFormInput): Promise<Reserva> {
+    const valor = new Prisma.Decimal(dados.valor);
+
+    // O schema aceita sinal; um resgate de "-100" aumentaria o saldo.
+    if (!valor.greaterThan(ZERO)) {
+      throw new BadRequestException({
+        codigo: CODIGOS_ERRO.VALIDACAO,
+        mensagem: 'Informe um valor maior que zero.',
+      });
+    }
+
     const reserva = await this.prisma.comTenant(async (tx) => {
-      const atual = await tx.reservaFinanceira.findUnique({
-        where: { id },
+      const resgate = dados.tipo === 'resgate';
+
+      const { count } = await tx.reservaFinanceira.updateMany({
+        where: resgate ? { id, valorAtual: { gte: valor } } : { id },
+        data: { valorAtual: resgate ? { decrement: valor } : { increment: valor } },
       });
 
-      if (!atual) {
-        throw naoEncontrado('Reserva não encontrada.');
-      }
+      if (count === 0) {
+        const existente = await tx.reservaFinanceira.findUnique({
+          where: { id },
+          select: { valorAtual: true },
+        });
 
-      const valor = new Prisma.Decimal(dados.valor);
-      const novo =
-        dados.tipo === 'aporte' ? atual.valorAtual.plus(valor) : atual.valorAtual.minus(valor);
+        if (!existente) {
+          throw naoEncontrado('Reserva não encontrada.');
+        }
 
-      if (novo.lessThan(ZERO)) {
         throw new BadRequestException({
           codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: `Esta reserva tem R$ ${atual.valorAtual.toFixed(2)}. Não é possível resgatar mais do que há guardado.`,
+          mensagem: `Esta reserva tem R$ ${existente.valorAtual.toFixed(2)}. Não é possível resgatar mais do que há guardado.`,
         });
       }
 
-      const alterada = await tx.reservaFinanceira.update({
-        where: { id },
-        data: { valorAtual: novo },
-      });
+      // A linha está travada por esta transação desde o UPDATE: o que se lê
+      // aqui é exatamente o saldo gravado.
+      const alterada = await tx.reservaFinanceira.findUniqueOrThrow({ where: { id } });
+      const saldoAnterior = resgate
+        ? alterada.valorAtual.plus(valor)
+        : alterada.valorAtual.minus(valor);
 
       await this.auditoria.registrar(tx, {
         entidade: 'reserva',
         entidadeId: id,
         acao: 'movimentou',
         resumo: `${dados.tipo === 'aporte' ? 'Aporte' : 'Resgate'} em reserva: ${alterada.nome} · R$ ${valor.toFixed(2)} · saldo R$ ${alterada.valorAtual.toFixed(2)}`,
-        antes: this.paraResposta(atual),
+        antes: this.paraResposta({ ...alterada, valorAtual: saldoAnterior }),
         depois: this.paraResposta(alterada),
       });
 

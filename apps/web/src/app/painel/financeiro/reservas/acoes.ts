@@ -8,6 +8,7 @@ import type {
   SimulacaoReserva,
 } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoIdempotencia } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function salvarReserva(
@@ -37,10 +38,13 @@ export async function salvarReserva(
 export async function movimentarReserva(
   id: string,
   dados: MovimentacaoFormEntrada,
+  chave?: string,
 ): Promise<ResultadoAcao> {
   try {
     await apiComSessao<Reserva>(`/financeiro/reservas/${id}/movimentar`, {
       method: 'POST',
+      // Um aporte repetido por duplo clique é dinheiro guardado em dobro.
+      headers: cabecalhoIdempotencia(chave),
       body: JSON.stringify(dados),
     });
   } catch (erro) {

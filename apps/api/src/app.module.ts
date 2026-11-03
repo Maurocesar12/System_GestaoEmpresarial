@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PapeisGuard } from './common/guards/papeis.guard';
 import { PermissoesGuard } from './common/guards/permissoes.guard';
 import { AuditoriaInterceptor } from './common/interceptors/auditoria.interceptor';
+import { IdempotenciaInterceptor } from './common/interceptors/idempotencia.interceptor';
 import { validateEnv, type Env } from './config/env.schema';
 import { NotificacoesModule } from './infra/notificacoes/notificacoes.module';
 import { PrismaModule } from './infra/prisma/prisma.module';
@@ -119,6 +120,12 @@ import { IaModule } from './modules/ia/ia.module';
       // chega ao usuário é a mais específica das duas.
       provide: APP_GUARD,
       useClass: PapeisGuard,
+    },
+    {
+      // Antes da auditoria: uma repetição devolve a resposta guardada sem
+      // chamar o handler, e portanto sem auditar de novo.
+      provide: APP_INTERCEPTOR,
+      useClass: IdempotenciaInterceptor,
     },
     {
       provide: APP_INTERCEPTOR,
