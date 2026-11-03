@@ -25,6 +25,7 @@ import { garantirVinculos } from '../../../common/vinculos';
 import { FinanceiroService } from '../../financeiro/financeiro.service';
 import { ComissoesService } from '../../operacao/comissoes/comissoes.service';
 import { EstoqueService } from '../../operacao/estoque/estoque.service';
+import { exigirLinhaAfetada, gravarSeNaoMudou } from '../../../common/concorrencia';
 import { naoEncontrado } from '../../../common/erros';
 import { diaEmSaoPaulo, fimDoDia, inicioDoDia, instanteDeHorarioLocal } from '../../../common/fuso';
 
@@ -141,18 +142,24 @@ export class AgendamentosService {
 
       await garantirVinculos(tx, dados);
 
-      return tx.agendamento.update({
-        where: { id },
-        data: {
-          clienteId: dados.clienteId,
-          servicoId: dados.servicoId,
-          dataHora: instanteDeHorarioLocal(dados.dataHora),
-          observacoes: dados.observacoes,
-          tecnicoId: dados.tecnicoId,
-          orcamentoId: dados.orcamentoId,
-        },
-        include: INCLUDE_PADRAO,
-      });
+      // O status no `where` é o que impede alterar um agendamento que outra
+      // pessoa executou ou cancelou depois da leitura acima: estoque, comissão
+      // e receita já teriam saído com a data, o serviço e o técnico antigos.
+      return gravarSeNaoMudou(
+        tx.agendamento.update({
+          where: { id, status: { notIn: ['executado', 'cancelado'] } },
+          data: {
+            clienteId: dados.clienteId,
+            servicoId: dados.servicoId,
+            dataHora: instanteDeHorarioLocal(dados.dataHora),
+            observacoes: dados.observacoes,
+            tecnicoId: dados.tecnicoId,
+            orcamentoId: dados.orcamentoId,
+          },
+          include: INCLUDE_PADRAO,
+        }),
+        'Este agendamento foi executado ou cancelado por outra pessoa e não pode mais ser alterado. Atualize a tela.',
+      );
     });
 
     return this.paraResposta(agendamento);
@@ -211,11 +218,19 @@ export class AgendamentosService {
         });
       }
 
-      const atualizado = await tx.agendamento.update({
-        where: { id },
-        data: { status: novoStatus },
-        include: INCLUDE_PADRAO,
-      });
+      // Só grava se o status ainda é o que foi lido. Sem isso, dois "executar"
+      // (duplo clique, retry, dois usuários) passam juntos pela transição e
+      // repetem atendimento, baixa de estoque, comissão e receita; e um
+      // "cancelar" atrasado sobrescreve uma execução que já aconteceu. O
+      // perdedor falha aqui, antes de qualquer efeito colateral.
+      const atualizado = await gravarSeNaoMudou(
+        tx.agendamento.update({
+          where: { id, status: atual.status },
+          data: { status: novoStatus },
+          include: INCLUDE_PADRAO,
+        }),
+        'A situação deste agendamento mudou enquanto você agia. Atualize a tela e confira antes de tentar de novo.',
+      );
 
       if (novoStatus === 'executado') {
         await this.registrarAtendimento(tx, atualizado);
@@ -254,7 +269,12 @@ export class AgendamentosService {
         });
       }
 
-      await tx.agendamento.deleteMany({ where: { id } });
+      // Se a execução commitou depois da leitura acima, apagar levaria o
+      // histórico junto e deixaria comissão e estoque sem origem.
+      exigirLinhaAfetada(
+        await tx.agendamento.deleteMany({ where: { id, status: { not: 'executado' } } }),
+        'Este agendamento foi executado por outra pessoa e não pode mais ser excluído. Atualize a tela.',
+      );
     });
   }
 

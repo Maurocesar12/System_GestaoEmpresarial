@@ -12,6 +12,7 @@ import { uuidv7 } from '../../../common/uuid';
 import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { gravarSeNaoMudou } from '../../../common/concorrencia';
 import { naoEncontrado } from '../../../common/erros';
 import { fimDoDia, inicioDoDia, instanteDeHorarioLocal } from '../../../common/fuso';
 
@@ -118,11 +119,16 @@ export class LembretesService {
         });
       }
 
-      return tx.lembreteFollowUp.update({
-        where: { id },
-        data: { status: 'cancelado' },
-        include: INCLUDE_PADRAO,
-      });
+      // Se o worker enviou entre a leitura e esta gravação, cancelar
+      // sobrescreveria "enviado" e a tela diria que o e-mail não saiu.
+      return gravarSeNaoMudou(
+        tx.lembreteFollowUp.update({
+          where: { id, status: 'pendente' },
+          data: { status: 'cancelado' },
+          include: INCLUDE_PADRAO,
+        }),
+        'Este lembrete já foi enviado ou alterado por outra pessoa e não pode mais ser cancelado. Atualize a tela.',
+      );
     });
 
     return this.paraResposta(lembrete);

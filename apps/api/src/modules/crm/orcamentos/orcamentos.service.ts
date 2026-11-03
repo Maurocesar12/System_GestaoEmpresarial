@@ -25,6 +25,7 @@ import { garantirVinculos } from '../../../common/vinculos';
 // usado em tempo de execução para representar o zero quando não há orçamentos
 // somados.
 import { Prisma } from '../../../generated/prisma/client';
+import { exigirLinhaAfetada, gravarSeNaoMudou } from '../../../common/concorrencia';
 import { naoEncontrado } from '../../../common/erros';
 
 /** As relações que toda resposta de orçamento carrega. */
@@ -193,18 +194,23 @@ export class OrcamentosService {
 
       await garantirVinculos(tx, dados);
 
-      return tx.orcamento.update({
-        where: { id },
-        data: {
-          clienteId: dados.clienteId,
-          servicoId: dados.servicoId,
-          descricao: dados.descricao,
-          valor: dados.valor,
-          validoAte: dados.validoAte ? new Date(dados.validoAte) : null,
-          vendedorId: dados.vendedorId ?? atual.vendedorId,
-        },
-        include: INCLUDE_PADRAO,
-      });
+      // `status: 'aberto'` no `where` impede mudar o valor depois que outra
+      // pessoa aprovou: a comissão já foi calculada sobre o valor antigo.
+      return gravarSeNaoMudou(
+        tx.orcamento.update({
+          where: { id, status: 'aberto' },
+          data: {
+            clienteId: dados.clienteId,
+            servicoId: dados.servicoId,
+            descricao: dados.descricao,
+            valor: dados.valor,
+            validoAte: dados.validoAte ? new Date(dados.validoAte) : null,
+            vendedorId: dados.vendedorId ?? atual.vendedorId,
+          },
+          include: INCLUDE_PADRAO,
+        }),
+        'Este orçamento foi respondido por outra pessoa e não pode mais ser alterado. Atualize a tela.',
+      );
     });
 
     return this.paraResposta(orcamento);
@@ -237,16 +243,22 @@ export class OrcamentosService {
         });
       }
 
-      const atualizado = await tx.orcamento.update({
-        where: { id },
-        data: {
-          status: novoStatus,
-          // Registra quando o cliente respondeu; reabrir limpa a marca, porque
-          // a resposta anterior deixou de valer.
-          respondidoEm: novoStatus === 'aberto' ? null : new Date(),
-        },
-        include: INCLUDE_PADRAO,
-      });
+      // Só grava se o status ainda é o que foi lido. Sem isso, "aprovar" e
+      // "recusar" simultâneos deixam um orçamento recusado com comissão de
+      // venda gerada e o cliente movido para "fechado".
+      const atualizado = await gravarSeNaoMudou(
+        tx.orcamento.update({
+          where: { id, status: atual.status },
+          data: {
+            status: novoStatus,
+            // Registra quando o cliente respondeu; reabrir limpa a marca, porque
+            // a resposta anterior deixou de valer.
+            respondidoEm: novoStatus === 'aberto' ? null : new Date(),
+          },
+          include: INCLUDE_PADRAO,
+        }),
+        'A situação deste orçamento mudou enquanto você agia. Atualize a tela e confira antes de tentar de novo.',
+      );
 
       // Venda fechada move o cliente para a etapa de fechamento. Recusar não
       // move nada: a negociação pode continuar, e tirar a pessoa do lugar
@@ -274,7 +286,12 @@ export class OrcamentosService {
         });
       }
 
-      await tx.orcamento.deleteMany({ where: { id } });
+      // Se a aprovação commitou depois da leitura acima, apagar deixaria a
+      // comissão sem origem (o vínculo vira nulo).
+      exigirLinhaAfetada(
+        await tx.orcamento.deleteMany({ where: { id, status: { not: 'aprovado' } } }),
+        'Este orçamento foi aprovado por outra pessoa e não pode mais ser excluído. Atualize a tela.',
+      );
     });
   }
 

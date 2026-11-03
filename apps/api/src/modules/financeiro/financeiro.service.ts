@@ -29,6 +29,7 @@ import { garantirCategoriaDoTipo } from './categoria-do-tipo';
 import { conferirAnexos } from './conferencia-anexo';
 import { hojeEmDia, paraData, paraDia } from './datas';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
+import { gravarSeNaoMudou } from '../../common/concorrencia';
 import { naoEncontrado, conflito } from '../../common/erros';
 import * as conciliacaoBanco from './analise-conciliacao';
 import * as categoriasBanco from './categorias-financeiras';
@@ -495,13 +496,19 @@ export class FinanceiroService {
         throw conflito('Este lançamento já teve baixa. Estorne antes de lançar outra data.');
       }
 
-      const alterado = await tx.lancamentoFinanceiro.update({
-        where: { id },
-        // Sem data informada, hoje: é o caso comum, e poupa o usuário de
-        // digitar a data do dia.
-        data: { pagoEm: paraData(dados.pagoEm ?? hojeEmDia()) },
-        include: INCLUDE_RESUMO,
-      });
+      // `pagoEm: null` no `where` é o que de fato barra a segunda baixa: a
+      // checagem acima lê, mas dois cliques leem "em aberto" ao mesmo tempo. O
+      // perdedor não casa com nada, e nenhuma auditoria duplicada é gravada.
+      const alterado = await gravarSeNaoMudou(
+        tx.lancamentoFinanceiro.update({
+          where: { id, pagoEm: null },
+          // Sem data informada, hoje: é o caso comum, e poupa o usuário de
+          // digitar a data do dia.
+          data: { pagoEm: paraData(dados.pagoEm ?? hojeEmDia()) },
+          include: INCLUDE_RESUMO,
+        }),
+        'Este lançamento já teve baixa registrada por outra pessoa. Atualize a tela.',
+      );
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
         entidadeId: id,
@@ -538,11 +545,14 @@ export class FinanceiroService {
         throw conflito('Este lançamento está em aberto, então não há baixa para estornar.');
       }
 
-      const alterado = await tx.lancamentoFinanceiro.update({
-        where: { id },
-        data: { pagoEm: null },
-        include: INCLUDE_RESUMO,
-      });
+      const alterado = await gravarSeNaoMudou(
+        tx.lancamentoFinanceiro.update({
+          where: { id, pagoEm: { not: null } },
+          data: { pagoEm: null },
+          include: INCLUDE_RESUMO,
+        }),
+        'A baixa deste lançamento já foi estornada por outra pessoa. Atualize a tela.',
+      );
       await this.auditoria.registrar(tx, {
         entidade: 'lancamento',
         entidadeId: id,

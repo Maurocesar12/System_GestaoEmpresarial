@@ -154,6 +154,51 @@ describe('LembretesProcessor', () => {
     expect(ultimaGravacao(update)).toMatchObject({ status: 'pendente' });
   });
 
+  describe('quando o lembrete deixa de estar pendente durante o envio', () => {
+    // O usuário cancelou pela tela depois da checagem e antes da gravação. O
+    // `where` com `status: 'pendente'` faz a gravação não casar (P2025).
+    const nenhumaLinha = () => Object.assign(new Error('Record not found'), { code: 'P2025' });
+
+    it('grava o desfecho só enquanto o lembrete segue pendente', async () => {
+      const { processador, update } = criarAmbiente(LEMBRETE_PENDENTE);
+
+      await processador.process(criarJob());
+
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: LEMBRETE, status: 'pendente' } }),
+      );
+    });
+
+    it('não ressuscita um lembrete cancelado no meio de uma falha temporária', async () => {
+      // Regravar "pendente" por cima de "cancelado" faria o retry do BullMQ
+      // enviar o que o usuário cancelou. O erro original do envio continua
+      // subindo para o BullMQ; o que não pode acontecer é o P2025 mascará-lo.
+      const { processador, update } = criarAmbiente(
+        LEMBRETE_PENDENTE,
+        new ErroDeNotificacao('Servidor SMTP indisponível.', false),
+      );
+      update.mockRejectedValue(nenhumaLinha());
+
+      await expect(processador.process(criarJob())).rejects.toThrow(/SMTP/);
+    });
+
+    it('não falha o job quando o envio deu certo mas o lembrete já foi cancelado', async () => {
+      const { processador, enviar, update } = criarAmbiente(LEMBRETE_PENDENTE);
+      update.mockRejectedValue(nenhumaLinha());
+
+      await expect(processador.process(criarJob())).resolves.toBeUndefined();
+
+      expect(enviar).toHaveBeenCalledTimes(1);
+    });
+
+    it('não engole erros de banco que não são de corrida', async () => {
+      const { processador, update } = criarAmbiente(LEMBRETE_PENDENTE);
+      update.mockRejectedValue(new Error('conexão perdida'));
+
+      await expect(processador.process(criarJob())).rejects.toThrow('conexão perdida');
+    });
+  });
+
   it('registra o motivo da falha para o suporte conseguir explicar depois', async () => {
     const { processador, update } = criarAmbiente(
       LEMBRETE_PENDENTE,

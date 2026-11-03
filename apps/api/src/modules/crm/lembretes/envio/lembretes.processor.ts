@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { ROTULO_CANAL_LEMBRETE } from '@gestao/shared-types';
+import { nenhumaLinhaCasou } from '../../../../common/concorrencia';
 import { ErroDeNotificacao, Notificador } from '../../../../infra/notificacoes/notificador';
 import { PrismaService } from '../../../../infra/prisma/prisma.service';
 import { FILA_LEMBRETES, type PayloadEnvioLembrete } from './envio.constantes';
@@ -148,8 +149,21 @@ export class LembretesProcessor extends WorkerHost {
     lembreteId: string,
     dados: { status: 'pendente' | 'enviado' | 'falhou'; enviadoEm?: Date; erro: string | null },
   ): Promise<void> {
-    await this.prisma.comTenantExplicito(tenantId, (tx) =>
-      tx.lembreteFollowUp.update({ where: { id: lembreteId }, data: dados }),
-    );
+    try {
+      // Só grava enquanto o lembrete segue pendente. Se alguém o cancelou
+      // durante o envio, regravar "pendente" numa falha temporária o
+      // ressuscitaria — e o retry do BullMQ enviaria o que o usuário cancelou.
+      await this.prisma.comTenantExplicito(tenantId, (tx) =>
+        tx.lembreteFollowUp.update({ where: { id: lembreteId, status: 'pendente' }, data: dados }),
+      );
+    } catch (erro) {
+      if (!nenhumaLinhaCasou(erro)) {
+        throw erro;
+      }
+
+      this.logger.warn(
+        `Lembrete ${lembreteId} deixou de estar pendente durante o envio (cancelado ou excluído) — desfecho "${dados.status}" não gravado.`,
+      );
+    }
   }
 }
