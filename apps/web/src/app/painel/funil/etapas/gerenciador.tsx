@@ -253,7 +253,7 @@ function NovaEtapa({ onErro }: { onErro: (erro?: string) => void }) {
   };
 
   return (
-    <form onSubmit={enviar} method="post" className="flex flex-wrap items-end gap-3">
+    <form onSubmit={enviar} method="post" className="flex flex-wrap items-start gap-3">
       <Campo
         rotulo="Nova etapa"
         value={nome}
@@ -263,9 +263,12 @@ function NovaEtapa({ onErro }: { onErro: (erro?: string) => void }) {
         className="w-64"
       />
 
-      <Botao type="submit" variante="secundario" carregando={criando}>
-        Adicionar etapa
-      </Botao>
+      <div className="flex flex-col gap-1.5">
+        <span className="invisible text-sm font-medium">Ação</span>
+        <Botao type="submit" variante="secundario" carregando={criando}>
+          Adicionar etapa
+        </Botao>
+      </div>
     </form>
   );
 }
