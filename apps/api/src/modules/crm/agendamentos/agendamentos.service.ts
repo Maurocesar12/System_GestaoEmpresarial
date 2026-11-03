@@ -25,7 +25,12 @@ import { garantirVinculos } from '../../../common/vinculos';
 import { FinanceiroService } from '../../financeiro/financeiro.service';
 import { ComissoesService } from '../../operacao/comissoes/comissoes.service';
 import { EstoqueService } from '../../operacao/estoque/estoque.service';
-import { exigirLinhaAfetada, gravarSeNaoMudou } from '../../../common/concorrencia';
+import {
+  VERSAO_SUBIU,
+  exigirLinhaAfetada,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../../common/concorrencia';
 import { naoEncontrado } from '../../../common/erros';
 import { diaEmSaoPaulo, fimDoDia, inicioDoDia, instanteDeHorarioLocal } from '../../../common/fuso';
 
@@ -127,7 +132,12 @@ export class AgendamentosService {
    * Só enquanto está pendente. Mudar a data de algo já executado reescreveria
    * o histórico; de algo cancelado, confundiria o registro do que houve.
    */
-  async atualizar(id: string, dados: AgendamentoFormInput): Promise<Agendamento> {
+  async atualizar(
+    id: string,
+    dados: AgendamentoFormInput,
+    /** A versão que a tela abriu (`If-Match`); se mudou, 409. */
+    versao?: number,
+  ): Promise<Agendamento> {
     const agendamento = await this.prisma.comTenant(async (tx) => {
       const atual = await this.exigir(tx, id);
 
@@ -147,8 +157,13 @@ export class AgendamentosService {
       // e receita já teriam saído com a data, o serviço e o técnico antigos.
       return gravarSeNaoMudou(
         tx.agendamento.update({
-          where: { id, status: { notIn: ['executado', 'cancelado'] } },
+          where: {
+            id,
+            status: { notIn: ['executado', 'cancelado'] },
+            ...filtroDeVersao(versao),
+          },
           data: {
+            ...VERSAO_SUBIU,
             clienteId: dados.clienteId,
             servicoId: dados.servicoId,
             dataHora: instanteDeHorarioLocal(dados.dataHora),
@@ -158,7 +173,7 @@ export class AgendamentosService {
           },
           include: INCLUDE_PADRAO,
         }),
-        'Este agendamento foi executado ou cancelado por outra pessoa e não pode mais ser alterado. Atualize a tela.',
+        'Este agendamento foi alterado, executado ou cancelado por outra pessoa depois que você abriu a tela. Recarregue para ver as mudanças antes de salvar.',
       );
     });
 
@@ -226,7 +241,8 @@ export class AgendamentosService {
       const atualizado = await gravarSeNaoMudou(
         tx.agendamento.update({
           where: { id, status: atual.status },
-          data: { status: novoStatus },
+          // Sobe a versão: reagendar devolve o agendamento a um estado editável.
+          data: { status: novoStatus, ...VERSAO_SUBIU },
           include: INCLUDE_PADRAO,
         }),
         'A situação deste agendamento mudou enquanto você agia. Atualize a tela e confira antes de tentar de novo.',
@@ -331,6 +347,7 @@ export class AgendamentosService {
   private paraResposta(registro: AgendamentoBanco): Agendamento {
     return {
       id: registro.id,
+      versao: registro.versao,
       clienteId: registro.clienteId,
       clienteNome: registro.cliente.nome,
       clienteTelefone: registro.cliente.telefone,

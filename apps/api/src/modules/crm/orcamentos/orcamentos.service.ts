@@ -25,7 +25,12 @@ import { garantirVinculos } from '../../../common/vinculos';
 // usado em tempo de execução para representar o zero quando não há orçamentos
 // somados.
 import { Prisma } from '../../../generated/prisma/client';
-import { exigirLinhaAfetada, gravarSeNaoMudou } from '../../../common/concorrencia';
+import {
+  VERSAO_SUBIU,
+  exigirLinhaAfetada,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../../common/concorrencia';
 import { naoEncontrado } from '../../../common/erros';
 
 /** As relações que toda resposta de orçamento carrega. */
@@ -181,7 +186,7 @@ export class OrcamentosService {
    * significaria alterar um compromisso fechado — e, mais adiante, a receita
    * que ele gerou no financeiro.
    */
-  async atualizar(id: string, dados: OrcamentoFormInput): Promise<Orcamento> {
+  async atualizar(id: string, dados: OrcamentoFormInput, versao?: number): Promise<Orcamento> {
     const orcamento = await this.prisma.comTenant(async (tx) => {
       const atual = await this.exigir(tx, id);
 
@@ -195,11 +200,14 @@ export class OrcamentosService {
       await garantirVinculos(tx, dados);
 
       // `status: 'aberto'` no `where` impede mudar o valor depois que outra
-      // pessoa aprovou: a comissão já foi calculada sobre o valor antigo.
+      // pessoa aprovou: a comissão já foi calculada sobre o valor antigo. A
+      // versão da tela (`If-Match`) cobre o resto: duas pessoas editando o
+      // mesmo orçamento aberto.
       return gravarSeNaoMudou(
         tx.orcamento.update({
-          where: { id, status: 'aberto' },
+          where: { id, status: 'aberto', ...filtroDeVersao(versao) },
           data: {
+            ...VERSAO_SUBIU,
             clienteId: dados.clienteId,
             servicoId: dados.servicoId,
             descricao: dados.descricao,
@@ -209,7 +217,7 @@ export class OrcamentosService {
           },
           include: INCLUDE_PADRAO,
         }),
-        'Este orçamento foi respondido por outra pessoa e não pode mais ser alterado. Atualize a tela.',
+        'Este orçamento foi alterado ou respondido por outra pessoa depois que você abriu a tela. Recarregue para ver as mudanças antes de salvar.',
       );
     });
 
@@ -250,6 +258,9 @@ export class OrcamentosService {
         tx.orcamento.update({
           where: { id, status: atual.status },
           data: {
+            // Sobe a versão: reabrir devolve o orçamento a um estado editável, e
+            // uma tela aberta antes da resposta não pode salvar por cima.
+            ...VERSAO_SUBIU,
             status: novoStatus,
             // Registra quando o cliente respondeu; reabrir limpa a marca, porque
             // a resposta anterior deixou de valer.
@@ -313,6 +324,7 @@ export class OrcamentosService {
 
     return {
       id: registro.id,
+      versao: registro.versao,
       clienteId: registro.clienteId,
       clienteNome: registro.cliente.nome,
       servicoId: registro.servicoId,

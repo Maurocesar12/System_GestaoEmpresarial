@@ -21,6 +21,12 @@ import {
   type DesafioDoisFatores,
 } from '@gestao/shared-types';
 import { naoEncontrado, conflito } from '../../../common/erros';
+import {
+  MENSAGEM_VERSAO,
+  VERSAO_SUBIU,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../../common/concorrencia';
 import { uuidv7 } from '../../../common/uuid';
 import type { Env } from '../../../config/env.schema';
 import { Notificador } from '../../../infra/notificacoes/notificador';
@@ -223,7 +229,12 @@ export class EquipeService {
     });
   }
 
-  async atualizar(id: string, dados: AtualizarFuncionarioInput): Promise<Funcionario> {
+  /** @param versao A versão que a tela abriu (`If-Match`); se mudou, 409. */
+  async atualizar(
+    id: string,
+    dados: AtualizarFuncionarioInput,
+    versao?: number,
+  ): Promise<Funcionario> {
     const contexto = exigirContextoTenant();
 
     if (
@@ -258,22 +269,29 @@ export class EquipeService {
         atual.permissoesPersonalizadas ? atual.permissoes : undefined,
       );
 
-      const alterado = await tx.usuario.update({
-        where: { id },
-        data: {
-          nome: dados.nome,
-          papel: dados.papel,
-          ativo: dados.ativo,
-          permissoes: novo.permissoes,
-          permissoesPersonalizadas: novo.personalizadas,
-          ...(dados.comissaoVendaPercentual !== undefined
-            ? { comissaoVendaPercentual: dados.comissaoVendaPercentual }
-            : {}),
-          ...(dados.comissaoExecucaoPercentual !== undefined
-            ? { comissaoExecucaoPercentual: dados.comissaoExecucaoPercentual }
-            : {}),
-        },
-      });
+      // As travas acima (último admin, vaga) leram o estado: a versão da tela
+      // impede que duas edições simultâneas do mesmo acesso se sobrescrevam, e
+      // que a segunda decida com base numa leitura que a primeira já mudou.
+      const alterado = await gravarSeNaoMudou(
+        tx.usuario.update({
+          where: { id, ...filtroDeVersao(versao) },
+          data: {
+            ...VERSAO_SUBIU,
+            nome: dados.nome,
+            papel: dados.papel,
+            ativo: dados.ativo,
+            permissoes: novo.permissoes,
+            permissoesPersonalizadas: novo.personalizadas,
+            ...(dados.comissaoVendaPercentual !== undefined
+              ? { comissaoVendaPercentual: dados.comissaoVendaPercentual }
+              : {}),
+            ...(dados.comissaoExecucaoPercentual !== undefined
+              ? { comissaoExecucaoPercentual: dados.comissaoExecucaoPercentual }
+              : {}),
+          },
+        }),
+        MENSAGEM_VERSAO,
+      );
       if (
         !dados.ativo ||
         atual.papel !== dados.papel ||
@@ -448,6 +466,7 @@ export class EquipeService {
 
   private paraFuncionario(usuario: {
     id: string;
+    versao: number;
     nome: string;
     email: string;
     papel: 'admin' | 'financeiro' | 'atendente' | 'tecnico';
@@ -467,6 +486,7 @@ export class EquipeService {
 
     return {
       id: usuario.id,
+      versao: usuario.versao,
       nome: usuario.nome,
       email: usuario.email,
       papel: usuario.papel,

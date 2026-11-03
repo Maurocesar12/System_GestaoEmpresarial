@@ -21,6 +21,7 @@ import {
   type SimulacaoReservaInput,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../common/decorators/versao-esperada.decorator';
 import { CorpoValidado } from '../../common/decorators/validado.decorator';
 import { ReservasService } from './reservas.service';
 
@@ -46,8 +47,9 @@ export class ReservasController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @CorpoValidado(reservaFormSchema) dados: ReservaFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Reserva> {
-    return this.reservas.atualizar(id, dados);
+    return this.reservas.atualizar(id, dados, versao);
   }
 
   /**

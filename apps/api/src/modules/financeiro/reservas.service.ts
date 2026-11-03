@@ -17,7 +17,12 @@ import { primeiroDiaDeMesesAtras, ultimoDiaDoMesPassado } from './datas';
 import { FinanceiroService } from './financeiro.service';
 import { AuditoriaService } from '../plataforma/auditoria/auditoria.service';
 import { naoEncontrado, conflito } from '../../common/erros';
-import { gravarSeNaoMudou } from '../../common/concorrencia';
+import {
+  MENSAGEM_VERSAO,
+  VERSAO_SUBIU,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../common/concorrencia';
 
 /** Quantos meses fechados entram na média do custo fixo mensal. */
 const MESES_DA_MEDIA = 3;
@@ -172,7 +177,8 @@ export class ReservasService {
     return this.paraResposta(reserva);
   }
 
-  async atualizar(id: string, dados: ReservaFormInput): Promise<Reserva> {
+  /** @param versao A versão que a tela abriu (`If-Match`); se mudou, 409. */
+  async atualizar(id: string, dados: ReservaFormInput, versao?: number): Promise<Reserva> {
     this.exigirSaldoNaoNegativo(dados.valorAtual);
 
     const reserva = await this.prisma.comTenant(async (tx) => {
@@ -193,13 +199,20 @@ export class ReservasService {
 
       // Reescrever o saldo digitado por cima de um aporte ou resgate que entrou
       // depois da leitura apagaria essa movimentação: só grava se o saldo ainda
-      // é o que a pessoa viu.
+      // é o que foi lido aqui (cobre quem não mandou a versão) e, quando a tela
+      // mandou, se a reserva segue na versão que ela abriu (aporte, resgate e
+      // outra edição sobem a versão).
       const alterada = await gravarSeNaoMudou(
         tx.reservaFinanceira.update({
-          where: { id, valorAtual: anterior.valorAtual },
-          data: { nome: dados.nome, valorAtual: dados.valorAtual, meta: dados.meta },
+          where: { id, valorAtual: anterior.valorAtual, ...filtroDeVersao(versao) },
+          data: {
+            ...VERSAO_SUBIU,
+            nome: dados.nome,
+            valorAtual: dados.valorAtual,
+            meta: dados.meta,
+          },
         }),
-        'O saldo desta reserva mudou agora há pouco (outro aporte ou resgate). Atualize a tela e confira antes de salvar.',
+        MENSAGEM_VERSAO,
       );
 
       await this.auditoria.registrar(tx, {
@@ -246,7 +259,12 @@ export class ReservasService {
 
       const { count } = await tx.reservaFinanceira.updateMany({
         where: resgate ? { id, valorAtual: { gte: valor } } : { id },
-        data: { valorAtual: resgate ? { decrement: valor } : { increment: valor } },
+        // Sobe a versão: a tela de edição da reserva reescreve o saldo, e uma
+        // aberta antes desta movimentação a apagaria ao salvar.
+        data: {
+          valorAtual: resgate ? { decrement: valor } : { increment: valor },
+          ...VERSAO_SUBIU,
+        },
       });
 
       if (count === 0) {
@@ -326,6 +344,7 @@ export class ReservasService {
   private paraResposta(registro: Prisma.ReservaFinanceiraGetPayload<object>): Reserva {
     return {
       id: registro.id,
+      versao: registro.versao,
       nome: registro.nome,
       valorAtual: registro.valorAtual.toFixed(2),
       meta: registro.meta?.toFixed(2) ?? null,

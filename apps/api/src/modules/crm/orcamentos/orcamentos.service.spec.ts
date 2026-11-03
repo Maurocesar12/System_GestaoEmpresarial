@@ -78,6 +78,18 @@ describe('OrcamentosService — corrida entre requisições', () => {
       );
     });
 
+    it('toda mudança de status sobe a versão: reabrir não deixa uma edição velha salvar por cima', async () => {
+      tx.orcamento.update.mockResolvedValue(linha('aberto'));
+
+      await runComTenant(contexto, () => servico.mudarStatus(ID, 'recusar'));
+
+      expect(tx.orcamento.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ versao: { increment: 1 } }),
+        }),
+      );
+    });
+
     it('perder a corrida vira 409 e não gera comissão nem move o cliente no funil', async () => {
       // "Aprovar" e "recusar" leram "aberto". A outra requisição gravou antes;
       // esta não encontra mais a linha neste estado. Sem a condição, o
@@ -112,6 +124,29 @@ describe('OrcamentosService — corrida entre requisições', () => {
       expect(tx.orcamento.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: ID, status: 'aberto' } }),
       );
+    });
+
+    it('com a versão da tela, o where a exige junto com o status e a gravação sobe a versão', async () => {
+      tx.orcamento.update.mockResolvedValue(linha('aberto'));
+
+      await runComTenant(contexto, () => servico.atualizar(ID, dados as never, 3));
+
+      expect(tx.orcamento.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ID, status: 'aberto', versao: 3 },
+          data: expect.objectContaining({ versao: { increment: 1 } }),
+        }),
+      );
+    });
+
+    it('a versão velha (outra pessoa editou antes) vira 409', async () => {
+      tx.orcamento.update.mockRejectedValue(nenhumaLinha());
+
+      await expect(
+        runComTenant(contexto, () => servico.atualizar(ID, dados as never, 2)),
+      ).rejects.toMatchObject({
+        response: { mensagem: expect.stringContaining('depois que você abriu a tela') },
+      });
     });
 
     it('perder a corrida para a aprovação vira 409', async () => {

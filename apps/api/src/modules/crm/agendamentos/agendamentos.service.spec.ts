@@ -260,12 +260,24 @@ describe('AgendamentosService — corrida entre requisições', () => {
       expect(registrarReceitaDeServico).not.toHaveBeenCalled();
     });
 
+    it('toda mudança de status sobe a versão: reagendar não deixa uma edição velha salvar por cima', async () => {
+      tx.agendamento.update.mockResolvedValue(linha('agendado'));
+
+      await runComTenant(contexto, () => servico.mudarStatus(ID, 'confirmar'));
+
+      expect(tx.agendamento.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ versao: { increment: 1 } }),
+        }),
+      );
+    });
+
     it('um erro que não é de corrida segue como está, sem virar 409', async () => {
       tx.agendamento.update.mockRejectedValue(new Error('conexão perdida'));
 
-      await expect(runComTenant(contexto, () => servico.mudarStatus(ID, 'confirmar'))).rejects.toThrow(
-        'conexão perdida',
-      );
+      await expect(
+        runComTenant(contexto, () => servico.mudarStatus(ID, 'confirmar')),
+      ).rejects.toThrow('conexão perdida');
     });
   });
 
@@ -291,6 +303,29 @@ describe('AgendamentosService — corrida entre requisições', () => {
           where: { id: ID, status: { notIn: ['executado', 'cancelado'] } },
         }),
       );
+    });
+
+    it('com a versão da tela, o where a exige junto com o status e a gravação sobe a versão', async () => {
+      tx.agendamento.update.mockResolvedValue(linha('agendado'));
+
+      await runComTenant(contexto, () => servico.atualizar(ID, dados as never, 4));
+
+      expect(tx.agendamento.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ID, status: { notIn: ['executado', 'cancelado'] }, versao: 4 },
+          data: expect.objectContaining({ versao: { increment: 1 } }),
+        }),
+      );
+    });
+
+    it('a versão velha (outra pessoa editou antes) vira 409', async () => {
+      tx.agendamento.update.mockRejectedValue(nenhumaLinha());
+
+      await expect(
+        runComTenant(contexto, () => servico.atualizar(ID, dados as never, 3)),
+      ).rejects.toMatchObject({
+        response: { mensagem: expect.stringContaining('depois que você abriu a tela') },
+      });
     });
 
     it('perder a corrida para a execução vira 409', async () => {

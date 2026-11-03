@@ -30,6 +30,7 @@ import {
   type Paginado,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../../common/decorators/versao-esperada.decorator';
 import { CorpoValidado, QueryValidada } from '../../../common/decorators/validado.decorator';
 import { EstoqueService } from './estoque.service';
 
@@ -67,8 +68,9 @@ export class EstoqueController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @CorpoValidado(materialFormSchema) dados: MaterialFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Material> {
-    return this.estoque.atualizar(id, dados);
+    return this.estoque.atualizar(id, dados, versao);
   }
 
   @Post('estoque/materiais/:id/entradas')

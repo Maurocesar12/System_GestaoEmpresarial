@@ -24,6 +24,7 @@ import {
 } from '@gestao/shared-types';
 import { Papeis } from '../../../common/decorators/papeis.decorator';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../../common/decorators/versao-esperada.decorator';
 import { Publico } from '../../../common/decorators/publico.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { EquipeService } from './equipe.service';
@@ -59,8 +60,9 @@ export class EquipeController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(atualizarFuncionarioSchema)) dados: AtualizarFuncionarioInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Funcionario> {
-    return this.equipe.atualizar(id, dados);
+    return this.equipe.atualizar(id, dados, versao);
   }
 
   /** Para quem perdeu ou trocou de celular. Só o admin. */

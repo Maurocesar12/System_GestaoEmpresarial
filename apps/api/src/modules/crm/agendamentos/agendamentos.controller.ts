@@ -22,6 +22,7 @@ import {
   type Paginado,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../../common/decorators/versao-esperada.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { AgendamentosService } from './agendamentos.service';
 
@@ -55,8 +56,9 @@ export class AgendamentosController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(agendamentoFormSchema)) dados: AgendamentoFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Agendamento> {
-    return this.agendamentos.atualizar(id, dados);
+    return this.agendamentos.atualizar(id, dados, versao);
   }
 
   /** Confirmar, executar, cancelar ou reagendar. */

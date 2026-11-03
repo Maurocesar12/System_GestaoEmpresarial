@@ -46,7 +46,7 @@ describe('ReservasService — saldo sob concorrência', () => {
 
       expect(tx.reservaFinanceira.updateMany).toHaveBeenCalledWith({
         where: { id: ID },
-        data: { valorAtual: { increment: new Prisma.Decimal('500.00') } },
+        data: { valorAtual: { increment: new Prisma.Decimal('500.00') }, versao: { increment: 1 } },
       });
       expect(tx.reservaFinanceira.findUnique).not.toHaveBeenCalled();
       expect(resposta.valorAtual).toBe('1500.00');
@@ -60,7 +60,7 @@ describe('ReservasService — saldo sob concorrência', () => {
 
       expect(tx.reservaFinanceira.updateMany).toHaveBeenCalledWith({
         where: { id: ID, valorAtual: { gte: new Prisma.Decimal('300.00') } },
-        data: { valorAtual: { decrement: new Prisma.Decimal('300.00') } },
+        data: { valorAtual: { decrement: new Prisma.Decimal('300.00') }, versao: { increment: 1 } },
       });
       // A auditoria guarda o saldo de antes (700 + 300), não o de depois duas vezes.
       expect(registrar).toHaveBeenCalledWith(
@@ -107,6 +107,22 @@ describe('ReservasService — saldo sob concorrência', () => {
   });
 
   describe('atualizar', () => {
+    it('com a versão da tela, o where a exige junto com o saldo e a gravação sobe a versão', async () => {
+      tx.reservaFinanceira.findUnique.mockResolvedValue({ id: ID });
+      tx.reservaFinanceira.findUniqueOrThrow.mockResolvedValue(reserva('1000.00'));
+      tx.reservaFinanceira.findFirst.mockResolvedValue(null);
+      tx.reservaFinanceira.update.mockResolvedValue(reserva('2000.00'));
+
+      await servico.atualizar(ID, { nome: 'Emergência', valorAtual: '2000.00', meta: null }, 5);
+
+      expect(tx.reservaFinanceira.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ID, valorAtual: new Prisma.Decimal('1000.00'), versao: 5 },
+          data: expect.objectContaining({ versao: { increment: 1 } }),
+        }),
+      );
+    });
+
     it('só grava se o saldo ainda é o que foi lido', async () => {
       tx.reservaFinanceira.findUnique.mockResolvedValue({ id: ID });
       tx.reservaFinanceira.findUniqueOrThrow.mockResolvedValue(reserva('1000.00'));

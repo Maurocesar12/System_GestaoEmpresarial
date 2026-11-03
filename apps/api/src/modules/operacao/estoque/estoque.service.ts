@@ -24,6 +24,12 @@ import { hojeEmDia } from '../../financeiro/datas';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
 import { custoMedioAposEntrada, paraQuantidade, valorMovimentacao } from './calculo-estoque';
 import { naoEncontrado, conflito } from '../../../common/erros';
+import {
+  MENSAGEM_VERSAO,
+  VERSAO_SUBIU,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../../common/concorrencia';
 import { diaEmSaoPaulo } from '../../../common/fuso';
 
 type MaterialBanco = Prisma.MaterialGetPayload<object>;
@@ -196,22 +202,27 @@ export class EstoqueService {
     return this.paraMaterial(material);
   }
 
-  async atualizar(id: string, dados: MaterialFormInput): Promise<Material> {
+  /** @param versao A versão que a tela abriu (`If-Match`); se mudou, 409. */
+  async atualizar(id: string, dados: MaterialFormInput, versao?: number): Promise<Material> {
     const material = await this.prisma.comTenant(async (tx) => {
       const atual = await tx.material.findUnique({ where: { id } });
       if (!atual) throw this.materialNaoEncontrado();
 
       if (atual.nome !== dados.nome) await this.garantirNomeDisponivel(tx, dados.nome);
 
-      const alterado = await tx.material.update({
-        where: { id },
-        data: {
-          nome: dados.nome,
-          unidade: dados.unidade,
-          estoqueMinimo: dados.estoqueMinimo,
-          ativo: dados.ativo,
-        },
-      });
+      const alterado = await gravarSeNaoMudou(
+        tx.material.update({
+          where: { id, ...filtroDeVersao(versao) },
+          data: {
+            ...VERSAO_SUBIU,
+            nome: dados.nome,
+            unidade: dados.unidade,
+            estoqueMinimo: dados.estoqueMinimo,
+            ativo: dados.ativo,
+          },
+        }),
+        MENSAGEM_VERSAO,
+      );
 
       await this.auditoria.registrar(tx, {
         entidade: 'material',
@@ -506,6 +517,7 @@ export class EstoqueService {
   private paraMaterial(registro: MaterialBanco): Material {
     return {
       id: registro.id,
+      versao: registro.versao,
       nome: registro.nome,
       unidade: registro.unidade as UnidadeMaterial,
       quantidade: paraQuantidade(registro.quantidade),

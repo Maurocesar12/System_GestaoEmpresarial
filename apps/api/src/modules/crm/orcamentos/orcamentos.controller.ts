@@ -25,6 +25,7 @@ import {
   type ResumoOrcamentosQuery,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../../common/decorators/versao-esperada.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { OrcamentosService } from './orcamentos.service';
 
@@ -67,8 +68,9 @@ export class OrcamentosController {
   atualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(orcamentoFormSchema)) dados: OrcamentoFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<Orcamento> {
-    return this.orcamentos.atualizar(id, dados);
+    return this.orcamentos.atualizar(id, dados, versao);
   }
 
   /** Aprovar, recusar ou reabrir — as transições da máquina de estados. */

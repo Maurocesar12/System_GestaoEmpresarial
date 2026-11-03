@@ -16,6 +16,17 @@ import { PrismaService, type TransacaoComTenant } from '../../../infra/prisma/pr
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
 import { AuditoriaService } from '../../plataforma/auditoria/auditoria.service';
 import { naoEncontrado } from '../../../common/erros';
+import {
+  MENSAGEM_VERSAO,
+  VERSAO_SUBIU,
+  filtroDeVersao,
+  gravarSeNaoMudou,
+} from '../../../common/concorrencia';
+
+/** A etapa como a API a devolve. */
+function paraEtapa(etapa: { id: string; nome: string; ordem: number; versao: number }): EtapaFunil {
+  return { id: etapa.id, nome: etapa.nome, ordem: etapa.ordem, versao: etapa.versao };
+}
 
 /**
  * Funil de vendas.
@@ -151,7 +162,7 @@ export class FunilService {
       );
 
       return {
-        etapa: { id: etapa.id, nome: etapa.nome, ordem: etapa.ordem },
+        etapa: paraEtapa(etapa),
         clientes,
         valorEmAberto: valor.toFixed(2),
         parados: clientes.filter((cliente) => cliente.parado).length,
@@ -345,7 +356,7 @@ export class FunilService {
         data: { marco },
       });
 
-      return { id: atualizada.id, nome: atualizada.nome, ordem: atualizada.ordem };
+      return paraEtapa(atualizada);
     });
   }
 
@@ -354,7 +365,7 @@ export class FunilService {
       tx.etapaFunil.findMany({ orderBy: { ordem: 'asc' } }),
     );
 
-    return etapas.map((etapa) => ({ id: etapa.id, nome: etapa.nome, ordem: etapa.ordem }));
+    return etapas.map(paraEtapa);
   }
 
   async criarEtapa({ nome }: EtapaFormInput): Promise<EtapaFunil> {
@@ -372,10 +383,11 @@ export class FunilService {
       });
     });
 
-    return { id: etapa.id, nome: etapa.nome, ordem: etapa.ordem };
+    return paraEtapa(etapa);
   }
 
-  async renomearEtapa(id: string, { nome }: EtapaFormInput): Promise<EtapaFunil> {
+  /** @param versao A versão que a tela abriu (`If-Match`); se mudou, 409. */
+  async renomearEtapa(id: string, { nome }: EtapaFormInput, versao?: number): Promise<EtapaFunil> {
     const etapa = await this.prisma.comTenant(async (tx) => {
       const existente = await tx.etapaFunil.findUnique({ where: { id } });
 
@@ -383,10 +395,16 @@ export class FunilService {
         throw naoEncontrado('Etapa não encontrada.');
       }
 
-      return tx.etapaFunil.update({ where: { id }, data: { nome } });
+      return gravarSeNaoMudou(
+        tx.etapaFunil.update({
+          where: { id, ...filtroDeVersao(versao) },
+          data: { nome, ...VERSAO_SUBIU },
+        }),
+        MENSAGEM_VERSAO,
+      );
     });
 
-    return { id: etapa.id, nome: etapa.nome, ordem: etapa.ordem };
+    return paraEtapa(etapa);
   }
 
   /**
@@ -455,11 +473,7 @@ export class FunilService {
 
       const atualizadas = await tx.etapaFunil.findMany({ orderBy: { ordem: 'asc' } });
 
-      return atualizadas.map((etapa) => ({
-        id: etapa.id,
-        nome: etapa.nome,
-        ordem: etapa.ordem,
-      }));
+      return atualizadas.map(paraEtapa);
     });
   }
 }

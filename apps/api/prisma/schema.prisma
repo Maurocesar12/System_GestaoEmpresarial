@@ -341,6 +341,10 @@ model Usuario {
   doisFatoresFalhas      Int       @default(0) @map("dois_fatores_falhas")
   doisFatoresBloqueadoAte DateTime? @map("dois_fatores_bloqueado_ate")
 
+  /// Controle otimista (cabeçalho `If-Match`) da edição do funcionário pelo
+  /// administrador. Só essa edição a sobe; o contador do 2FA e o login não.
+  versao Int @default(1)
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -586,6 +590,10 @@ model Orcamento {
   vendedorId String?  @map("vendedor_id") @db.Uuid
   vendedor   Usuario? @relation("VendedorOrcamento", fields: [vendedorId], references: [id], onDelete: SetNull)
 
+  /// Controle otimista (cabeçalho `If-Match`). Sobe também nas mudanças de
+  /// status: reabrir devolve o orçamento a um estado editável.
+  versao Int @default(1)
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -618,6 +626,10 @@ model Agendamento {
   orcamentoId String?    @map("orcamento_id") @db.Uuid
   orcamento   Orcamento? @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
 
+  /// Controle otimista (cabeçalho `If-Match`). Sobe também nas mudanças de
+  /// status: reagendar devolve o agendamento a um estado editável.
+  versao Int @default(1)
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -642,6 +654,9 @@ model EtapaFunil {
   /// Papel da etapa na automação. Só uma etapa por marco, por empresa.
   /// `null` significa etapa comum, sem comportamento automático.
   marco MarcoFunil?
+
+  /// Controle otimista (cabeçalho `If-Match`) do renomear.
+  versao Int @default(1)
 
   criadoEm DateTime @default(now()) @map("criado_em")
 
@@ -939,6 +954,10 @@ model ReservaFinanceira {
   valorAtual Decimal  @map("valor_atual") @db.Decimal(14, 2)
   meta       Decimal? @db.Decimal(14, 2)
 
+  /// Controle otimista (cabeçalho `If-Match`). Sobe também a cada aporte e
+  /// resgate: o formulário reescreve o saldo, e uma tela aberta antes apagaria a movimentação.
+  versao Int @default(1)
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -1018,6 +1037,11 @@ model Material {
   custoMedio    Decimal  @default(0) @map("custo_medio") @db.Decimal(14, 4)
   estoqueMinimo Decimal? @map("estoque_minimo") @db.Decimal(14, 3)
   ativo         Boolean  @default(true)
+
+  /// Controle otimista (cabeçalho `If-Match`) da edição do cadastro (nome,
+  /// unidade, mínimo, ativo). Entrada, ajuste e consumo mexem no saldo, que
+  /// o formulário não edita, e por isso não sobem a versão.
+  versao Int @default(1)
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")

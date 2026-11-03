@@ -22,6 +22,7 @@ import {
   type ReordenarEtapasInput,
 } from '@gestao/shared-types';
 import { Permissoes } from '../../../common/decorators/permissoes.decorator';
+import { VersaoEsperada } from '../../../common/decorators/versao-esperada.decorator';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { FunilService } from './funil.service';
 
@@ -79,8 +80,9 @@ export class FunilController {
   renomearEtapa(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(etapaFormSchema)) dados: EtapaFormInput,
+    @VersaoEsperada() versao: number | undefined,
   ): Promise<EtapaFunil> {
-    return this.funil.renomearEtapa(id, dados);
+    return this.funil.renomearEtapa(id, dados, versao);
   }
 
   @Put('etapas/ordem')
