@@ -27,6 +27,16 @@ export function cabecalhoIdempotencia(chave?: string): Record<string, string> {
   return chave ? { 'Idempotency-Key': chave } : {};
 }
 
+/**
+ * O cabeçalho `If-Match` com a versão que a tela abriu, ou nada se não houver
+ * (registro novo). A API recusa com 409 a edição cuja versão já mudou — alguém
+ * salvou no meio —, em vez de apagar a alteração dessa pessoa.
+ * @example apiComSessao(url, { method: 'PATCH', headers: cabecalhoVersao(versao), body })
+ */
+export function cabecalhoVersao(versao?: number): Record<string, string> {
+  return versao === undefined ? {} : { 'If-Match': String(versao) };
+}
+
 /** Prefixo global da API. `/health` é a única rota fora dele. */
 const PREFIXO = '/api';
 

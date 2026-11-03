@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import type { EtapaFormInput, EtapaFunil } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoVersao } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function criarEtapa(dados: EtapaFormInput): Promise<ResultadoAcao> {
@@ -19,10 +20,16 @@ export async function criarEtapa(dados: EtapaFormInput): Promise<ResultadoAcao> 
   return {};
 }
 
-export async function renomearEtapa(id: string, nome: string): Promise<ResultadoAcao> {
+/** `versao`: a que a tela abriu; se outra pessoa renomeou antes, a API recusa com 409. */
+export async function renomearEtapa(
+  id: string,
+  nome: string,
+  versao?: number,
+): Promise<ResultadoAcao> {
   try {
     await apiComSessao<EtapaFunil>(`/funil/etapas/${id}`, {
       method: 'PATCH',
+      headers: cabecalhoVersao(versao),
       body: JSON.stringify({ nome }),
     });
   } catch (erro) {

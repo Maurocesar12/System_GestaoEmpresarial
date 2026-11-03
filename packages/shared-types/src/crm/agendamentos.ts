@@ -172,6 +172,8 @@ export const ROTULO_STATUS_AGENDAMENTO: Record<StatusAgendamento, string> = {
 
 export interface Agendamento {
   id: string;
+  /** Controle otimista: devolvido em `If-Match` ao salvar. Ver `Cliente.versao`. */
+  versao: number;
   clienteId: string;
   clienteNome: string;
   clienteTelefone: string | null;

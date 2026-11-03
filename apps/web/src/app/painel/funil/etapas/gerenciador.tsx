@@ -104,7 +104,7 @@ function LinhaEtapa({ etapa, onErro }: { etapa: EtapaFunil; onErro: (erro?: stri
 
     iniciar(async () => {
       onErro(undefined);
-      const resultado = await renomearEtapa(etapa.id, nome.trim());
+      const resultado = await renomearEtapa(etapa.id, nome.trim(), etapa.versao);
 
       if (resultado.erro) {
         onErro(resultado.erro);

@@ -64,6 +64,8 @@ export interface EtapaFunil {
   id: string;
   nome: string;
   ordem: number;
+  /** Controle otimista: devolvido em `If-Match` ao renomear. Ver `Cliente.versao`. */
+  versao: number;
 }
 
 /**

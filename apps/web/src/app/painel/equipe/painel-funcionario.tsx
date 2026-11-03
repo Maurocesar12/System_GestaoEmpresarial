@@ -69,18 +69,23 @@ export function PainelFuncionario({
           setFalha(undefined);
           const form = new FormData(evento.currentTarget);
           iniciar(async () => {
-            const resultado = await atualizarFuncionario(funcionario.id, {
-              nome: String(form.get('nome')),
-              papel,
-              ativo: form.get('ativo') === 'on',
-              acessos,
-              ...(mostrarComissoes
-                ? {
-                    comissaoVendaPercentual: String(form.get('comissaoVenda') ?? ''),
-                    comissaoExecucaoPercentual: String(form.get('comissaoExecucao') ?? ''),
-                  }
-                : {}),
-            });
+            const resultado = await atualizarFuncionario(
+              funcionario.id,
+              {
+                nome: String(form.get('nome')),
+                papel,
+                ativo: form.get('ativo') === 'on',
+                acessos,
+                ...(mostrarComissoes
+                  ? {
+                      comissaoVendaPercentual: String(form.get('comissaoVenda') ?? ''),
+                      comissaoExecucaoPercentual: String(form.get('comissaoExecucao') ?? ''),
+                    }
+                  : {}),
+              },
+              // `versao`: a que esta tela abriu. Se outro administrador salvou antes, 409.
+              funcionario.versao,
+            );
             setFalha(resultado.erro);
             if (!resultado.erro) {
               avisar('sucesso', 'Acesso do funcionário atualizado.');

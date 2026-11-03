@@ -10,6 +10,7 @@ import type {
   ResultadoImportacao,
 } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoVersao } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /**
@@ -20,13 +21,16 @@ import { apiComSessao } from '@/lib/api-servidor';
  * qualquer script da página.
  */
 
+/** `versao`: a que a tela abriu ao editar; se mudou, a API recusa com 409. */
 export async function salvarCliente(
   id: string | null,
   dados: ClienteFormEntrada,
+  versao?: number,
 ): Promise<ResultadoAcao> {
   try {
     await apiComSessao<Cliente>(id ? `/clientes/${id}` : '/clientes', {
       method: id ? 'PATCH' : 'POST',
+      headers: id ? cabecalhoVersao(versao) : undefined,
       body: JSON.stringify(dados),
     });
   } catch (erro) {

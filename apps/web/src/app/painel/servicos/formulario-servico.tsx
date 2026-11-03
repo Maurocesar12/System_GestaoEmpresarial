@@ -57,7 +57,8 @@ export function FormularioServico({ servico }: { servico?: Servico }) {
     setFalha(undefined);
 
     iniciarEnvio(async () => {
-      const resultado = await salvarServico(servico?.id ?? null, dados);
+      // `versao`: a que esta tela abriu. Se outra pessoa salvou antes, 409.
+      const resultado = await salvarServico(servico?.id ?? null, dados, servico?.versao);
 
       if (resultado?.campos) {
         for (const [campo, mensagens] of Object.entries(resultado.campos)) {

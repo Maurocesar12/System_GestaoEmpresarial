@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import type { Atendimento, AtendimentoFormInput, Cliente } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoVersao } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /** O que o cartão aberto mostra. */
@@ -59,6 +60,9 @@ export async function salvarCartao(
   try {
     await apiComSessao<Cliente>(`/clientes/${clienteId}`, {
       method: 'PATCH',
+      // A versão lida acima: se o cliente mudou entre a leitura e a gravação,
+      // a API recusa em vez de regravar por cima os campos que o cartão copiou.
+      headers: cabecalhoVersao(atual.versao),
       body: JSON.stringify({
         nome: alteracoes.nome,
         observacoes: alteracoes.observacoes,

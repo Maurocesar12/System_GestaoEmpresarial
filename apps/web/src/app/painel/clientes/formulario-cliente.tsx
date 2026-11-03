@@ -95,7 +95,9 @@ export function FormularioCliente({
     setFalha(undefined);
 
     iniciarEnvio(async () => {
-      const resultado = await salvarCliente(cliente?.id ?? null, dados);
+      // `versao`: a que esta tela abriu. Se outra pessoa salvou antes, a API
+      // recusa com 409 em vez de apagar a alteração dela.
+      const resultado = await salvarCliente(cliente?.id ?? null, dados, cliente?.versao);
 
       // Em caso de sucesso a action redireciona e nada aqui executa.
       if (resultado?.campos) {

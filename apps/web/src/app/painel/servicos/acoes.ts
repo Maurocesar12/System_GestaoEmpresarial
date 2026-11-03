@@ -9,15 +9,19 @@ import type {
   SimulacaoMargem,
 } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoVersao } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
+/** `versao`: a que a tela abriu ao editar; se mudou, a API recusa com 409. */
 export async function salvarServico(
   id: string | null,
   dados: ServicoFormEntrada,
+  versao?: number,
 ): Promise<ResultadoAcao> {
   try {
     await apiComSessao<Servico>(id ? `/servicos/${id}` : '/servicos', {
       method: id ? 'PATCH' : 'POST',
+      headers: id ? cabecalhoVersao(versao) : undefined,
       body: JSON.stringify(dados),
     });
   } catch (erro) {

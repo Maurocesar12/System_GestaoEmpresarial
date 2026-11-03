@@ -228,7 +228,13 @@ export function FormularioLancamento({
     iniciarEnvio(async () => {
       // Sucesso redireciona e desmonta a tela: não há o que renovar. Em falha a
       // API libera a chave, e reenviar com ela é seguro.
-      const resultado = await salvarLancamento(lancamento?.id ?? null, dados, idempotencia.chave());
+      const resultado = await salvarLancamento(
+        lancamento?.id ?? null,
+        dados,
+        idempotencia.chave(),
+        // Na edição, a versão que esta tela abriu: uma baixa dada no meio a muda.
+        lancamento?.versao,
+      );
 
       if (resultado?.campos) {
         for (const [campo, mensagens] of Object.entries(resultado.campos)) {

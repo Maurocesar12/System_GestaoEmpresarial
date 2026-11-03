@@ -101,6 +101,11 @@ export interface Cliente {
   etiquetas: string[];
   /** Quando os dados pessoais foram eliminados a pedido do titular. */
   anonimizadoEm: string | null;
+  /**
+   * Sobe a cada alteração. A tela devolve a versão que abriu no cabeçalho
+   * `If-Match` ao salvar, e a API recusa (409) se ela já mudou.
+   */
+  versao: number;
   criadoEm: string;
   atualizadoEm: string;
 }

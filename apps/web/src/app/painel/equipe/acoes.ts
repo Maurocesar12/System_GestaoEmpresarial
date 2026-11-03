@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import type { AtualizarFuncionarioEntrada, ConviteEquipeInput } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoVersao } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
 export async function convidarFuncionario(dados: ConviteEquipeInput): Promise<ResultadoAcao> {
@@ -18,13 +19,16 @@ export async function convidarFuncionario(dados: ConviteEquipeInput): Promise<Re
   return {};
 }
 
+/** `versao`: a que a tela abriu; se mudou, a API recusa com 409. */
 export async function atualizarFuncionario(
   id: string,
   dados: AtualizarFuncionarioEntrada,
+  versao?: number,
 ): Promise<ResultadoAcao> {
   try {
     await apiComSessao(`/equipe/funcionarios/${id}`, {
       method: 'PATCH',
+      headers: cabecalhoVersao(versao),
       body: JSON.stringify(dados),
     });
   } catch (erro) {

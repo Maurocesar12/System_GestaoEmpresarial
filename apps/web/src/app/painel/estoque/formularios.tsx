@@ -27,12 +27,17 @@ export function FormularioMaterial({ material }: { material?: Material }) {
         setFalha(undefined);
 
         iniciar(async () => {
-          const resultado = await salvarMaterial(material?.id ?? null, {
-            nome: texto(form, 'nome'),
-            unidade: texto(form, 'unidade'),
-            estoqueMinimo: texto(form, 'estoqueMinimo'),
-            ativo: form.get('ativo') === 'on',
-          });
+          const resultado = await salvarMaterial(
+            material?.id ?? null,
+            {
+              nome: texto(form, 'nome'),
+              unidade: texto(form, 'unidade'),
+              estoqueMinimo: texto(form, 'estoqueMinimo'),
+              ativo: form.get('ativo') === 'on',
+            },
+            // `versao`: a que esta tela abriu. Se outra pessoa salvou antes, 409.
+            material?.versao,
+          );
           setFalha(resultado);
           if (!resultado.erro) avisar('sucesso', 'Material salvo.');
         });

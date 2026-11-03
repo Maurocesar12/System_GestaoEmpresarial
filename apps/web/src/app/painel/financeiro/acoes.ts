@@ -10,7 +10,7 @@ import type {
   SimulacaoParcelas,
 } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
-import { cabecalhoIdempotencia } from '@/lib/api';
+import { cabecalhoIdempotencia, cabecalhoVersao } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
 /**
@@ -21,13 +21,15 @@ export async function salvarLancamento(
   id: string | null,
   dados: LancamentoFormEntrada,
   chave?: string,
+  /** Só na edição: a versão que a tela abriu. Se mudou (inclusive por uma baixa), 409. */
+  versao?: number,
 ): Promise<ResultadoAcao> {
   try {
     await apiComSessao<Lancamento>(
       id ? `/financeiro/lancamentos/${id}` : '/financeiro/lancamentos',
       {
         method: id ? 'PATCH' : 'POST',
-        headers: id ? undefined : cabecalhoIdempotencia(chave),
+        headers: id ? cabecalhoVersao(versao) : cabecalhoIdempotencia(chave),
         body: JSON.stringify(dados),
       },
     );

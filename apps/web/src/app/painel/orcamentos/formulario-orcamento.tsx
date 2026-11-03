@@ -78,7 +78,13 @@ export function FormularioOrcamento({
     iniciarEnvio(async () => {
       // Sucesso redireciona e desmonta a tela: não há o que renovar. Em falha a
       // API libera a chave, e reenviar com ela é seguro.
-      const resultado = await salvarOrcamento(orcamento?.id ?? null, dados, idempotencia.chave());
+      const resultado = await salvarOrcamento(
+        orcamento?.id ?? null,
+        dados,
+        idempotencia.chave(),
+        // Na edição, a versão que esta tela abriu.
+        orcamento?.versao,
+      );
 
       if (resultado?.campos) {
         for (const [campo, mensagens] of Object.entries(resultado.campos)) {

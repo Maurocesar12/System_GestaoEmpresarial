@@ -83,7 +83,12 @@ export function FormularioAgendamento({
     setFalha(undefined);
 
     iniciarEnvio(async () => {
-      const resultado = await salvarAgendamento(agendamento?.id ?? null, dados);
+      // `versao`: a que esta tela abriu. Se outra pessoa salvou antes, 409.
+      const resultado = await salvarAgendamento(
+        agendamento?.id ?? null,
+        dados,
+        agendamento?.versao,
+      );
 
       if (resultado?.campos) {
         for (const [campo, mensagens] of Object.entries(resultado.campos)) {

@@ -109,6 +109,8 @@ export const ROTULO_STATUS: Record<StatusOrcamento, string> = {
 
 export interface Orcamento {
   id: string;
+  /** Controle otimista: devolvido em `If-Match` ao salvar. Ver `Cliente.versao`. */
+  versao: number;
   clienteId: string;
   clienteNome: string;
   servicoId: string | null;

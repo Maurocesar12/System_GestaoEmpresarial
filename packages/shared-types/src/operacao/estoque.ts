@@ -132,6 +132,8 @@ export interface SimulacaoCustoMateriais {
 
 export interface Material {
   id: string;
+  /** Controle otimista: devolvido em `If-Match` ao salvar o cadastro. Ver `Cliente.versao`. */
+  versao: number;
   nome: string;
   unidade: UnidadeMaterial;
   /** String decimal com até 3 casas. Pode ser negativa: o consumo não trava a execução. */

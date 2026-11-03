@@ -55,6 +55,8 @@ export interface Servico {
   custoBase: string;
   precoPadrao: string | null;
   ativo: boolean;
+  /** Controle otimista: devolvido em `If-Match` ao salvar. Ver `Cliente.versao`. */
+  versao: number;
   criadoEm: string;
   /** Calculada pela API com `margemPercentual`. `null` sem preço definido. */
   margemPercentual: number | null;

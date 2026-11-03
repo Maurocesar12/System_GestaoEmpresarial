@@ -40,6 +40,8 @@ export type MovimentacaoFormEntrada = z.input<typeof movimentacaoFormSchema>;
 
 export interface Reserva {
   id: string;
+  /** Controle otimista: devolvido em `If-Match` ao salvar. Sobe também a cada aporte e resgate. */
+  versao: number;
   nome: string;
   /** String decimal — nunca `number`, para não perder centavos. */
   valorAtual: string;

@@ -45,6 +45,8 @@ export interface PessoaEquipe {
 
 export interface Funcionario {
   id: string;
+  /** Controle otimista: devolvido em `If-Match` ao salvar. Ver `Cliente.versao`. */
+  versao: number;
   nome: string;
   email: string;
   papel: PapelUsuario;

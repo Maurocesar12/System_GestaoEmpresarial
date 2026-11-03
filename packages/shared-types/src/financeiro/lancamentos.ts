@@ -284,6 +284,12 @@ export interface Lancamento {
   /** O molde que gerou este lançamento, quando veio de uma recorrência. */
   recorrenciaId: string | null;
 
+  /**
+   * Controle otimista: devolvido em `If-Match` ao salvar. Sobe também na baixa
+   * e no estorno. Ver `Cliente.versao`.
+   */
+  versao: number;
+
   criadoEm: string;
 }
 

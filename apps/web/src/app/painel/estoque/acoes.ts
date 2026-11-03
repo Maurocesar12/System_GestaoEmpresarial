@@ -4,11 +4,14 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { Material, SimulacaoCustoMateriais } from '@gestao/shared-types';
 import { traduzirErroAcao, type ResultadoAcao } from '@/lib/acoes';
+import { cabecalhoVersao } from '@/lib/api';
 import { apiComSessao } from '@/lib/api-servidor';
 
+/** `versao`: a que a tela abriu ao editar o cadastro; se mudou, a API recusa com 409. */
 export async function salvarMaterial(
   id: string | null,
   dados: { nome: string; unidade: string; estoqueMinimo: string; ativo: boolean },
+  versao?: number,
 ): Promise<ResultadoAcao> {
   let material: Material;
 
@@ -17,6 +20,7 @@ export async function salvarMaterial(
       id ? `/estoque/materiais/${id}` : '/estoque/materiais',
       {
         method: id ? 'PATCH' : 'POST',
+        headers: id ? cabecalhoVersao(versao) : undefined,
         body: JSON.stringify(dados),
       },
     );
