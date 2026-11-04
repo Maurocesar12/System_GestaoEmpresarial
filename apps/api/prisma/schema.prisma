@@ -77,6 +77,9 @@ enum CanalLembrete {
 
 enum StatusLembrete {
   pendente
+  /// O worker reivindicou o lembrete e está enviando. Cancelar só vale em
+  /// `pendente`: depois da reivindicação o e-mail já pode ter saído.
+  enviando
   enviado
   falhou
   cancelado
@@ -702,6 +705,9 @@ model LembreteFollowUp {
   status StatusLembrete @default(pendente)
 
   dataEnvio DateTime  @map("data_envio")
+  /// Quando o worker reivindicou o lembrete (`enviando`). Nulo nos demais
+  /// estados. É o que permite recuperar um envio cujo processo morreu no meio.
+  iniciadoEm DateTime? @map("iniciado_em")
   enviadoEm DateTime? @map("enviado_em")
   /// Motivo da falha, quando houver. Fica no banco para o suporte conseguir
   /// responder "por que meu cliente não recebeu?".

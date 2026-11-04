@@ -1,14 +1,14 @@
 import type { Job } from 'bullmq';
 import { ErroDeNotificacao } from '../../../../infra/notificacoes/notificador';
 import type { PrismaService } from '../../../../infra/prisma/prisma.service';
-import type { PayloadEnvioLembrete } from './envio.constantes';
+import { TEMPO_MAXIMO_ENVIANDO_MS, type PayloadEnvioLembrete } from './envio.constantes';
 import { LembretesProcessor } from './lembretes.processor';
 
 const TENANT = '0198f1a0-0000-7000-8000-000000000001';
 const LEMBRETE = '0198f1a0-0000-7000-8000-000000000002';
 
 type LembreteCarregado = {
-  status: 'pendente' | 'enviado' | 'falhou' | 'cancelado';
+  status: 'pendente' | 'enviando' | 'enviado' | 'falhou' | 'cancelado';
   canal: 'email' | 'whatsapp';
   cliente: { nome: string; email: string | null };
   tenant: { nome: string };
@@ -25,16 +25,20 @@ const LEMBRETE_PENDENTE: LembreteCarregado = {
  * Monta o processador com banco e notificador de mentira.
  *
  * O `comTenantExplicito` falso apenas repassa a transação simulada. O que
- * interessa nestes testes é a decisão de status — quem envia, quem desiste e
- * quem tenta de novo —, não o caminho até o PostgreSQL, que os testes de
- * integração cobrem.
+ * interessa nestes testes é a decisão de status — quem reivindica, quem envia,
+ * quem desiste e quem tenta de novo —, não o caminho até o PostgreSQL, que os
+ * testes de integração cobrem.
+ *
+ * @param reivindica Se a reivindicação (`pendente -> enviando`) casa uma linha.
+ *   `false` simula o lembrete já cancelado, já enviado ou nas mãos de outro job.
  */
-function criarAmbiente(lembrete: LembreteCarregado | null, erroDeEnvio?: Error) {
+function criarAmbiente(lembrete: LembreteCarregado | null, erroDeEnvio?: Error, reivindica = true) {
   const findUnique = jest.fn(() => Promise.resolve(lembrete));
+  const updateMany = jest.fn(() => Promise.resolve({ count: reivindica ? 1 : 0 }));
   const update = jest.fn(() => Promise.resolve({}));
   const enviar = jest.fn(() => (erroDeEnvio ? Promise.reject(erroDeEnvio) : Promise.resolve()));
 
-  const transacao = { lembreteFollowUp: { findUnique, update } };
+  const transacao = { lembreteFollowUp: { findUnique, updateMany, update } };
 
   const comTenantExplicito = jest.fn(
     (_tenantId: string, operacao: (tx: unknown) => Promise<unknown>) => operacao(transacao),
@@ -48,7 +52,7 @@ function criarAmbiente(lembrete: LembreteCarregado | null, erroDeEnvio?: Error) 
     enviar,
   });
 
-  return { processador, findUnique, update, enviar, comTenantExplicito };
+  return { processador, findUnique, updateMany, update, enviar, comTenantExplicito };
 }
 
 function criarJob(data: Partial<PayloadEnvioLembrete> = {}): Job<PayloadEnvioLembrete> {
@@ -92,27 +96,87 @@ describe('LembretesProcessor', () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it('não reenvia lembrete que já saiu do estado pendente', async () => {
-    // Protege contra job repetido ou atrasado: se alguém cancelou pela tela
-    // nesse meio-tempo, o envio não pode acontecer assim mesmo.
-    const { processador, enviar, update } = criarAmbiente({
-      ...LEMBRETE_PENDENTE,
-      status: 'cancelado',
-    });
+  it('ignora lembrete que não existe mais', async () => {
+    const { processador, enviar, updateMany, update } = criarAmbiente(null);
 
     await processador.process(criarJob());
 
     expect(enviar).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
 
-  it('ignora lembrete que não existe mais', async () => {
-    const { processador, enviar, update } = criarAmbiente(null);
+  describe('reivindicação (pendente -> enviando)', () => {
+    it('reivindica antes de enviar, num único UPDATE condicional', async () => {
+      const { processador, updateMany, enviar } = criarAmbiente(LEMBRETE_PENDENTE);
+      const ordem: string[] = [];
+      updateMany.mockImplementation(() => {
+        ordem.push('reivindica');
+        return Promise.resolve({ count: 1 });
+      });
+      enviar.mockImplementation(() => {
+        ordem.push('envia');
+        return Promise.resolve();
+      });
 
-    await processador.process(criarJob());
+      await processador.process(criarJob());
 
-    expect(enviar).not.toHaveBeenCalled();
-    expect(update).not.toHaveBeenCalled();
+      expect(ordem).toEqual(['reivindica', 'envia']);
+      expect(updateMany).toHaveBeenCalledWith({
+        where: {
+          id: LEMBRETE,
+          OR: [
+            { status: 'pendente' },
+            {
+              status: 'enviando',
+              OR: [{ iniciadoEm: null }, { iniciadoEm: { lt: expect.any(Date) } }],
+            },
+          ],
+        },
+        data: { status: 'enviando', iniciadoEm: expect.any(Date) },
+      });
+    });
+
+    it('perdeu a reivindicação (cancelado, já enviado ou em outro job): não envia nada', async () => {
+      // O caso que o status "enviando" existe para cobrir: dois jobs do mesmo
+      // lembrete, ou um cancelamento que chegou antes. Quem perde não envia e
+      // não grava desfecho nenhum.
+      const { processador, enviar, update } = criarAmbiente(
+        { ...LEMBRETE_PENDENTE, status: 'cancelado' },
+        undefined,
+        false,
+      );
+
+      await processador.process(criarJob());
+
+      expect(enviar).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('só retoma um "enviando" depois do prazo de travado', async () => {
+      const { processador, updateMany } = criarAmbiente({
+        ...LEMBRETE_PENDENTE,
+        status: 'enviando',
+      });
+      const antes = Date.now();
+
+      await processador.process(criarJob());
+
+      const { where } = (
+        updateMany.mock.calls[0] as unknown as [
+          {
+            where: {
+              OR: Array<{ status: string; OR?: Array<{ iniciadoEm?: { lt: Date } | null }> }>;
+            };
+          },
+        ]
+      )[0];
+      const limite = where.OR[1]!.OR![1]!.iniciadoEm as { lt: Date };
+
+      // O corte é "agora menos o prazo": um envio em curso (poucos segundos) fica de fora.
+      expect(limite.lt.getTime()).toBeLessThanOrEqual(antes - TEMPO_MAXIMO_ENVIANDO_MS + 1000);
+      expect(limite.lt.getTime()).toBeGreaterThan(antes - TEMPO_MAXIMO_ENVIANDO_MS - 5000);
+    });
   });
 
   it('marca WhatsApp como falha explicando que o canal não está disponível', async () => {
@@ -141,9 +205,9 @@ describe('LembretesProcessor', () => {
     expect(ultimaGravacao(update)).toMatchObject({ status: 'falhou' });
   });
 
-  it('mantém pendente e relança quando o erro é temporário', async () => {
+  it('devolve a pendente e relança quando o erro é temporário', async () => {
     // Relançar é o que faz o BullMQ contar a tentativa e reagendar com espera.
-    // O lembrete segue pendente para a varredura poder retomá-lo depois.
+    // Voltar a `pendente` é o que deixa o retry reivindicar o lembrete de novo.
     const { processador, update } = criarAmbiente(
       LEMBRETE_PENDENTE,
       new ErroDeNotificacao('Servidor SMTP indisponível.', false),
@@ -151,28 +215,43 @@ describe('LembretesProcessor', () => {
 
     await expect(processador.process(criarJob())).rejects.toThrow(/SMTP/);
 
+    expect(ultimaGravacao(update)).toMatchObject({ status: 'pendente', iniciadoEm: null });
+  });
+
+  it('um erro ao montar a mensagem não deixa o lembrete preso em "enviando"', async () => {
+    // Depois da reivindicação, qualquer falha precisa chegar a um estado
+    // resolvido. Sem o `try` em volta da montagem, o lembrete só se resolveria
+    // pela recuperação de travados, quinze minutos depois.
+    const { processador, update } = criarAmbiente({
+      ...LEMBRETE_PENDENTE,
+      cliente: null as never,
+    });
+
+    await expect(processador.process(criarJob())).rejects.toThrow();
+
     expect(ultimaGravacao(update)).toMatchObject({ status: 'pendente' });
   });
 
-  describe('quando o lembrete deixa de estar pendente durante o envio', () => {
-    // O usuário cancelou pela tela depois da checagem e antes da gravação. O
-    // `where` com `status: 'pendente'` faz a gravação não casar (P2025).
+  describe('o desfecho só vale enquanto este job é dono do lembrete', () => {
+    // O cancelamento não chega mais aqui (só cancela `pendente`). O que faz a
+    // gravação não casar (P2025) é o lembrete ter sido excluído ou retomado por
+    // outro job depois de parecer travado.
     const nenhumaLinha = () => Object.assign(new Error('Record not found'), { code: 'P2025' });
 
-    it('grava o desfecho só enquanto o lembrete segue pendente', async () => {
+    it('grava o desfecho só enquanto o lembrete segue "enviando", e limpa o início', async () => {
       const { processador, update } = criarAmbiente(LEMBRETE_PENDENTE);
 
       await processador.process(criarJob());
 
       expect(update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: LEMBRETE, status: 'pendente' } }),
+        expect.objectContaining({
+          where: { id: LEMBRETE, status: 'enviando' },
+          data: expect.objectContaining({ iniciadoEm: null }),
+        }),
       );
     });
 
-    it('não ressuscita um lembrete cancelado no meio de uma falha temporária', async () => {
-      // Regravar "pendente" por cima de "cancelado" faria o retry do BullMQ
-      // enviar o que o usuário cancelou. O erro original do envio continua
-      // subindo para o BullMQ; o que não pode acontecer é o P2025 mascará-lo.
+    it('não grava por cima de um lembrete retomado, e o erro do envio continua subindo', async () => {
       const { processador, update } = criarAmbiente(
         LEMBRETE_PENDENTE,
         new ErroDeNotificacao('Servidor SMTP indisponível.', false),
@@ -182,7 +261,7 @@ describe('LembretesProcessor', () => {
       await expect(processador.process(criarJob())).rejects.toThrow(/SMTP/);
     });
 
-    it('não falha o job quando o envio deu certo mas o lembrete já foi cancelado', async () => {
+    it('não falha o job quando o envio deu certo mas o lembrete foi excluído', async () => {
       const { processador, enviar, update } = criarAmbiente(LEMBRETE_PENDENTE);
       update.mockRejectedValue(nenhumaLinha());
 

@@ -28,11 +28,13 @@ let tenantB: string;
 let pendenteA: string;
 let pendenteB: string;
 let canceladoA: string;
+let enviandoA: string;
+let enviadoA: string;
 
 /** Cria um cliente e um lembrete dentro do escopo da empresa informada. */
 async function criarLembrete(
   tenantId: string,
-  status: 'pendente' | 'cancelado',
+  status: 'pendente' | 'enviando' | 'enviado' | 'cancelado',
   dataEnvio: Date,
 ): Promise<string> {
   return prisma.comTenantExplicito(tenantId, async (tx) => {
@@ -83,6 +85,8 @@ beforeAll(async () => {
   pendenteA = await criarLembrete(tenantA, 'pendente', ontem);
   pendenteB = await criarLembrete(tenantB, 'pendente', ontem);
   canceladoA = await criarLembrete(tenantA, 'cancelado', ontem);
+  enviandoA = await criarLembrete(tenantA, 'enviando', ontem);
+  enviadoA = await criarLembrete(tenantA, 'enviado', ontem);
 });
 
 afterAll(async () => {
@@ -133,12 +137,21 @@ describe('política lembrete_varredura', () => {
     expect(visiveis).toEqual(expect.arrayContaining([pendenteA, pendenteB]));
   });
 
-  it('não expõe lembrete que já saiu do estado pendente', async () => {
-    // O `USING` da política restringe a `status = 'pendente'`; o histórico de
-    // enviados, falhados e cancelados continua fora de alcance.
+  it('deixa a varredura enxergar também os que estão enviando, para recuperar os travados', async () => {
+    // Um processo que morre entre a reivindicação e o desfecho deixa o lembrete
+    // em "enviando". Sem enxergá-lo, a varredura nunca o retomaria.
+    const visiveis = await idsVisiveisSemContexto();
+
+    expect(visiveis).toContain(enviandoA);
+  });
+
+  it('não expõe lembrete já resolvido (enviado, falhado ou cancelado)', async () => {
+    // O `USING` da política restringe a pendente e enviando; o histórico
+    // continua fora de alcance.
     const visiveis = await idsVisiveisSemContexto();
 
     expect(visiveis).not.toContain(canceladoA);
+    expect(visiveis).not.toContain(enviadoA);
   });
 
   it('não vaza o lembrete de uma empresa para outra empresa logada', async () => {

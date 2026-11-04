@@ -11,6 +11,15 @@ export const FILA_LEMBRETES = 'lembretes';
 export const JOB_ENVIAR_LEMBRETE = 'enviar-lembrete';
 
 /**
+ * Quanto tempo um lembrete pode ficar `enviando` antes de se considerar que o
+ * processo que o reivindicou morreu. Muito acima do tempo de um envio de
+ * e-mail (segundos): serve só para recuperar o que travou. Passado o prazo, o
+ * lembrete é reenviado — se o processo original só estava lento, o cliente pode
+ * receber duas vezes, e isso é preferível a nunca receber.
+ */
+export const TEMPO_MAXIMO_ENVIANDO_MS = 15 * 60 * 1000;
+
+/**
  * O que viaja no job.
  *
  * O `tenantId` é obrigatório e não é um detalhe: o worker roda fora de qualquer

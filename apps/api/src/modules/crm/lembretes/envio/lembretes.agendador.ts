@@ -3,7 +3,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Queue } from 'bullmq';
 import { PrismaService } from '../../../../infra/prisma/prisma.service';
-import { FILA_LEMBRETES, JOB_ENVIAR_LEMBRETE, type PayloadEnvioLembrete } from './envio.constantes';
+import {
+  FILA_LEMBRETES,
+  JOB_ENVIAR_LEMBRETE,
+  TEMPO_MAXIMO_ENVIANDO_MS,
+  type PayloadEnvioLembrete,
+} from './envio.constantes';
 
 /**
  * Teto de lembretes enfileirados por passagem.
@@ -67,24 +72,40 @@ export class LembretesAgendador {
   }
 
   /**
-   * Lembretes pendentes cuja hora já passou, de todas as empresas.
+   * Lembretes pendentes cuja hora já passou, de todas as empresas — e os que
+   * travaram em `enviando` (o processo que os reivindicou morreu antes do
+   * desfecho e passou de `TEMPO_MAXIMO_ENVIANDO_MS`), para o worker retomá-los.
    *
    * Roda sem contexto de tenant — é a única consulta do sistema que precisa
    * enxergar várias empresas ao mesmo tempo. Quem permite isso é a política
-   * `lembrete_varredura` (migration `20260831120000_lembrete_varredura`), que
-   * libera **só leitura**, **só sem contexto** e **só de linhas pendentes**.
+   * `lembrete_varredura` (migration `20260831120000_lembrete_varredura`, ajustada
+   * em `20261103191000_lembrete_enviando`), que libera **só leitura**, **só
+   * sem contexto** e **só de linhas pendentes ou enviando**.
    *
    * Por isso o `select` traz apenas `id` e `tenantId`: é o suficiente para
    * montar o job, e todo o resto — nome e e-mail do cliente, gravação do
    * resultado — o worker lê já dentro do escopo da empresa.
    */
   private buscarVencidos(): Promise<{ id: string; tenantId: string }[]> {
+    const agora = new Date();
+    const limiteTravado = new Date(agora.getTime() - TEMPO_MAXIMO_ENVIANDO_MS);
+
     return this.prisma.comVarredura(
       'lembretes',
       'varredura de lembretes vencidos: roda fora de requisição e precisa enxergar todas as empresas',
       (cliente) =>
         cliente.lembreteFollowUp.findMany({
-          where: { status: 'pendente', dataEnvio: { lte: new Date() } },
+          where: {
+            OR: [
+              { status: 'pendente', dataEnvio: { lte: agora } },
+              // Travado: sem `iniciadoEm` não dá para saber há quanto tempo, e
+              // o mais seguro é retomar.
+              {
+                status: 'enviando',
+                OR: [{ iniciadoEm: null }, { iniciadoEm: { lt: limiteTravado } }],
+              },
+            ],
+          },
           select: { id: true, tenantId: true },
           orderBy: { dataEnvio: 'asc' },
           take: LIMITE_POR_VARREDURA,

@@ -5,7 +5,11 @@ import { ROTULO_CANAL_LEMBRETE } from '@gestao/shared-types';
 import { nenhumaLinhaCasou } from '../../../../common/concorrencia';
 import { ErroDeNotificacao, Notificador } from '../../../../infra/notificacoes/notificador';
 import { PrismaService } from '../../../../infra/prisma/prisma.service';
-import { FILA_LEMBRETES, type PayloadEnvioLembrete } from './envio.constantes';
+import {
+  FILA_LEMBRETES,
+  TEMPO_MAXIMO_ENVIANDO_MS,
+  type PayloadEnvioLembrete,
+} from './envio.constantes';
 import { montarMensagemLembrete } from './mensagem-lembrete';
 
 /**
@@ -47,10 +51,15 @@ export class LembretesProcessor extends WorkerHost {
       return;
     }
 
-    // Reconferido aqui, e não só na varredura: entre uma coisa e outra alguém
-    // pode ter cancelado o lembrete pela tela. É esta checagem que garante que
-    // um job repetido ou atrasado não reenvie o que já saiu.
-    if (lembrete.status !== 'pendente') {
+    // Reivindica antes de enviar: `pendente -> enviando` num único UPDATE
+    // condicional. Ler o status e enviar em seguida deixava uma janela em que
+    // alguém cancelava pela tela e o e-mail saía assim mesmo; e dois jobs do
+    // mesmo lembrete (retry, varredura repetida) passavam juntos pela leitura.
+    // Quem perde a reivindicação não envia nada. Depois dela, o cancelamento
+    // deixa de valer (só cancela `pendente`), então "enviado" é sempre verdade.
+    const reivindicado = await this.reivindicar(tenantId, lembreteId);
+
+    if (!reivindicado) {
       this.logger.log(`Lembrete ${lembreteId} já está "${lembrete.status}" — envio ignorado.`);
       return;
     }
@@ -67,13 +76,15 @@ export class LembretesProcessor extends WorkerHost {
       return;
     }
 
-    const mensagem = montarMensagemLembrete({
-      clienteNome: lembrete.cliente.nome,
-      clienteEmail: lembrete.cliente.email,
-      empresaNome: lembrete.tenant.nome,
-    });
-
     try {
+      // Dentro do `try`: depois da reivindicação, qualquer falha precisa devolver
+      // o lembrete a um estado resolvido, senão ele ficaria `enviando`.
+      const mensagem = montarMensagemLembrete({
+        clienteNome: lembrete.cliente.nome,
+        clienteEmail: lembrete.cliente.email,
+        empresaNome: lembrete.tenant.nome,
+      });
+
       await this.notificador.enviar(mensagem);
     } catch (erro) {
       await this.tratarFalhaDeEnvio(tenantId, lembreteId, erro);
@@ -83,9 +94,9 @@ export class LembretesProcessor extends WorkerHost {
 
     // Gravado logo após o envio para encurtar ao máximo a janela em que a
     // mensagem já saiu mas o banco ainda não sabe. Se o processo morrer
-    // exatamente aqui, o lembrete continua pendente e será enviado de novo —
-    // duplicar um lembrete é ruim, mas é menos grave do que dar como enviado
-    // algo que nunca saiu.
+    // exatamente aqui, o lembrete fica `enviando` e, passado
+    // `TEMPO_MAXIMO_ENVIANDO_MS`, a varredura o reenvia — duplicar um lembrete
+    // é ruim, mas é menos grave do que dar como enviado algo que nunca saiu.
     await this.registrarDesfecho(tenantId, lembreteId, {
       status: 'enviado',
       enviadoEm: new Date(),
@@ -100,8 +111,8 @@ export class LembretesProcessor extends WorkerHost {
    *
    * A separação vem do `ErroDeNotificacao`: falha permanente (endereço
    * inválido, cliente sem e-mail) não melhora com repetição e encerra o
-   * lembrete como `falhou`. Falha temporária mantém o lembrete `pendente`, com
-   * o motivo registrado, e o erro sobe para o BullMQ tentar de novo.
+   * lembrete como `falhou`. Falha temporária devolve o lembrete a `pendente`,
+   * com o motivo registrado, e o erro sobe para o BullMQ tentar de novo.
    */
   private async tratarFalhaDeEnvio(
     tenantId: string,
@@ -144,17 +155,47 @@ export class LembretesProcessor extends WorkerHost {
     );
   }
 
+  /**
+   * `pendente -> enviando`, ou retoma um `enviando` que travou (o processo que o
+   * reivindicou morreu e passou de `TEMPO_MAXIMO_ENVIANDO_MS`). `true` se este
+   * job ficou com o lembrete.
+   */
+  private async reivindicar(tenantId: string, lembreteId: string): Promise<boolean> {
+    const agora = new Date();
+    const limite = new Date(agora.getTime() - TEMPO_MAXIMO_ENVIANDO_MS);
+
+    const { count } = await this.prisma.comTenantExplicito(tenantId, (tx) =>
+      tx.lembreteFollowUp.updateMany({
+        where: {
+          id: lembreteId,
+          OR: [
+            { status: 'pendente' },
+            { status: 'enviando', OR: [{ iniciadoEm: null }, { iniciadoEm: { lt: limite } }] },
+          ],
+        },
+        data: { status: 'enviando', iniciadoEm: agora },
+      }),
+    );
+
+    return count === 1;
+  }
+
   private async registrarDesfecho(
     tenantId: string,
     lembreteId: string,
     dados: { status: 'pendente' | 'enviado' | 'falhou'; enviadoEm?: Date; erro: string | null },
   ): Promise<void> {
     try {
-      // Só grava enquanto o lembrete segue pendente. Se alguém o cancelou
-      // durante o envio, regravar "pendente" numa falha temporária o
-      // ressuscitaria — e o retry do BullMQ enviaria o que o usuário cancelou.
+      // Só grava enquanto o lembrete segue `enviando`, ou seja, enquanto este
+      // job é o dono dele. O cancelamento não passa mais por aqui (só cancela
+      // `pendente`); o que faz o `where` não casar é o lembrete ter sido
+      // excluído (cliente apagado) ou retomado por outro job depois de parecer
+      // travado. Em qualquer dos dois, regravar por cima seria errado.
       await this.prisma.comTenantExplicito(tenantId, (tx) =>
-        tx.lembreteFollowUp.update({ where: { id: lembreteId, status: 'pendente' }, data: dados }),
+        tx.lembreteFollowUp.update({
+          where: { id: lembreteId, status: 'enviando' },
+          data: { ...dados, iniciadoEm: null },
+        }),
       );
     } catch (erro) {
       if (!nenhumaLinhaCasou(erro)) {
@@ -162,7 +203,7 @@ export class LembretesProcessor extends WorkerHost {
       }
 
       this.logger.warn(
-        `Lembrete ${lembreteId} deixou de estar pendente durante o envio (cancelado ou excluído) — desfecho "${dados.status}" não gravado.`,
+        `Lembrete ${lembreteId} deixou de estar "enviando" antes do desfecho (excluído ou retomado por outro envio) — desfecho "${dados.status}" não gravado.`,
       );
     }
   }

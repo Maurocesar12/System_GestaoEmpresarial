@@ -113,21 +113,24 @@ export class LembretesService {
       if (atual.status !== 'pendente') {
         throw new BadRequestException({
           codigo: CODIGOS_ERRO.CONFLITO,
-          mensagem: `Lembrete ${ROTULO_STATUS_LEMBRETE[
-            atual.status
-          ].toLowerCase()} não pode ser cancelado.`,
+          mensagem:
+            atual.status === 'enviando'
+              ? 'Este lembrete está sendo enviado agora e não pode mais ser cancelado.'
+              : `Lembrete ${ROTULO_STATUS_LEMBRETE[atual.status].toLowerCase()} não pode ser cancelado.`,
         });
       }
 
-      // Se o worker enviou entre a leitura e esta gravação, cancelar
-      // sobrescreveria "enviado" e a tela diria que o e-mail não saiu.
+      // Só cancela `pendente`. O worker reivindica o lembrete (pendente ->
+      // enviando) antes de enviar, então, se o `where` não casa, ele já está a
+      // caminho — ou saiu — e cancelar agora mentiria: o e-mail chegaria ao
+      // cliente com a tela dizendo "cancelado".
       return gravarSeNaoMudou(
         tx.lembreteFollowUp.update({
           where: { id, status: 'pendente' },
           data: { status: 'cancelado' },
           include: INCLUDE_PADRAO,
         }),
-        'Este lembrete já foi enviado ou alterado por outra pessoa e não pode mais ser cancelado. Atualize a tela.',
+        'Este lembrete já está sendo enviado ou foi alterado por outra pessoa e não pode mais ser cancelado. Atualize a tela.',
       );
     });
 
