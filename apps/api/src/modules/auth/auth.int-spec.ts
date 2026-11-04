@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { JANELA_TOLERANCIA_MS } from './refresh-token.service';
 import { concluirDoisFatores, entrarComDoisFatores } from '../../testes/dois-fatores';
 import { codigoDoPasso, passoAtual } from './dois-fatores/totp';
 
@@ -238,7 +239,28 @@ describe('autenticação (HTTP)', () => {
       expect(resposta.body.accessToken).toEqual(expect.any(String));
     });
 
-    it('derruba todas as sessões quando um token é reutilizado', async () => {
+    it('dentro da janela de tolerância, o token recém-trocado ainda vale (duas abas renovando juntas)', async () => {
+      const sessao = await entrarComDoisFatores(app.getHttpServer(), email, senha);
+
+      await request(app.getHttpServer())
+        .post('/api/auth/refresh')
+        .send({ refreshToken: sessao.refreshToken })
+        .expect(200);
+
+      // A segunda aba chega logo depois com o mesmo token: não é roubo, e a
+      // sessão segue em vez de derrubar o usuário.
+      const { body: segunda } = await request(app.getHttpServer())
+        .post('/api/auth/refresh')
+        .send({ refreshToken: sessao.refreshToken })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/auth/refresh')
+        .send({ refreshToken: segunda.refreshToken })
+        .expect(200);
+    });
+
+    it('derruba todas as sessões quando um token é reutilizado depois da janela', async () => {
       const sessao = await entrarComDoisFatores(app.getHttpServer(), email, senha);
 
       const { body: renovada } = await request(app.getHttpServer())
@@ -246,7 +268,17 @@ describe('autenticação (HTTP)', () => {
         .send({ refreshToken: sessao.refreshToken })
         .expect(200);
 
-      // Apresentar o token antigo de novo só acontece se ele foi copiado.
+      // Recua a rotação para antes da janela de tolerância: é o que acontece
+      // quando um token copiado é usado mais tarde, e não por outra aba.
+      const antesDaJanela = new Date(Date.now() - JANELA_TOLERANCIA_MS - 5_000);
+      await prisma.comTenantExplicito(sessao.usuario.tenantId, (tx) =>
+        tx.refreshToken.updateMany({
+          where: { usuarioId: sessao.usuario.id, rotacionadoEm: { not: null } },
+          data: { rotacionadoEm: antesDaJanela, revogadoEm: antesDaJanela },
+        }),
+      );
+
+      // Apresentar o token antigo de novo, fora da janela, só acontece se ele foi copiado.
       await request(app.getHttpServer())
         .post('/api/auth/refresh')
         .send({ refreshToken: sessao.refreshToken })

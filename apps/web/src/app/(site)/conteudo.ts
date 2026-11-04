@@ -1,15 +1,13 @@
+import { DIAS_PARA_EXCLUIR_CONTA_CANCELADA } from '@gestao/shared-types';
 import {
   Bell,
-  Boxes,
-  CalendarDays,
-  Camera,
+  CalendarCheck,
   Contact,
+  Database,
   FileText,
   KanbanSquare,
-  MessageSquareText,
-  Sparkles,
-  TrendingUp,
-  Users,
+  KeyRound,
+  ShieldCheck,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
@@ -25,13 +23,13 @@ import {
  *
  * Quem lê esta página é dono de oficina, de clínica pequena, de empresa de
  * manutenção. Ele não procura "gestão integrada de processos": procura saber se
- * o mês fechou no azul e por que aquele orçamento não voltou. Por isso o texto
- * evita palavra de catálogo de software e descreve situação — o que acontece
- * hoje, e o que passa a acontecer.
+ * o mês fechou no azul e por que aquele orçamento não voltou. O tom é o de um
+ * sócio experiente: frases curtas, situações reais, nenhuma palavra de catálogo
+ * de software.
  *
- * Termo de finanças ou de sistema ("margem", "fluxo de caixa", "pró-labore",
- * "CRM") aparece sempre com a explicação por perto. O leitor que não conhece a
- * palavra não pergunta: fecha a aba.
+ * Termo de finanças ("margem", "fluxo de caixa") aparece sempre com a
+ * explicação por perto — aqui, em `TERMOS`, que a página mostra num balão. O
+ * leitor que não conhece a palavra não pergunta: fecha a aba.
  *
  * ## Regra: só afirme o que o código faz
  *
@@ -43,71 +41,165 @@ import {
  *
  * Antes de escrever "o sistema faz X sozinho", confira no serviço que faz X.
  * Os exemplos de `JORNADA` seguem o que `OrcamentosService`,
- * `AgendamentosService` e `FinanceiroService` realmente executam.
+ * `AgendamentosService` e `FinanceiroService` realmente executam; as etapas do
+ * funil de demonstração são as que o cadastro cria (`ETAPAS_FUNIL_PADRAO`).
+ *
+ * Números de demonstração (mockups e funil) são de exemplo e a página diz isso.
+ * Mesmo assim eles **fecham entre si**: o que é soma é calculado, não digitado.
  */
 
-export interface Recurso {
-  icone: LucideIcon;
-  titulo: string;
-  /** A dúvida do dono, nas palavras dele — o gancho que faz ele querer ler o resto. */
-  pergunta: string;
-  descricao: string;
+export function reais(valor: number): string {
+  return `R$ ${valor.toLocaleString('pt-BR')}`;
 }
 
-export const RECURSOS: readonly Recurso[] = [
+// ─── Hero ───────────────────────────────────────────────────────────────────
+
+export const HERO = {
+  rotulo: 'Para quem vende serviço',
+  /** O título tem duas partes: a segunda vai em itálico, na cor de acento. */
+  titulo: 'Saiba quanto sobra de cada serviço.',
+  enfase: 'Sem planilha.',
+  subtitulo:
+    'Clientes, orçamentos, agenda e dinheiro num lugar só. O que você registra num canto já aparece nos outros.',
+  chamada: 'Testar grátis por 14 dias',
+  secundaria: 'Ver como funciona',
+  garantias: ['14 dias grátis', 'Sem cartão de crédito', 'Cancele quando quiser'],
+} as const;
+
+/**
+ * Para quem é. Os mesmos negócios que a resposta "Funciona para o meu tipo de
+ * negócio?" cita — a página não pode prometer um público na faixa e outro na
+ * dúvida.
+ */
+export const PARA_QUEM = {
+  rotulo: 'Feito para',
+  negocios: ['Oficinas', 'Clínicas', 'Assistências técnicas', 'Instaladores'],
+  complemento: 'E todo negócio que faz orçamento, marca horário e volta a falar com o cliente.',
+} as const;
+
+// ─── Cabeçalhos das seções ─────────────────────────────────────────────────
+
+/** Título de seção em duas partes: a `enfase` vai em itálico, na cor de acento. */
+export interface CabecalhoDeSecao {
+  rotulo: string;
+  titulo: string;
+  enfase: string;
+  intro?: string;
+}
+
+export const SECOES = {
+  comoFunciona: {
+    rotulo: 'Como funciona',
+    titulo: 'Três passos.',
+    enfase: 'Nenhuma planilha.',
+    intro:
+      'O que você registra numa etapa já é usado nas seguintes. É por isso que a conta fecha sozinha.',
+  },
+  pontaAPonta: {
+    rotulo: 'De ponta a ponta',
+    titulo: 'Siga um serviço, do telefonema à',
+    enfase: 'conta fechada.',
+    // Sem o valor aqui: ele aparece na primeira etapa, vindo de `CONTA_DO_EXEMPLO`.
+    intro:
+      'A Maria quer instalar um ar-condicionado. Role a página e veja, etapa por etapa, onde o sistema trabalha por você.',
+  },
+  funil: {
+    rotulo: 'Na prática',
+    titulo: 'Arraste um cliente.',
+    enfase: 'A conta acompanha.',
+    intro:
+      'Este é o quadro de negociações, com etapas que o sistema já cria para você. Mova os clientes e veja os totais mudarem.',
+  },
+  recursos: {
+    rotulo: 'O dia a dia',
+    titulo: 'Seis situações que você conhece.',
+    enfase: 'Resolvidas.',
+  },
+  seguranca: {
+    rotulo: 'Segurança',
+    titulo: 'Seus dados são só seus.',
+    enfase: 'Testado, não prometido.',
+    intro:
+      'A separação entre empresas foi construída antes de qualquer tela, e é verificada por testes que tentam violá-la.',
+  },
+  planos: {
+    rotulo: 'Preço',
+    titulo: 'Dois planos.',
+    enfase: 'Sem letra miúda.',
+    intro: 'Os 14 dias de teste valem para os dois, com tudo do plano escolhido.',
+  },
+  duvidas: {
+    rotulo: 'Dúvidas',
+    titulo: 'O que costumam perguntar',
+    enfase: 'antes de testar.',
+    intro: 'Respostas diretas, inclusive sobre o que o sistema não faz.',
+  },
+} as const satisfies Record<string, CabecalhoDeSecao>;
+
+// ─── Termos explicados num balão ───────────────────────────────────────────
+
+/**
+ * As definições são as mesmas do botão "?" do painel (`lib/glossario.ts`),
+ * em tom de conversa. Se uma fórmula mudar no sistema, mude nos dois lugares.
+ */
+export const TERMOS = {
+  margem: {
+    rotulo: 'margem',
+    explicacao:
+      'O que sobra de um serviço depois de pagar o que ele custou. Cobrou R$ 100 e gastou R$ 40? A margem é R$ 60, ou 60%.',
+  },
+  fluxoDeCaixa: {
+    rotulo: 'fluxo de caixa',
+    explicacao:
+      'O vaivém do dinheiro: quanto entrou e quanto saiu num período. Não é lucro, nem o saldo do banco.',
+  },
+} as const;
+
+export type ChaveTermo = keyof typeof TERMOS;
+
+/** Texto com termos explicados no meio: cada pedaço é texto ou um termo. */
+export type TextoComTermos = readonly (string | { termo: ChaveTermo })[];
+
+// ─── Como funciona: três passos ────────────────────────────────────────────
+
+export interface Passo {
+  titulo: string;
+  descricao: TextoComTermos;
+}
+
+export const PASSOS: readonly Passo[] = [
   {
-    icone: Contact,
-    titulo: 'Seus clientes num lugar só',
-    pergunta: '“O que eu combinei com ele da última vez?”',
-    descricao:
-      'Cada cliente tem uma ficha com tudo o que já aconteceu: serviços feitos, valores, datas e as conversas que você anotou. Antes de ligar, você lê o histórico em dez segundos, sem caçar mensagem antiga nem folhear caderno.',
+    titulo: 'Cadastre clientes e serviços',
+    descricao: [
+      'Do cliente, só o nome é obrigatório. Já tem tudo numa planilha? O sistema importa, confere e pula os repetidos.',
+    ],
   },
   {
-    icone: KanbanSquare,
-    titulo: 'Nenhuma negociação esquecida',
-    pergunta: '“Aquele orçamento deu em quê?”',
-    descricao:
-      'Um quadro mostra cada cliente na etapa em que está, do primeiro contato ao fechamento, como post-its numa parede, só que organizados. Quem está parado há 7 dias ou mais ganha destaque, e o painel avisa.',
+    titulo: 'Orce, agende e execute',
+    descricao: [
+      'O orçamento leva o cliente pelo quadro de negociações sozinho. Um clique em “executado” registra o serviço e tira do estoque o material usado.',
+    ],
   },
   {
-    icone: FileText,
-    titulo: 'Orçamentos que atualizam o quadro sozinhos',
-    pergunta: '“Esqueci de mudar o cliente de etapa.”',
-    descricao:
-      'Você faz o orçamento e o cliente já vai para a etapa de proposta enviada. Quando ele aceita e você marca como aprovado, vai para fechado e o valor entra nos seus números do mês. Ninguém precisa arrastar cartão à mão.',
-  },
-  {
-    icone: CalendarDays,
-    titulo: 'Do serviço marcado ao serviço registrado',
-    pergunta: '“Fiz o serviço… e agora tenho que lançar tudo de novo?”',
-    descricao:
-      'Você marca o serviço na agenda, com cliente, dia e hora. Depois de feito, um clique em “executado” registra o atendimento no histórico do cliente, tira do estoque o material usado e, se você quiser, já lança o dinheiro recebido.',
-  },
-  {
-    icone: Bell,
-    titulo: 'O retorno acontece no dia certo',
-    pergunta: '“Prometi ligar de novo e passou um mês.”',
-    descricao:
-      'Você marca a data do próximo contato. Nesse dia, o sistema envia um e-mail ao cliente (que tenha e-mail cadastrado), em nome da sua empresa, e o painel mostra o que está pendente ou atrasado, e você não depende da memória.',
-  },
-  {
-    icone: Wallet,
-    titulo: 'Você descobre o que dá lucro',
-    pergunta: '“Qual serviço meu realmente compensa?”',
-    descricao:
-      'O dinheiro que entra e o que sai ficam ligados ao serviço que os gerou. Assim o sistema separa o que cada serviço rendeu do que ele custou, como material, comissão e despesas, e mostra quais deixam mais sobra, sem você montar planilha.',
+    titulo: 'Veja quanto sobrou',
+    descricao: [
+      'O financeiro já mostra a ',
+      { termo: 'margem' },
+      ' de cada serviço e o ',
+      { termo: 'fluxoDeCaixa' },
+      ' do período. Ninguém monta relatório no fim do mês.',
+    ],
   },
 ];
+
+// ─── Um serviço de ponta a ponta ───────────────────────────────────────────
 
 /**
  * O exemplo que atravessa a página: um serviço, do telefonema à conta fechada.
  *
- * Os mesmos números alimentam a jornada, o quadro de resultado e a conta final.
  * A sobra e o percentual **saem da soma** abaixo, e não são digitados: se
  * alguém trocar o valor do material e esquecer de ajustar o resto, os textos
- * continuam fechando. É o mesmo cuidado do `PainelResultado`, e pelo mesmo
- * motivo — uma página que diz "a conta se faz sozinha" não pode ter a conta
- * errada.
+ * continuam fechando.
  *
  * Os três custos correspondem às três fontes que o relatório de margem soma de
  * verdade: o material que baixou do estoque, a comissão e as despesas
@@ -123,10 +215,6 @@ export const CONTA_DO_EXEMPLO = {
   ],
 } as const;
 
-export function reais(valor: number): string {
-  return `R$ ${valor.toLocaleString('pt-BR')}`;
-}
-
 export function resumirContaDoExemplo() {
   const custo = CONTA_DO_EXEMPLO.custos.reduce((soma, item) => soma + item.valor, 0);
   const sobra = CONTA_DO_EXEMPLO.receita - custo;
@@ -139,326 +227,344 @@ export function resumirContaDoExemplo() {
 }
 
 export interface EtapaDaJornada {
+  /** Uma palavra, para a linha do tempo. */
+  etapa: string;
   titulo: string;
-  /** Uma linha, visível com a etapa fechada: o que desperta a vontade de abrir. */
-  chamada: string;
   voceFaz: string;
   sistemaFaz: string;
-  voceVe: string;
   /** Mostra a conta da sobra, linha a linha, no fim da etapa. */
   mostraConta?: boolean;
 }
 
 const RECEITA = reais(CONTA_DO_EXEMPLO.receita);
-const CONTA = resumirContaDoExemplo();
 
 /**
  * A história de ponta a ponta, na ordem em que acontece.
  *
- * Cada etapa responde às três perguntas de quem está avaliando o sistema: *o
- * que eu vou ter que fazer?*, *o que ele faz por mim?* e *o que eu ganho com
- * isso?*. A segunda é a que vende — e por isso cada frase dela corresponde a
- * algo que o código executa (veja a nota sobre veracidade, no topo).
- *
  * Detalhes que a história respeita de propósito:
  *
- * - **Aprovar não agenda.** O horário é marcado por quem usa; a etapa 3 existe
- *   justamente para não sugerir o contrário.
+ * - **Aprovar não agenda.** O horário é marcado por quem usa; a etapa "Agenda"
+ *   existe justamente para não sugerir o contrário.
  * - **O recebimento é opcional ao executar.** Quem executa pode não ter acesso
- *   ao financeiro; por isso o texto diz "informa se foi recebido", e não que o
- *   dinheiro é lançado sempre.
+ *   ao financeiro; por isso o texto diz "informa se foi recebido".
  * - **A despesa de combustível é lançada por quem paga.** O sistema não
  *   adivinha gasto: só soma o que está ligado ao serviço.
  */
 export const JORNADA: readonly EtapaDaJornada[] = [
   {
+    etapa: 'Orçamento',
     titulo: 'A Maria liga pedindo uma instalação',
-    chamada: 'Você anota quem ela é e quanto vai cobrar.',
-    voceFaz: `Cadastra a Maria, só o nome é obrigatório, e faz o orçamento de ${RECEITA} para a instalação do ar-condicionado.`,
-    sistemaFaz: `Coloca a Maria no quadro de negociações, na etapa de proposta enviada, e soma os ${RECEITA} ao total que você tem em negociação.`,
-    voceVe: `No painel inicial, “Em negociação” sobe ${RECEITA}. Você não precisou atualizar nenhuma outra tela.`,
+    voceFaz: `Cadastra a Maria e faz o orçamento de ${RECEITA}.`,
+    sistemaFaz: `Coloca a Maria no quadro de negociações, na etapa de orçamento enviado, e soma os ${RECEITA} ao que você tem em negociação.`,
   },
   {
-    titulo: 'A Maria aceita o orçamento',
-    chamada: 'Você marca a proposta como aprovada.',
+    etapa: 'Aprovação',
+    titulo: 'A Maria aceita',
     voceFaz: 'Marca o orçamento como aprovado.',
     sistemaFaz:
-      'Move a Maria para a etapa de fechado e trava o valor da proposta, assim ninguém altera, sem querer, um combinado que já foi fechado.',
-    voceVe:
-      'O valor sai de “Em negociação” e entra em “Fechado no mês”. A taxa de propostas aprovadas também se atualiza.',
+      'Move a Maria para fechado e trava o valor da proposta, para ninguém alterar sem querer um combinado já fechado.',
   },
   {
+    etapa: 'Agenda',
     titulo: 'Você marca o dia do serviço',
-    chamada: 'Cliente, serviço, dia e hora.',
-    voceFaz: 'Agenda a instalação escolhendo a Maria, o serviço do seu catálogo, o dia e a hora.',
+    voceFaz: 'Escolhe a Maria, o serviço do seu catálogo, o dia e a hora.',
     sistemaFaz:
-      'Mostra o compromisso na agenda e no painel. Se a hora passar e o serviço continuar sem ser feito, ele aparece como atrasado.',
-    voceVe:
-      'A “Agenda de hoje” lista a instalação com o horário, e os compromissos de amanhã e dos próximos 7 dias aparecem logo abaixo.',
+      'Mostra o compromisso na agenda e no painel. Se a hora passar e o serviço não for feito, ele aparece como atrasado.',
   },
   {
+    etapa: 'Execução',
     titulo: 'O serviço é feito',
-    chamada: 'Um clique em “executado”, e o sistema faz o resto.',
-    voceFaz: `Marca como executado, confere os materiais usados (a lista padrão do serviço já vem preenchida) e informa se os ${RECEITA} já foram recebidos ou ainda vão ser.`,
-    sistemaFaz: `Tudo de uma vez, ou nada: registra o serviço no histórico da Maria, tira do estoque o material usado, calcula a comissão de quem fez (se você usa comissão) e lança os ${RECEITA} no financeiro, já ligados a esse serviço.`,
-    voceVe:
-      'Na ficha da Maria, o serviço aparece no histórico. No estoque, o saldo do material já baixou. No financeiro, o recebimento, ou a conta a receber, já está lançado.',
+    voceFaz: `Marca como executado, confere o material usado e informa se os ${RECEITA} já foram recebidos.`,
+    sistemaFaz:
+      'Tudo de uma vez: registra o serviço no histórico da Maria, tira o material do estoque, calcula a comissão de quem fez e lança o valor no financeiro, ligado a esse serviço.',
   },
   {
+    etapa: 'Financeiro',
     titulo: 'No fim do mês, a conta já está pronta',
-    chamada: 'Quanto sobrou, serviço por serviço.',
-    voceFaz:
-      'Lançou a despesa de combustível ligada à instalação, no dia em que pagou. Fora isso, nada: é só abrir o painel financeiro.',
+    voceFaz: 'Lançou a despesa de combustível ligada à instalação. Fora isso, nada.',
     sistemaFaz:
-      'Soma o que entrou com tudo o que esse serviço custou, como material do estoque, comissão e despesas ligadas a ele, e calcula a sobra de cada tipo de serviço.',
-    voceVe: `A instalação deixou ${reais(CONTA.sobra)} de sobra: de cada R$ 100 recebidos, R$ ${CONTA.percentual} ficaram com você. É assim para todos os serviços, lado a lado.`,
+      'Soma o que entrou com tudo o que esse serviço custou e mostra a sobra de cada tipo de serviço, lado a lado.',
     mostraConta: true,
   },
 ];
 
+// ─── Mockup do painel (hero) ───────────────────────────────────────────────
+
 /**
- * Seis palavras que travam quem não é do ramo.
- *
- * Cada uma diz o que é e dá uma conta com número redondo. As definições são as
- * mesmas que o botão "?" do painel mostra ao lado de cada número (veja
- * `lib/glossario.ts`) — escritas de novo aqui, num tom de conversa, mas sem
- * contradizê-las. Se uma fórmula mudar no sistema, mude nos dois lugares.
+ * Os serviços do mês no mockup. A instalação é a mesma da jornada: três delas,
+ * com o mesmo custo por unidade, então a margem é idêntica nas duas seções.
  */
-export interface Palavra {
-  termo: string;
-  significa: string;
-  exemplo: string;
+const CUSTO_INSTALACAO = resumirContaDoExemplo().custo;
+
+export const SERVICOS_DO_MES = [
+  {
+    nome: CONTA_DO_EXEMPLO.servico,
+    receita: CONTA_DO_EXEMPLO.receita * 3,
+    custo: CUSTO_INSTALACAO * 3,
+  },
+  { nome: 'Manutenção preventiva', receita: 1900, custo: 520 },
+  { nome: 'Higienização', receita: 960, custo: 610 },
+] as const;
+
+export function resumirMes() {
+  const recebido = SERVICOS_DO_MES.reduce((soma, s) => soma + s.receita, 0);
+  const custo = SERVICOS_DO_MES.reduce((soma, s) => soma + s.custo, 0);
+
+  return {
+    recebido,
+    sobra: recebido - custo,
+    servicos: SERVICOS_DO_MES.map((servico) => ({
+      ...servico,
+      margem: Math.round(((servico.receita - servico.custo) / servico.receita) * 100),
+    })).sort((a, b) => b.margem - a.margem),
+  };
 }
 
-export const PALAVRAS: readonly Palavra[] = [
+export const AGENDA_DE_HOJE = [
+  { hora: '09:00', servico: 'Instalação', cliente: 'Maria Souza' },
+  { hora: '14:30', servico: 'Higienização', cliente: 'Carlos Lima' },
+] as const;
+
+// ─── Funil interativo ──────────────────────────────────────────────────────
+
+/**
+ * Quatro das etapas que o cadastro cria para toda empresa nova
+ * (`ETAPAS_FUNIL_PADRAO`, na API). "Fechado" é a de marco: é para ela que o
+ * orçamento aprovado leva o cliente sozinho.
+ */
+export const COLUNAS_FUNIL = ['Novo contato', 'Orçamento enviado', 'Follow-up', 'Fechado'] as const;
+
+export type ColunaFunil = (typeof COLUNAS_FUNIL)[number];
+
+export interface CartaoFunil {
+  id: string;
+  cliente: string;
+  servico: string;
+  valor: number;
+  coluna: ColunaFunil;
+  /** Parado há 7 dias ou mais: o sistema destaca. */
+  parado?: boolean;
+}
+
+export const CARTOES_FUNIL: readonly CartaoFunil[] = [
   {
-    termo: 'Margem',
-    significa: 'O que sobra de um serviço depois de pagar o que ele custou.',
-    exemplo: 'Cobrou R$ 100 e gastou R$ 40? A margem é R$ 60, ou 60%.',
+    id: 'rafael',
+    cliente: 'Rafael Costa',
+    servico: 'Manutenção preventiva',
+    valor: 380,
+    coluna: 'Novo contato',
   },
   {
-    termo: 'Fluxo de caixa',
-    significa: 'O vaivém do dinheiro: quanto entrou e quanto saiu num período.',
-    exemplo:
-      'Entrou R$ 8.000 e saiu R$ 5.500: o saldo é R$ 2.500. Atenção: isso não é lucro, nem o saldo do banco.',
+    id: 'juliana',
+    cliente: 'Juliana Prado',
+    servico: 'Higienização',
+    valor: 240,
+    coluna: 'Novo contato',
   },
   {
-    termo: 'Custo fixo e variável',
-    significa:
-      'Fixo é o que você paga todo mês, mesmo sem vender (aluguel, internet). Variável cresce com o trabalho (material).',
-    exemplo:
-      'Com o fixo separado, o sistema mostra quanto o negócio custa por dia, só para existir.',
+    id: 'maria',
+    cliente: 'Maria Souza',
+    servico: CONTA_DO_EXEMPLO.servico,
+    valor: CONTA_DO_EXEMPLO.receita,
+    coluna: 'Orçamento enviado',
   },
   {
-    termo: 'Pró-labore',
-    significa: 'A retirada mensal do dono, tratada como um custo do negócio.',
-    exemplo:
-      'Assim o seu dinheiro não se mistura com o da empresa, e o sistema sugere um teto do quanto dá para retirar.',
+    id: 'clinica',
+    cliente: 'Clínica Bem-Estar',
+    servico: 'Instalação de 3 aparelhos',
+    valor: 2700,
+    coluna: 'Orçamento enviado',
   },
   {
-    termo: 'A receber e a pagar',
-    significa: 'Dinheiro que ainda vai entrar e contas que ainda vão sair.',
-    exemplo:
-      'Só viram “entrada” ou “saída” quando você dá baixa, isto é, confirma que o pagamento aconteceu.',
+    id: 'carlos',
+    cliente: 'Carlos Lima',
+    servico: 'Higienização',
+    valor: 240,
+    coluna: 'Follow-up',
+    parado: true,
   },
   {
-    termo: 'Conciliação',
-    significa: 'Conferir se o que está no sistema bate com o extrato do banco.',
-    exemplo:
-      'Você envia o extrato e o sistema sugere com qual conta cada linha combina. Nada é dado como pago até você confirmar.',
+    id: 'padaria',
+    cliente: 'Padaria Trigo Bom',
+    servico: 'Manutenção preventiva',
+    valor: 760,
+    coluna: 'Fechado',
+  },
+  {
+    id: 'ana',
+    cliente: 'Ana Ribeiro',
+    servico: 'Instalação de ar-condicionado',
+    valor: 1180,
+    coluna: 'Fechado',
   },
 ];
 
-/**
- * Recursos de inteligência artificial.
- *
- * `disponivel` separa o que já existe do roadmap. A página apresenta a previsão
- * financeira como produto atual e identifica os demais recursos como próximos
- * passos, sem prometer como pronto o que ainda está em desenvolvimento.
- */
-export interface RecursoIA {
+/** Totais do funil: fechado de um lado, todo o resto "em negociação". */
+export function totaisDoFunil(cartoes: readonly Pick<CartaoFunil, 'valor' | 'coluna'>[]) {
+  return cartoes.reduce(
+    (totais, cartao) => {
+      if (cartao.coluna === 'Fechado') totais.fechado += cartao.valor;
+      else totais.emNegociacao += cartao.valor;
+      return totais;
+    },
+    { fechado: 0, emNegociacao: 0 },
+  );
+}
+
+// ─── Recursos ──────────────────────────────────────────────────────────────
+
+export type VisualRecurso =
+  'clientes' | 'negociacoes' | 'orcamentos' | 'execucao' | 'retorno' | 'margem';
+
+export interface Recurso {
   icone: LucideIcon;
+  visual: VisualRecurso;
   titulo: string;
-  descricao: string;
-  /** A pergunta do dono que este recurso responde, nas palavras dele. */
+  /** A dúvida do dono, nas palavras dele — o gancho que faz ele querer ler o resto. */
   pergunta: string;
-  disponivel?: boolean;
+  descricao: string;
 }
 
-export const RECURSOS_IA: readonly RecursoIA[] = [
-  {
-    icone: TrendingUp,
-    titulo: 'Previsão do fluxo de caixa',
-    pergunta: '“Meu caixa aguenta os próximos meses?”',
-    descricao:
-      'Cruza o histórico com contas já previstas, projeta o saldo dos próximos meses e explica os riscos e ações em linguagem simples.',
-    disponivel: true,
-  },
-  {
-    icone: MessageSquareText,
-    titulo: 'Pergunte em português',
-    pergunta: '"Quanto gastei com combustível nos últimos três meses?"',
-    descricao:
-      'Em vez de montar filtro e relatório, você escreve a pergunta como falaria com o contador. A resposta vem com os números do seu negócio, não com um manual de como encontrá-los.',
-  },
-  {
-    icone: Camera,
-    titulo: 'Fotografe a nota',
-    pergunta: '"Tenho um monte de recibo para lançar e nunca sobra tempo."',
-    descricao:
-      'Tire uma foto do comprovante e o lançamento aparece preenchido: valor, data e categoria. Você confere e confirma, e o trabalho vira conferir, não digitar.',
-  },
-  {
-    icone: TrendingUp,
-    titulo: 'Sugestão de preço',
-    pergunta: '"Será que estou cobrando barato demais nesse serviço?"',
-    descricao:
-      'A partir do que você realmente gastou e recebeu em cada tipo de trabalho, o sistema aponta onde o preço não está cobrindo o custo, e quanto seria preciso cobrar para fechar a conta.',
-  },
-  {
-    icone: Bell,
-    titulo: 'Aviso do que vai esfriar',
-    pergunta: '"Aquele orçamento sumiu e eu nem percebi."',
-    descricao:
-      'Comparando com o que costuma acontecer no seu histórico, o sistema avisa quais negociações estão perdendo força a tempo de você agir, em vez de descobrir depois que o cliente fechou com outro.',
-  },
-  {
-    icone: MessageSquareText,
-    titulo: 'Mensagem pronta para enviar',
-    pergunta: '"Nunca sei como cobrar sem parecer chato."',
-    descricao:
-      'O sistema escreve o retorno para você, já sabendo quem é o cliente e o que foi combinado. Você lê, ajusta o que quiser e manda.',
-  },
-  {
-    icone: Sparkles,
-    titulo: 'Resumo antes da conversa',
-    pergunta: '"O cliente ligou e eu não lembro o que combinamos."',
-    descricao:
-      'Um parágrafo curto com o essencial daquele cliente: o que já foi feito, o que está em aberto e o que ficou pendente da última vez.',
-  },
-];
-
-/**
- * O inventário do produto, módulo a módulo.
- *
- * Os cartões de `RECURSOS` vendem a ideia; esta lista responde a pergunta
- * seguinte, que é a que trava a decisão de compra: *"mas o que exatamente vem
- * junto?"*. Por isso aqui é enumeração seca, no vocabulário de quem usa — e
- * onde o termo é técnico, vai uma explicação curta entre parênteses.
- *
- * Regra ao editar: **só entra o que existe hoje, em produção**. O que está por
- * vir tem lugar próprio, em `RECURSOS_IA` com `disponivel: false` — misturar os
- * dois transforma a página numa promessa, e a primeira semana de uso em
- * decepção.
- */
-export interface Modulo {
-  icone: LucideIcon;
-  nome: string;
-  resumo: string;
-  itens: readonly string[];
-}
-
-export const MODULOS: readonly Modulo[] = [
+export const RECURSOS: readonly Recurso[] = [
   {
     icone: Contact,
-    nome: 'Clientes',
-    resumo: 'A ficha de quem você atende, com tudo que já aconteceu.',
-    itens: [
-      'Cadastro com telefone, documento, origem (de onde o cliente veio) e etiquetas',
-      'Histórico de atendimentos por cliente',
-      'Busca por nome, telefone ou documento',
-      'Importação de planilha e exportação dos dados',
-    ],
+    visual: 'clientes',
+    titulo: 'Seus clientes num lugar só',
+    pergunta: '“O que eu combinei com ele da última vez?”',
+    descricao:
+      'A ficha de cada cliente guarda serviços, valores, datas e o que você anotou. Você lê o histórico em dez segundos.',
   },
   {
     icone: KanbanSquare,
-    nome: 'Negociações',
-    resumo: 'O quadro que mostra em que pé está cada conversa.',
-    itens: [
-      'Etapas prontas, ajustáveis à sua operação',
-      'Destaque para o que está parado há 7 dias ou mais',
-      'Orçamento enviado e orçamento aprovado levam o cliente de etapa sozinhos',
-    ],
+    visual: 'negociacoes',
+    titulo: 'Nenhuma negociação esquecida',
+    pergunta: '“Aquele orçamento deu em quê?”',
+    descricao:
+      'Cada cliente aparece na etapa em que está. Quem está parado há 7 dias ou mais ganha destaque.',
   },
   {
     icone: FileText,
-    nome: 'Orçamentos e serviços',
-    resumo: 'A proposta que você envia e o serviço que carrega o custo.',
-    itens: [
-      'Orçamento com valor, validade e situação (aberto, aprovado, recusado)',
-      'Catálogo de serviços com preço e custo',
-      'Aviso das propostas que estão perto de vencer',
-    ],
+    visual: 'orcamentos',
+    titulo: 'Orçamentos que movem o quadro',
+    pergunta: '“Esqueci de mudar o cliente de etapa.”',
+    descricao:
+      'Orçamento enviado leva o cliente para a proposta; aprovado, para fechado. Ninguém arrasta cartão à mão.',
   },
   {
-    icone: CalendarDays,
-    nome: 'Agenda e lembretes',
-    resumo: 'O compromisso marcado e o retorno que não se perde.',
-    itens: [
-      'Agendamentos ligados ao cliente e ao serviço',
-      'Um clique em “executado” registra o serviço no histórico do cliente',
-      'Lembrete de retorno enviado por e-mail ao cliente, na data marcada',
-    ],
+    icone: CalendarCheck,
+    visual: 'execucao',
+    titulo: 'Do serviço marcado ao registrado',
+    pergunta: '“Fiz o serviço… e agora lanço tudo de novo?”',
+    descricao:
+      'Um clique em “executado” registra o atendimento, baixa o material do estoque e, se quiser, lança o recebimento.',
   },
   {
-    icone: Boxes,
-    nome: 'Estoque e comissões',
-    resumo: 'O material que o serviço gasta e o quanto cada pessoa ganha.',
-    itens: [
-      'Materiais com saldo e estoque mínimo',
-      'Custo médio calculado a cada compra',
-      'Material usado sai do estoque ao concluir o serviço',
-      'Comissão por pessoa, com fechamento por período',
-    ],
+    icone: Bell,
+    visual: 'retorno',
+    titulo: 'O retorno no dia certo',
+    pergunta: '“Prometi ligar de novo e passou um mês.”',
+    descricao:
+      'Na data marcada, o sistema envia o lembrete por e-mail ao cliente, em nome da sua empresa.',
   },
   {
     icone: Wallet,
-    nome: 'Financeiro',
-    resumo: 'Onde o dinheiro entra, sai e finalmente faz sentido.',
+    visual: 'margem',
+    titulo: 'Você descobre o que dá lucro',
+    pergunta: '“Qual serviço meu realmente compensa?”',
+    descricao:
+      'Cada real que entra e sai fica ligado ao serviço. O sistema mostra quais deixam mais sobra, sem planilha.',
+  },
+];
+
+// ─── Segurança ─────────────────────────────────────────────────────────────
+
+export interface Garantia {
+  icone: LucideIcon;
+  titulo: string;
+  descricao: string;
+}
+
+export const GARANTIAS: readonly Garantia[] = [
+  {
+    icone: Database,
+    titulo: 'Os dados da sua empresa são só seus',
+    descricao:
+      'O próprio banco de dados recusa o acesso de qualquer outra empresa, e testes automáticos tentam violar isso a cada mudança.',
+  },
+  {
+    icone: KeyRound,
+    titulo: 'Cada pessoa vê o que precisa',
+    descricao:
+      'Você dá a cada um da equipe um papel e as permissões que quiser. Quem atende cliente não vê quanto a empresa fatura.',
+  },
+  {
+    icone: ShieldCheck,
+    titulo: 'Entrada em duas etapas e LGPD',
+    descricao: `Senha mais um código do celular. O dono exporta tudo quando quiser; ao cancelar, os dados são apagados em definitivo em ${DIAS_PARA_EXCLUIR_CONTA_CANCELADA} dias.`,
+  },
+];
+
+// ─── Planos ────────────────────────────────────────────────────────────────
+
+export interface Plano {
+  /** "Premium", e não "Pro": é o nome que a conta mostra depois de assinar. */
+  nome: string;
+  preco: number;
+  resumo: string;
+  itens: readonly string[];
+  destaque?: boolean;
+}
+
+export const PLANOS: readonly Plano[] = [
+  {
+    nome: 'Básico',
+    preco: 100,
+    resumo: 'Clientes, orçamentos, agenda e financeiro organizados.',
     itens: [
-      'Entradas e saídas, com a data do lançamento e a data em que foi pago',
-      'Contas a pagar e a receber com vencimento e baixa (a confirmação de que foi pago)',
-      'Categorias, custo fixo e custo variável',
-      'Nota fiscal, boleto e comprovante anexados ao lançamento',
-      'Reservas (dinheiro guardado para um fim) e pró-labore (retirada do dono), com histórico',
-      'Conferência com o extrato do banco e importação por planilha',
+      '2 usuários incluídos',
+      'Até 5 usuários · R$ 20 por adicional',
+      '500 clientes',
+      'Clientes, orçamentos, agenda e financeiro',
+      'Importação e exportação de dados',
     ],
   },
   {
-    icone: TrendingUp,
-    nome: 'Resultado',
-    resumo: 'A resposta que a planilha não dava.',
+    nome: 'Premium',
+    preco: 200,
+    resumo: 'Mais equipe, mais clientes e inteligência artificial sobre os seus números.',
+    destaque: true,
     itens: [
-      'Margem por tipo de serviço, já calculada',
-      'Entradas, saídas e saldo de qualquer período',
-      'Teto de retirada sugerido a partir do que entrou de fato',
-      'Painel inicial com alertas do que pede ação, atualizado sozinho',
-      'Botão “?” ao lado de cada número, explicando o que ele significa',
-      'Previsão do caixa com IA, no plano Premium',
-    ],
-  },
-  {
-    icone: Users,
-    nome: 'Equipe e acesso',
-    resumo: 'A equipe usando o sistema sem ver o que não deve.',
-    itens: [
-      'Convite por e-mail com papel definido',
-      'Permissão por ação, então quem atende não vê faturamento',
-      'Histórico de quem alterou o quê, e quando',
+      '5 usuários incluídos',
+      'Até 20 usuários · R$ 15 por adicional',
+      '3.000 clientes',
+      'Tudo do Básico',
+      'Assistente com IA sobre os seus números',
+      'Previsão financeira com IA',
+      '200 previsões por mês',
     ],
   },
 ];
 
+export const DEFINICOES_DOS_PLANOS = [
+  {
+    termo: 'Usuário',
+    definicao: 'Cada pessoa da equipe com login próprio. Você decide o que cada uma enxerga.',
+  },
+  {
+    termo: 'Previsão',
+    definicao: 'Cada vez que você pede à IA para projetar o seu caixa dos próximos meses.',
+  },
+] as const;
+
+// ─── Dúvidas ───────────────────────────────────────────────────────────────
+
 /**
- * As dúvidas que travam o cadastro.
+ * As cinco dúvidas que mais travam o cadastro.
  *
- * Duas funções: tirar o medo de quem não entende de sistema, e dizer com
- * franqueza o que o produto **não** faz. A segunda parte é de propósito. Quem
- * descobre um limite depois de assinar cancela e conta para os outros; quem
- * lê o limite aqui e assina assim mesmo é o cliente certo.
- *
- * Cada resposta foi conferida contra o código ou o README — em especial as
- * que falam de limite (WhatsApp, nota fiscal, IA).
+ * Duas delas dizem com franqueza o que o produto **não** faz (venda de balcão,
+ * nota fiscal). É de propósito: quem descobre um limite depois de assinar
+ * cancela; quem lê aqui e assina assim mesmo é o cliente certo. Segurança e
+ * permissões têm seção própria, por isso não se repetem aqui.
  */
 export interface Pergunta {
   pergunta: string;
@@ -469,7 +575,7 @@ export const PERGUNTAS: readonly Pergunta[] = [
   {
     pergunta: 'Preciso entender de finanças ou de tecnologia?',
     resposta:
-      'Não. Foi feito para quem toca o negócio, não para quem estuda finanças. Ao lado dos números importantes há um botão “?” que explica, em palavras simples, o que cada um significa e como é calculado, e o painel inicial mostra primeiro o que precisa da sua atenção hoje.',
+      'Não. Ao lado dos números importantes há um botão “?” que explica, em palavras simples, o que cada um significa e como é calculado. E o painel inicial mostra primeiro o que precisa da sua atenção hoje.',
   },
   {
     pergunta: 'Funciona para o meu tipo de negócio?',
@@ -482,21 +588,6 @@ export const PERGUNTAS: readonly Pergunta[] = [
       'Dá. Você envia a planilha (Excel ou CSV), o sistema mostra uma conferência antes de importar e pula as linhas repetidas, mesmo CPF, CNPJ ou e-mail, dizendo o motivo. Os lançamentos financeiros também entram por planilha.',
   },
   {
-    pergunta: 'Meus funcionários vão ver quanto a empresa fatura?',
-    resposta:
-      'Só se você deixar. Cada pessoa entra com um papel, como atendente, técnico ou financeiro, e as permissões podem ser ajustadas uma a uma. Quem atende cliente enxerga o atendimento, sem ver o dinheiro.',
-  },
-  {
-    pergunta: 'O que a inteligência artificial faz, e o que ela não faz?',
-    resposta:
-      'Ela lê os números do seu negócio e explica em português: o risco do caixa, o que merece atenção, por onde começar. Ela não cadastra, não apaga, não paga conta e não manda mensagem por você, e quem decide é sempre uma pessoa. Está no plano Premium.',
-  },
-  {
-    pergunta: 'Os lembretes vão por WhatsApp?',
-    resposta:
-      'Hoje o envio automático é por e-mail, para o e-mail cadastrado do cliente. O WhatsApp ainda não envia, porque depende da aprovação de uma conta pela Meta, e o sistema avisa quando um lembrete assim não pôde ser enviado.',
-  },
-  {
     pergunta: 'O sistema emite nota fiscal ou calcula imposto?',
     resposta:
       'Não. Ele guarda a nota, o boleto e o comprovante anexados a cada lançamento, e mostra caixa e margem. A emissão de nota e os impostos continuam com o seu contador.',
@@ -506,9 +597,15 @@ export const PERGUNTAS: readonly Pergunta[] = [
     resposta:
       'Não pede cartão. São 14 dias para usar com tudo do plano escolhido. Se decidir ficar, o plano é mensal; se não, o dono cancela a conta pelo próprio sistema.',
   },
-  {
-    pergunta: 'Meus dados ficam seguros? E se eu quiser sair?',
-    resposta:
-      'Cada empresa só enxerga os próprios dados: o banco de dados recusa o acesso a qualquer outra, e há testes automáticos que tentam violar isso. A entrada exige senha e um código do celular. Se quiser sair, você exporta tudo; ao cancelar, o apagamento definitivo acontece depois de 30 dias.',
-  },
 ];
+
+// ─── Chamada final ─────────────────────────────────────────────────────────
+
+export const CHAMADA_FINAL = {
+  titulo: 'Comece pela pergunta que importa:',
+  enfase: 'quanto sobrou?',
+  texto:
+    'Cadastre o primeiro cliente e faça um orçamento. É o bastante para o quadro e o painel começarem a se mexer.',
+  chamada: 'Testar grátis por 14 dias',
+  observacao: 'Sem cartão de crédito · cancele quando quiser',
+} as const;

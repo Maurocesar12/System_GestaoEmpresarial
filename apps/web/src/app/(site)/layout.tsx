@@ -1,28 +1,48 @@
+import { Fraunces, Instrument_Sans } from 'next/font/google';
 import Link from 'next/link';
 import { Marca } from '@/components/marca';
-import { estilosBotao } from '@/components/ui/botao';
 import { SITE } from '@/configuracao/site';
 import { NavegacaoMobile } from './navegacao-mobile';
+import './site.css';
 
 /**
- * Layout das páginas públicas.
+ * Layout das páginas públicas (a página inicial e a de privacidade).
  *
  * Fica num grupo de rotas `(site)` — os parênteses agrupam sem entrar na URL,
- * então esta pasta continua servindo `/`. O motivo de existir é o que vem a
- * seguir: recursos, planos e contato vão precisar do mesmo cabeçalho e rodapé,
- * e é melhor que eles nasçam num lugar só do que sejam copiados na terceira
- * página.
+ * então esta pasta continua servindo `/`. O painel tem o próprio layout: aqui
+ * não há navegação de sistema, porque quem chega ainda não é usuário.
  *
- * O painel tem o próprio layout, com a lateral. Aqui não há navegação de
- * sistema: quem chega nesta página ainda não é usuário.
+ * ## Fontes
+ *
+ * Fraunces (serifada display) nos títulos e Instrument Sans no texto, só nas
+ * páginas públicas; o painel segue com a fonte do sistema operacional.
+ *
+ * Vêm do `next/font`, e não de um `<link>` para o Google Fonts: o `next/font`
+ * baixa os arquivos no build e os serve do nosso próprio domínio. A CSP do
+ * projeto (`font-src 'self'`, `style-src 'self'`) bloquearia o Google Fonts, e
+ * assim nenhum dado do visitante vai para terceiros ao abrir a página. O custo
+ * é o build precisar de acesso à internet para buscar as fontes.
  */
+const fonteDisplay = Fraunces({
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  axes: ['opsz', 'SOFT'],
+  variable: '--fonte-display',
+  display: 'swap',
+});
+
+const fonteTexto = Instrument_Sans({
+  subsets: ['latin'],
+  variable: '--fonte-texto',
+  display: 'swap',
+});
 
 // Com a barra na frente: o layout também serve `/privacidade`, onde uma âncora
 // solta procuraria a seção na página errada.
 const SECOES = [
-  { href: '/#recursos', rotulo: 'O que faz' },
   { href: '/#como-funciona', rotulo: 'Como funciona' },
-  { href: '/#ia', rotulo: 'Previsão com IA' },
+  { href: '/#ponta-a-ponta', rotulo: 'Ponta a ponta' },
+  { href: '/#recursos', rotulo: 'Recursos' },
   { href: '/#seguranca', rotulo: 'Segurança' },
   { href: '/#planos', rotulo: 'Planos' },
   { href: '/#duvidas', rotulo: 'Dúvidas' },
@@ -30,44 +50,46 @@ const SECOES = [
 
 export default function LayoutSite({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className={`site ${fonteDisplay.variable} ${fonteTexto.variable} flex min-h-screen flex-col`}
+    >
+      <a
+        href="#conteudo"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-(--cartao-site) focus:px-4 focus:py-2 focus:text-sm focus:font-semibold"
+      >
+        Pular para o conteúdo
+      </a>
+
       {/*
-        Cabeçalho fixo com fundo translúcido: o conteúdo passa por baixo e
-        continua legível, sem a barra virar um bloco opaco que rouba altura útil
-        em notebook de tela baixa.
+        Cabeçalho fixo de vidro fosco: o conteúdo passa por baixo e continua
+        legível, sem a barra virar um bloco opaco que rouba altura útil.
       */}
-      <header className="bg-background/80 sticky top-0 z-40 h-(--altura-cabecalho-site) shrink-0 border-b backdrop-blur">
-        {/*
-          Padding menor no celular: a 390px, o nome da marca mais os dois botões
-          não cabem com `px-6`, e o nome quebrava em duas linhas.
-        */}
-        <div className="mx-auto flex h-full w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:gap-6 sm:px-8 lg:px-12">
+      <header className="bg-background/70 sticky top-0 z-40 h-(--altura-cabecalho-site) shrink-0 border-b backdrop-blur-xl backdrop-saturate-150">
+        <div className="mx-auto flex h-full w-full max-w-6xl items-center justify-between gap-4 px-4 sm:gap-6 sm:px-6">
           <Link href="/" aria-label="Página inicial" className="whitespace-nowrap">
             <Marca className="text-sm sm:text-base" />
           </Link>
 
-          {/*
-            Escondida abaixo de `lg`: com "Inteligência artificial" no meio, as
-            quatro âncoras deixam de caber em tablet sem espremer os botões de
-            entrar e criar conta, que são o que a página existe para oferecer.
-          */}
-          <nav className="hidden items-center gap-5 lg:flex" aria-label="Seções da página">
+          <nav className="hidden items-center gap-7 lg:flex" aria-label="Seções da página">
             {SECOES.map((secao) => (
               <a
                 key={secao.href}
                 href={secao.href}
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                className="text-muted-foreground hover:text-foreground text-sm"
               >
                 {secao.rotulo}
               </a>
             ))}
           </nav>
 
-          <div className="ml-auto hidden items-center gap-2 sm:flex lg:ml-0">
-            <Link href="/entrar" className={estilosBotao({ variante: 'sutil', tamanho: 'sm' })}>
+          <div className="ml-auto hidden items-center gap-5 sm:flex lg:ml-0">
+            <Link
+              href="/entrar"
+              className="text-muted-foreground hover:text-foreground text-sm font-medium"
+            >
               Entrar
             </Link>
-            <Link href="/cadastro" className={estilosBotao({ tamanho: 'sm' })}>
+            <Link href="/cadastro" className="botao botao-acento botao-pequeno">
               Criar conta
             </Link>
           </div>
@@ -75,32 +97,34 @@ export default function LayoutSite({ children }: { children: React.ReactNode }) 
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main id="conteudo" className="flex-1">
+        {children}
+      </main>
 
-      <footer className="bg-superficie border-t">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
-          <div className="flex flex-col gap-1">
-            <Marca className="text-sm" />
-            <span className="text-muted-foreground text-xs">Sistema de Gestão para empresas.</span>
-          </div>
+      <footer className="border-t">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-14">
+          <div className="flex flex-col justify-between gap-8 sm:flex-row sm:items-end">
+            <div className="flex max-w-sm flex-col gap-3">
+              <Marca className="text-base" />
+              <p className="text-muted-foreground text-sm leading-relaxed">{SITE.descricao}</p>
+            </div>
 
-          <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-4 border-t pt-6 text-xs">
-            <span>
-              © {new Date().getFullYear()} {SITE.nome}. Todos os direitos reservados.
-            </span>
-
-            <div className="flex gap-5">
-              <Link href="/privacidade" className="hover:text-foreground transition-colors">
+            <nav aria-label="Rodapé" className="flex flex-wrap gap-x-7 gap-y-2 text-sm">
+              <Link href="/privacidade" className="text-muted-foreground hover:text-foreground">
                 Privacidade
               </Link>
-              <Link href="/entrar" className="hover:text-foreground transition-colors">
+              <Link href="/entrar" className="text-muted-foreground hover:text-foreground">
                 Entrar
               </Link>
-              <Link href="/cadastro" className="hover:text-foreground transition-colors">
+              <Link href="/cadastro" className="text-muted-foreground hover:text-foreground">
                 Criar conta
               </Link>
-            </div>
+            </nav>
           </div>
+
+          <p className="text-muted-foreground border-t pt-6 text-xs">
+            © {new Date().getFullYear()} {SITE.nome}. Todos os direitos reservados.
+          </p>
         </div>
       </footer>
     </div>

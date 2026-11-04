@@ -1,24 +1,28 @@
 import type { Metadata } from 'next';
-import {
-  ArrowRight,
-  Check,
-  ChevronDown,
-  Database,
-  FileDown,
-  KeyRound,
-  Lock,
-  Smartphone,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowDown, ArrowRight, Check, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { estilosBotao } from '@/components/ui/botao';
+import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
-import { MODULOS, PALAVRAS, PERGUNTAS, RECURSOS, RECURSOS_IA } from './conteudo';
-import { ComoAIAFunciona, DemonstracaoPrevisao } from './demonstracao-previsao';
-import { JornadaDoServico } from './jornada-do-servico';
-import { PainelResultado } from './painel-resultado';
-import { Hero } from './hero';
-import { Revelar } from './revelar';
+import {
+  CHAMADA_FINAL,
+  DEFINICOES_DOS_PLANOS,
+  GARANTIAS,
+  HERO,
+  PARA_QUEM,
+  PASSOS,
+  PERGUNTAS,
+  PLANOS,
+  RECURSOS,
+  SECOES,
+  type CabecalhoDeSecao,
+  type Plano,
+} from './conteudo';
+import { FunilInterativo } from './funil-interativo';
+import { Jornada } from './jornada';
+import { MiniVisual } from './mini-visuais';
+import { MockupPainel } from './mockup-painel';
+import { TextoComTermo } from './termo';
+import { VideoHero } from './video-hero';
 
 export const metadata: Metadata = {
   title: 'Sistema de gestão para empresas de serviço',
@@ -27,25 +31,22 @@ export const metadata: Metadata = {
 };
 
 /**
- * A ordem é a de uma conversa com quem nunca viu o produto: o que é, como
- * funciona na prática, o que isso entrega, as palavras que costumam travar, o
- * que vem junto, a inteligência artificial, a segurança, o preço e, por fim, as
- * dúvidas — que só aparecem depois de a pessoa ter o que perguntar.
+ * A página inicial, na ordem de uma conversa com quem nunca viu o produto:
+ * o que é e para quem, como funciona em três passos, um serviço de ponta a
+ * ponta, o quadro para mexer com as próprias mãos, o que vem junto, a
+ * segurança, o preço, as dúvidas e o convite.
  *
- * O "como funciona" vem **antes** do resultado: quem entende o caminho (o
- * dinheiro nasce ligado ao serviço) entende por que a sobra aparece sozinha. Ao
- * contrário, o painel de resultado era um número sem origem.
+ * Todo texto vem de `conteudo.ts`; aqui é só apresentação. O visual (paleta,
+ * tipografia, movimento) mora em `site.css`, e vale só dentro do layout do site.
  */
 export default function PaginaInicial() {
   return (
     <>
       <Hero />
-      <Recursos />
+      <ParaQuem />
       <ComoFunciona />
-      <Resultado />
-      <SemEconomes />
-      <OQueVemJunto />
-      <InteligenciaArtificial />
+      <PontaAPonta />
+      <FunilERecursos />
       <Seguranca />
       <Planos />
       <Duvidas />
@@ -54,417 +55,222 @@ export default function PaginaInicial() {
   );
 }
 
-/** Rótulo de seção: dá ritmo à página e ajuda a varrer o conteúdo de olho. */
-function RotuloSecao({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-primary text-xs font-semibold tracking-[0.12em] uppercase">
-      {children}
-    </span>
-  );
+/** Atraso de entrada e ordem de revelação, como variáveis CSS. */
+function atraso(ms: number): CSSProperties {
+  return { '--atraso': `${ms}ms` } as CSSProperties;
 }
 
-/** Cabeçalho de seção: rótulo, título e um parágrafo opcional. */
+function ordem(indice: number): CSSProperties {
+  return { '--ordem': indice } as CSSProperties;
+}
+
+/** Rótulo, título em duas partes (a segunda em itálico de acento) e introdução. */
 function CabecalhoSecao({
-  rotulo,
-  titulo,
-  children,
+  cabecalho,
+  centralizado = false,
+  className,
 }: {
-  rotulo: string;
-  titulo: string;
-  children?: React.ReactNode;
+  cabecalho: CabecalhoDeSecao;
+  centralizado?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
-      <RotuloSecao>{rotulo}</RotuloSecao>
-      <h2 className="text-3xl font-semibold tracking-tight text-balance">{titulo}</h2>
-      {children && <p className="text-muted-foreground leading-relaxed">{children}</p>}
+    <div
+      className={cn(
+        'surgir flex max-w-2xl flex-col gap-5',
+        centralizado && 'mx-auto items-center text-center',
+        className,
+      )}
+    >
+      <p className="rotulo">{cabecalho.rotulo}</p>
+      <h2 className="display text-[clamp(2.25rem,4.6vw,3.5rem)]">
+        {cabecalho.titulo} <em>{cabecalho.enfase}</em>
+      </h2>
+      {cabecalho.intro && (
+        <p className="text-muted-foreground text-lg leading-relaxed">{cabecalho.intro}</p>
+      )}
     </div>
   );
 }
 
-function Recursos() {
+function Hero() {
   return (
-    <section id="recursos" className="scroll-mt-16 border-b">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao
-          rotulo="O que é isto"
-          titulo="Um sistema para quem vende serviço e está cansado de juntar tudo na mão."
-        >
-          Hoje é o WhatsApp para falar com cliente, o caderno para anotar serviço e a planilha para
-          as contas. Aqui é um lugar só, e as três coisas conversam entre si: o que você anota num
-          canto aparece sozinho nos outros. Veja as seis situações do dia a dia que ele resolve.
-        </CabecalhoSecao>
+    <section aria-labelledby="titulo-hero" className="hero-com-video">
+      <VideoHero />
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-14 px-6 pt-14 pb-20 sm:pt-20 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pt-24 lg:pb-28">
+        <div className="flex flex-col items-start gap-7">
+          <p className="rotulo entrada">{HERO.rotulo}</p>
 
-        {/*
-          Um acento só para os seis ícones, e não seis cores diferentes.
-
-          Antes cada cartão pegava um tom da paleta semântica, incluindo
-          `destrutivo` — o vermelho de erro. No resto do sistema verde é
-          sucesso, âmbar é alerta e vermelho é problema; usar esse vocabulário
-          como enfeite aqui ensina o oposto, e "o retorno acontece no dia certo"
-          pintado de vermelho de erro diz a coisa errada. Como eram cinco tons
-          para seis cartões, o último ainda repetia a cor do primeiro e parecia
-          descuido.
-
-          A diferenciação que importa já está no ícone e no título. Uma cor só —
-          a da marca — deixa a seção mais calma e não promete significado que a
-          cor não tem.
-        */}
-        <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-          {RECURSOS.map((recurso) => (
-            <article key={recurso.titulo} className="flex flex-col gap-3">
-              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-md border border-current/10">
-                <recurso.icone aria-hidden className="size-5" />
-              </span>
-              <h3 className="font-semibold tracking-tight">{recurso.titulo}</h3>
-              {/* A dúvida vem primeiro: quem se reconhece nela quer ler a resposta. */}
-              <p className="text-sm font-medium italic">{recurso.pergunta}</p>
-              <p className="text-muted-foreground text-sm leading-relaxed">{recurso.descricao}</p>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** Demonstra o caminho do orçamento até o resultado financeiro do serviço. */
-function Resultado() {
-  return (
-    <section id="resultado" className="scroll-mt-16 overflow-x-clip border-b">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-[1fr_1fr] lg:py-24">
-        <div className="flex flex-col gap-5">
-          <CabecalhoSecao
-            rotulo="O resultado"
-            titulo="Você sabe quanto sobrou, sem esperar o mês fechar."
+          <h1
+            id="titulo-hero"
+            className="display entrada text-[clamp(2.75rem,7vw,5.25rem)]"
+            style={atraso(60)}
           >
-            Como você viu no exemplo da Maria, cada recebimento nasce ligado ao serviço que o gerou,
-            e cada custo, ao trabalho que o consumiu. Por isso a sobra de cada serviço já está
-            calculada: não é relatório que alguém monta no fim do mês, é a conta que vai se fechando
-            sozinha a cada serviço registrado.
-          </CabecalhoSecao>
+            {HERO.titulo} <em>{HERO.enfase}</em>
+          </h1>
 
-          <ul className="flex flex-col gap-4 text-sm">
-            {[
-              {
-                destaque: 'Margem por tipo de serviço, não só o total da empresa.',
-                explica: 'Você vê qual serviço compensa e qual dá trabalho e pouco retorno.',
-              },
-              {
-                destaque: 'Retirada do dono comparada ao que o caixa sustenta.',
-                explica:
-                  'Um limite sugerido para você tirar dinheiro sem deixar a operação no vermelho.',
-              },
-              {
-                destaque: 'Conta a receber separada do que já entrou de verdade.',
-                explica: 'O dinheiro prometido não se mistura com o que já está no caixa.',
-              },
-            ].map((item) => (
-              <li key={item.destaque} className="flex gap-3">
-                <Check aria-hidden className="text-sucesso mt-0.5 size-4 shrink-0" />
-                <span>
-                  <span className="font-medium">{item.destaque}</span>{' '}
-                  <span className="text-muted-foreground">{item.explica}</span>
-                </span>
+          <p
+            className="entrada text-muted-foreground max-w-xl text-lg leading-relaxed"
+            style={atraso(140)}
+          >
+            {HERO.subtitulo}
+          </p>
+
+          <div className="entrada flex flex-wrap items-center gap-x-7 gap-y-4" style={atraso(220)}>
+            <Link href="/cadastro" className="botao botao-acento">
+              {HERO.chamada}
+              <ArrowRight aria-hidden />
+            </Link>
+            <a href="#como-funciona" className="link-seta text-sm">
+              {HERO.secundaria}
+              <ArrowDown aria-hidden className="size-4" />
+            </a>
+          </div>
+
+          <ul
+            className="entrada text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-sm"
+            style={atraso(300)}
+          >
+            {HERO.garantias.map((garantia) => (
+              <li key={garantia} className="flex items-center gap-1.5">
+                <Check aria-hidden className="size-4 text-(--acento)" />
+                {garantia}
               </li>
             ))}
           </ul>
         </div>
 
-        <PainelResultado />
-      </div>
-    </section>
-  );
-}
-
-/**
- * O inventário do produto.
- *
- * Os cartões de recurso vendem a ideia; esta seção responde à pergunta que
- * trava a decisão — *"o que exatamente vem junto?"*. Por isso é lista seca,
- * agrupada por módulo, com o que existe hoje e nada do que ainda virá.
- */
-function OQueVemJunto() {
-  return (
-    <section id="incluso" className="scroll-mt-16 border-b">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao
-          rotulo="O que vem junto"
-          titulo="Nada disso é promessa. Está no sistema hoje."
-        >
-          Sem módulo vendido à parte e sem “fale com o comercial”. O que está listado aqui funciona
-          desde o primeiro dia da sua conta.
-        </CabecalhoSecao>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {MODULOS.map((modulo) => (
-            <article
-              key={modulo.nome}
-              className="cartao-elevavel bg-card flex flex-col gap-4 rounded-lg p-6"
-            >
-              <span className="bg-muted text-foreground flex size-9 items-center justify-center rounded-md border border-current/10">
-                <modulo.icone aria-hidden className="size-5" />
-              </span>
-
-              <div>
-                <h3 className="font-semibold tracking-tight">{modulo.nome}</h3>
-                <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                  {modulo.resumo}
-                </p>
-              </div>
-
-              <ul className="flex flex-col gap-2 border-t pt-4 text-sm">
-                {modulo.itens.map((item) => (
-                  <li key={item} className="text-muted-foreground flex gap-2.5 leading-relaxed">
-                    <Check aria-hidden className="text-sucesso mt-1 size-3.5 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
+        <div className="paralaxe">
+          <MockupPainel />
         </div>
       </div>
     </section>
   );
 }
 
-/**
- * A explicação de como o sistema funciona, em forma de história.
- *
- * Antes eram quatro passos abstratos ("chega um cliente… a conta aparece
- * pronta") que serviriam para qualquer sistema do mundo. Agora é um caso
- * concreto, que se abre etapa por etapa: o que a pessoa faz, o que o sistema faz
- * sozinho e o que aparece para ela. A curiosidade está em abrir a próxima
- * etapa — e o convencimento, na coluna do meio.
- */
+function ParaQuem() {
+  return (
+    <section aria-label="Para quem é" className="border-y bg-(--papel-2)">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-6 py-10 lg:flex-row lg:items-center lg:gap-12">
+        <p className="rotulo shrink-0">{PARA_QUEM.rotulo}</p>
+
+        <div className="flex flex-col gap-2">
+          <ul className="display flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[clamp(1.6rem,3.2vw,2.25rem)]">
+            {PARA_QUEM.negocios.map((negocio, indice) => (
+              <li key={negocio} className="flex items-baseline gap-4">
+                {indice > 0 && (
+                  <span aria-hidden className="text-(--acento)">
+                    ·
+                  </span>
+                )}
+                {negocio}
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground text-sm">{PARA_QUEM.complemento}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ComoFunciona() {
   return (
-    <section id="como-funciona" className="bg-superficie scroll-mt-16 border-b">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao
-          rotulo="Como funciona"
-          titulo="Acompanhe um serviço de ponta a ponta e veja onde o sistema trabalha por você."
-        >
-          Vamos seguir a Maria, que quer instalar um ar-condicionado por R$ 980. Em cada etapa
-          mostramos o que você faz, o que o sistema faz sozinho e o que aparece para você. No fim,
-          você vai ver como nasce a resposta para a pergunta que mais importa: quanto sobrou?
-        </CabecalhoSecao>
+    <section id="como-funciona" className="scroll-mt-20">
+      <div className="mx-auto w-full max-w-6xl px-6 py-24 lg:py-32">
+        <CabecalhoSecao cabecalho={SECOES.comoFunciona} />
 
-        <p className="text-muted-foreground mt-8 text-sm font-medium">
-          Toque em cada etapa para abrir.
-        </p>
+        <ol className="mt-14 grid gap-5 md:grid-cols-3">
+          {PASSOS.map((passo, indice) => (
+            <li key={passo.titulo} className="surgir" style={ordem(indice)}>
+              {/* `relative`: no celular, o balão dos termos se ancora neste cartão. */}
+              <div className="cartao elevavel relative flex h-full flex-col gap-4 p-7 sm:p-8">
+                <span aria-hidden className="numero-destaque text-6xl leading-none text-(--acento)">
+                  {String(indice + 1).padStart(2, '0')}
+                </span>
+                <h3 className="display text-2xl">{passo.titulo}</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  <TextoComTermo partes={passo.descricao} />
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
 
-        <div className="mt-3 max-w-4xl">
-          <JornadaDoServico />
+function PontaAPonta() {
+  return (
+    <section id="ponta-a-ponta" className="scroll-mt-20 border-t bg-(--papel-2)">
+      <div className="mx-auto w-full max-w-4xl px-6 py-24 lg:py-32">
+        <CabecalhoSecao cabecalho={SECOES.pontaAPonta} />
+        <Jornada />
+      </div>
+    </section>
+  );
+}
+
+function FunilERecursos() {
+  return (
+    <section id="recursos" className="scroll-mt-20 border-t">
+      <div className="mx-auto w-full max-w-6xl px-6 py-24 lg:py-32">
+        <CabecalhoSecao cabecalho={SECOES.funil} />
+
+        <div className="surgir mt-12">
+          <FunilInterativo />
         </div>
 
-        <p className="text-muted-foreground mt-6 max-w-2xl text-sm leading-relaxed">
-          O segredo está no meio do caminho: o que você registra em uma etapa já é usado nas
-          seguintes. Quando a venda mora num lugar e o dinheiro em outro, alguém precisa juntar os
-          dois no fim do mês, e é aí que a conta para de bater.
-        </p>
-      </div>
-    </section>
-  );
-}
+        <CabecalhoSecao cabecalho={SECOES.recursos} className="mt-28" />
 
-/**
- * As palavras que travam quem não é do ramo.
- *
- * Fica logo depois do resultado, onde "margem", "fluxo de caixa" e
- * "pró-labore" aparecem pela primeira vez em volume. Quem não conhece o termo
- * não pergunta: conclui que o sistema "não é para mim" e vai embora. Aqui cada
- * palavra vem com uma frase e uma conta de cabeça.
- */
-function SemEconomes() {
-  return (
-    <section id="palavras" className="bg-superficie scroll-mt-16 border-b">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao
-          rotulo="Sem economês"
-          titulo="Seis palavras de finanças, explicadas como numa conversa."
-        >
-          Você vai vê-las pelo sistema. Dentro dele, cada uma tem um botão “?” ao lado do número,
-          que explica na hora o que significa e como é calculado. Aqui vai um adiantamento.
-        </CabecalhoSecao>
-
-        <dl className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PALAVRAS.map((palavra) => (
-            <div key={palavra.termo} className="bg-card flex flex-col gap-2 rounded-lg border p-5">
-              <dt className="font-semibold tracking-tight">{palavra.termo}</dt>
-              <dd className="text-sm leading-relaxed">{palavra.significa}</dd>
-              <dd className="text-muted-foreground border-t pt-2 text-sm leading-relaxed">
-                <span className="text-foreground font-medium">Na prática: </span>
-                {palavra.exemplo}
-              </dd>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {RECURSOS.map((recurso, indice) => (
+            <div key={recurso.titulo} className="surgir" style={ordem(indice % 3)}>
+              <article className="cartao elevavel flex h-full flex-col gap-4 p-5">
+                <MiniVisual tipo={recurso.visual} />
+                <div className="flex flex-col gap-2 px-1 pb-1">
+                  <h3 className="flex items-center gap-2 font-semibold tracking-tight">
+                    <recurso.icone aria-hidden className="size-4 text-(--acento)" />
+                    {recurso.titulo}
+                  </h3>
+                  <p className="display text-[1.05rem] italic">{recurso.pergunta}</p>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {recurso.descricao}
+                  </p>
+                </div>
+              </article>
             </div>
           ))}
-        </dl>
+        </div>
       </div>
     </section>
   );
 }
-
-function InteligenciaArtificial() {
-  const proximosRecursos = RECURSOS_IA.filter((recurso) => !recurso.disponivel);
-
-  return (
-    <section id="ia" className="bg-superficie scroll-mt-16 overflow-hidden border-b">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <Revelar>
-          <div className="flex max-w-2xl flex-col items-start gap-5">
-            <span className="flex flex-wrap items-center gap-2">
-              <RotuloSecao>Previsão financeira com IA</RotuloSecao>
-              <span className="bg-sucesso-suave text-sucesso rounded-full px-2 py-0.5 text-xs font-medium">
-                Disponível no Premium
-              </span>
-            </span>
-
-            <h2 className="text-3xl font-semibold tracking-tight text-balance">
-              Saiba se o caixa aguenta os próximos meses, antes de decidir.
-            </h2>
-
-            <p className="text-muted-foreground leading-relaxed">
-              A conta é do sistema: histórico do que entrou e saiu, mais as contas a pagar e a
-              receber que já estão registradas. A inteligência artificial (IA) entra depois, como um
-              analista que lê esse cenário, aponta o risco e diz por onde começar. Mexa nos cenários
-              abaixo para ver como o caixa muda.
-            </p>
-          </div>
-
-          <div className="mt-10">
-            <DemonstracaoPrevisao />
-          </div>
-
-          {/*
-            Os passos vêm depois do gráfico de propósito: primeiro a pessoa vê
-            o resultado que interessa a ela, e só então se pergunta como aquilo
-            foi parar ali — que é quando a explicação do mecanismo é lida.
-          */}
-          <div className="mt-12">
-            <h3 className="text-xl font-semibold tracking-tight">Como a IA trabalha aqui dentro</h3>
-            <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed">
-              Em quatro passos, e com a fronteira dos seus dados explícita em cada um.
-            </p>
-
-            <div className="mt-8">
-              <ComoAIAFunciona />
-            </div>
-          </div>
-        </Revelar>
-
-        <Revelar className="mt-16" atrasoMs={80}>
-          <div className="flex max-w-2xl flex-col gap-3">
-            <RotuloSecao>Próximos assistentes</RotuloSecao>
-            <h3 className="text-2xl font-semibold tracking-tight">
-              A inteligência continua crescendo junto com a operação.
-            </h3>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Estes recursos entram nas próximas etapas. Cada ação sensível continuará dependendo da
-              confirmação de uma pessoa.
-            </p>
-          </div>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {proximosRecursos.map((recurso) => (
-              <article
-                key={recurso.titulo}
-                className="cartao-elevavel bg-card flex flex-col gap-3 rounded-lg p-5"
-              >
-                <span className="flex items-center justify-between gap-3">
-                  <recurso.icone aria-hidden className="text-info size-5" />
-                  <span className="text-muted-foreground border-border rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium">
-                    em breve
-                  </span>
-                </span>
-                <h4 className="font-semibold tracking-tight">{recurso.titulo}</h4>
-                <p className="text-muted-foreground text-sm italic">{recurso.pergunta}</p>
-                <p className="text-muted-foreground text-sm leading-relaxed">{recurso.descricao}</p>
-              </article>
-            ))}
-          </div>
-        </Revelar>
-
-        <p className="text-muted-foreground mt-8 flex items-start gap-2.5 text-sm leading-relaxed">
-          <Sparkles aria-hidden className="text-info mt-0.5 size-4 shrink-0" />
-          <span className="max-w-2xl">
-            A IA trabalha sobre totais agregados e não recebe nomes de clientes. As projeções são
-            apoio gerencial e não substituem a análise do contador.
-          </span>
-        </p>
-      </div>
-    </section>
-  );
-}
-
-const GARANTIAS = [
-  {
-    icone: Database,
-    titulo: 'Os dados da sua empresa são só seus',
-    descricao:
-      'Nenhuma outra empresa consegue ver o que é seu. Essa separação foi a primeira coisa construída, antes de qualquer tela, e o próprio banco de dados recusa o acesso, e não depende de ninguém lembrar de checar.',
-  },
-  {
-    icone: KeyRound,
-    titulo: 'Cada pessoa vê o que precisa',
-    descricao:
-      'Você libera o sistema para a equipe sem abrir quanto a empresa fatura. Quem atende cliente enxerga o atendimento; o financeiro fica com quem você escolher.',
-  },
-  {
-    icone: Lock,
-    titulo: 'Senha e acesso protegidos',
-    descricao:
-      'Sua senha é guardada de forma que nem nós conseguimos ler, e a sessão se renova sozinha sem deixar brecha aberta no navegador.',
-  },
-  {
-    icone: Smartphone,
-    titulo: 'Entrada em duas etapas',
-    descricao:
-      'Além da senha, cada pessoa confirma um código gerado por um aplicativo autenticador no celular. Mesmo que alguém descubra a senha, não entra sem o seu aparelho.',
-  },
-  {
-    icone: FileDown,
-    titulo: 'Seus dados vão com você',
-    descricao:
-      'O dono pode exportar tudo da empresa quando quiser. Se cancelar a conta, os dados são apagados em definitivo depois de 30 dias, e não ficam guardados “por precaução”.',
-  },
-];
 
 /**
- * Seção de segurança.
- *
- * Está na página porque é uma diferença real do produto, não enfeite: quem
- * vende para PME costuma ouvir "meus dados ficam misturados com os de outra
- * empresa?" — e aqui a resposta é verificável.
+ * Segurança numa faixa escura, nos dois temas: a mudança de fundo marca a
+ * troca de assunto (do que o sistema faz para como ele guarda os seus dados).
  */
 function Seguranca() {
-  // Fundo neutro, e não `bg-superficie`: a seção de IA logo acima já é tingida,
-  // e com as duas no mesmo tom elas viravam uma faixa contínua de meia página.
-  // A troca de assunto — de "o que a IA faz" para "como seus dados ficam
-  // guardados" — perdia o corte visual que separa uma seção da outra.
   return (
-    <section id="seguranca" className="scroll-mt-16 border-b">
-      <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:py-24">
-        <CabecalhoSecao
-          rotulo="Segurança"
-          titulo="Seus dados são só seus. E isso é testado, não prometido."
-        >
-          A separação entre empresas foi construída antes de qualquer tela, e é verificada de
-          propósito, com testes que tentam invadir o dado de outra empresa e precisam falhar.
-        </CabecalhoSecao>
+    <section id="seguranca" className="invertido scroll-mt-20">
+      <div className="mx-auto grid w-full max-w-6xl gap-14 px-6 py-24 lg:grid-cols-[0.95fr_1.05fr] lg:py-32">
+        <CabecalhoSecao cabecalho={SECOES.seguranca} />
 
-        <ul className="flex flex-col gap-8">
-          {GARANTIAS.map((garantia) => (
-            <li key={garantia.titulo} className="flex gap-4">
-              <span className="bg-atencao-suave text-atencao mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-current/10">
+        <ul className="flex flex-col">
+          {GARANTIAS.map((garantia, indice) => (
+            <li
+              key={garantia.titulo}
+              className="surgir flex gap-5 border-t py-7 first:border-t-0 first:pt-0"
+              style={ordem(indice)}
+            >
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-(--acento)/40 text-(--acento)">
                 <garantia.icone aria-hidden className="size-5" />
               </span>
               <div className="flex flex-col gap-1.5">
-                <h3 className="font-semibold tracking-tight">{garantia.titulo}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {garantia.descricao}
-                </p>
+                <h3 className="display text-xl">{garantia.titulo}</h3>
+                <p className="text-muted-foreground leading-relaxed">{garantia.descricao}</p>
               </div>
             </li>
           ))}
@@ -476,145 +282,97 @@ function Seguranca() {
 
 function Planos() {
   return (
-    <section id="planos" className="scroll-mt-16 border-b">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-        <CabecalhoSecao rotulo="Preço" titulo="Dois planos. Sem letra miúda, sem pegadinha.">
-          O Básico organiza clientes, orçamentos, agenda e financeiro; o Premium comporta mais
-          pessoas na equipe e mais clientes, e acrescenta a inteligência artificial sobre os seus
-          números. Os 14 dias de teste valem para os dois.
-        </CabecalhoSecao>
-        <dl className="text-muted-foreground mt-6 grid max-w-3xl gap-3 text-sm leading-relaxed sm:grid-cols-2">
-          <div>
-            <dt className="text-foreground font-medium">O que é “usuário”?</dt>
-            <dd>
-              Cada pessoa da sua equipe que entra no sistema com login e senha próprios, e você
-              decide o que cada uma enxerga.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-foreground font-medium">O que é uma “previsão”?</dt>
-            <dd>
-              Cada vez que você pede à inteligência artificial para projetar o seu caixa dos
-              próximos meses.
-            </dd>
-          </div>
-        </dl>
+    <section id="planos" className="scroll-mt-20">
+      <div className="mx-auto w-full max-w-5xl px-6 py-24 lg:py-32">
+        <CabecalhoSecao cabecalho={SECOES.planos} centralizado />
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-2">
-          <CartaoPlano
-            nome="Básico"
-            preco="100"
-            itens={[
-              '2 usuários incluídos',
-              'Até 5 usuários · R$ 20 por adicional',
-              '500 clientes',
-              'Clientes, orçamentos, agenda e financeiro',
-              'Importação e exportação de dados',
-            ]}
-          />
-          {/*
-            "Premium", e não "Pro".
-
-            É o nome que o sistema usa de verdade (`seed.ts`, slug
-            `profissional`). Vender "Pro" aqui e mostrar "Premium" na conta faz
-            a pessoa duvidar de que assinou o que escolheu — e é o tipo de
-            divergência que só aparece depois do pagamento.
-
-            O assistente com IA estava faltando na lista: é um diferencial real
-            do plano (`iaHabilitada`), e a página cobrava por ele sem citá-lo.
-          */}
-          <CartaoPlano
-            nome="Premium"
-            preco="200"
-            destaque
-            itens={[
-              '5 usuários incluídos',
-              'Até 20 usuários · R$ 15 por adicional',
-              '3.000 clientes',
-              'Tudo do Básico',
-              'Assistente com IA sobre os seus números',
-              'Previsão financeira com IA',
-              '200 previsões por mês',
-            ]}
-          />
+        <div className="mt-14 grid items-stretch gap-6 md:grid-cols-2">
+          {PLANOS.map((plano, indice) => (
+            <div key={plano.nome} className="surgir" style={ordem(indice)}>
+              <CartaoPlano plano={plano} />
+            </div>
+          ))}
         </div>
+
+        <dl className="text-muted-foreground mx-auto mt-10 grid max-w-3xl gap-4 text-sm leading-relaxed sm:grid-cols-2">
+          {DEFINICOES_DOS_PLANOS.map((item) => (
+            <div key={item.termo}>
+              <dt className="text-foreground font-semibold">
+                O que é “{item.termo.toLowerCase()}”?
+              </dt>
+              <dd>{item.definicao}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   );
 }
 
-function CartaoPlano({
-  nome,
-  preco,
-  itens,
-  destaque = false,
-}: {
-  nome: string;
-  preco: string;
-  itens: string[];
-  destaque?: boolean;
-}) {
+function CartaoPlano({ plano }: { plano: Plano }) {
   return (
     <article
       className={cn(
-        'cartao-elevavel bg-card flex flex-col gap-6 rounded-lg p-8',
-        destaque && 'border-info/25 ring-info/20 ring-1',
+        'cartao elevavel relative flex h-full flex-col gap-7 p-8 sm:p-10',
+        plano.destaque && 'border-(--acento)/45 ring-1 ring-(--acento)/25',
       )}
     >
-      <div>
-        <h3 className="text-xl font-semibold">{nome}</h3>
-        <p className="mt-2">
-          <span className="text-4xl font-semibold tracking-tight">R$ {preco}</span>
+      {plano.destaque && (
+        <span className="absolute -top-3 left-8 rounded-full bg-(--acento) px-3 py-1 text-[0.7rem] font-semibold tracking-wide text-(--acento-texto) uppercase sm:left-10">
+          Recomendado
+        </span>
+      )}
+
+      <div className="flex flex-col gap-3">
+        <h3 className="display text-3xl">{plano.nome}</h3>
+        <p className="text-muted-foreground text-sm leading-relaxed">{plano.resumo}</p>
+        <p className="mt-2 flex items-baseline gap-1.5">
+          <span className="numero-destaque text-6xl">R$ {plano.preco}</span>
           <span className="text-muted-foreground">/mês</span>
         </p>
       </div>
-      <ul className="flex flex-col gap-3">
-        {itens.map((item) => (
+
+      <ul className="flex flex-1 flex-col gap-3 border-t pt-6">
+        {plano.itens.map((item) => (
           <li key={item} className="flex gap-3 text-sm">
-            <Check className="text-sucesso size-4 shrink-0" />
+            <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-(--acento)" />
             {item}
           </li>
         ))}
       </ul>
+
       <Link
         href="/cadastro"
-        className={estilosBotao({ variante: destaque ? 'primario' : 'secundario', tamanho: 'lg' })}
+        className={cn('botao w-full', plano.destaque ? 'botao-acento' : 'botao-contorno')}
       >
-        Começar agora
-        <ArrowRight />
+        Começar com 14 dias grátis
+        <ArrowRight aria-hidden />
       </Link>
     </article>
   );
 }
 
 /**
- * As dúvidas, em sanfona.
- *
- * `<details>` sem `name`: ao contrário da jornada, aqui a pessoa costuma querer
- * ler duas ou três respostas lado a lado, e fechar uma ao abrir a outra seria
- * atrapalhar. Sem JavaScript, e com todo o texto no HTML — o que também ajuda
- * a página a ser encontrada por quem pesquisa a pergunta.
+ * As dúvidas, em sanfona de `<details>`: sem JavaScript, com todo o texto no
+ * HTML (bom para quem busca a pergunta no Google), e várias abertas ao mesmo
+ * tempo, porque a pessoa costuma comparar respostas.
  */
 function Duvidas() {
   return (
-    <section id="duvidas" className="bg-superficie scroll-mt-16 border-b">
-      <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:py-24">
-        <CabecalhoSecao rotulo="Dúvidas" titulo="O que costumam perguntar antes de testar.">
-          Respostas diretas, inclusive sobre o que o sistema ainda não faz. É melhor você saber
-          agora do que descobrir depois.
-        </CabecalhoSecao>
+    <section id="duvidas" className="scroll-mt-20 border-t bg-(--papel-2)">
+      <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-24 lg:grid-cols-[0.85fr_1.15fr] lg:py-32">
+        <CabecalhoSecao cabecalho={SECOES.duvidas} />
 
-        <div className="flex flex-col gap-3">
+        <div className="surgir flex flex-col border-t">
           {PERGUNTAS.map((item) => (
-            <details key={item.pergunta} className="group bg-card rounded-lg border">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4 text-sm font-semibold select-none sm:p-5 [&::-webkit-details-marker]:hidden">
-                {item.pergunta}
-                <ChevronDown
-                  aria-hidden
-                  className="text-muted-foreground size-5 shrink-0 transition-transform group-open:rotate-180"
-                />
+            <details key={item.pergunta} className="group border-b">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-6 text-left select-none [&::-webkit-details-marker]:hidden">
+                <span className="display text-xl">{item.pergunta}</span>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border transition-[transform,border-color] duration-300 group-open:rotate-45 group-open:border-(--acento)">
+                  <Plus aria-hidden className="size-4" />
+                </span>
               </summary>
-              <p className="text-muted-foreground border-t p-4 text-sm leading-relaxed sm:p-5">
+              <p className="text-muted-foreground max-w-2xl pb-6 leading-relaxed">
                 {item.resposta}
               </p>
             </details>
@@ -627,25 +385,20 @@ function Duvidas() {
 
 function ChamadaFinal() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 py-16 lg:py-24">
-      <div className="flex flex-col items-start gap-6">
-        <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-balance">
-          Quer ver a conta da sua empresa se fechando sozinha?
+    <section className="halo relative overflow-x-clip border-t">
+      <div className="surgir mx-auto flex w-full max-w-3xl flex-col items-center gap-7 px-6 py-28 text-center lg:py-36">
+        <h2 className="display text-[clamp(2.5rem,6vw,4.5rem)]">
+          {CHAMADA_FINAL.titulo} <em>{CHAMADA_FINAL.enfase}</em>
         </h2>
-        <p className="text-muted-foreground max-w-xl leading-relaxed">
-          O jeito mais rápido de entender é testar. Cadastre o primeiro cliente e faça um orçamento:
-          é o suficiente para o quadro de negociações e o painel começarem a se mexer. O
-          acompanhamento já nasce montado, com as etapas que a maioria das empresas de serviço usa,
-          e dá para ajustar depois.
+        <p className="text-muted-foreground max-w-xl text-lg leading-relaxed">
+          {CHAMADA_FINAL.texto}
         </p>
-        <div className="flex flex-col items-start gap-2">
-          <Link href="/cadastro" className={estilosBotao({ tamanho: 'lg' })}>
-            Testar grátis por 14 dias
+        <div className="flex flex-col items-center gap-3">
+          <Link href="/cadastro" className="botao botao-acento">
+            {CHAMADA_FINAL.chamada}
             <ArrowRight aria-hidden />
           </Link>
-          <p className="text-muted-foreground text-xs">
-            Sem cartão de crédito · cancele quando quiser
-          </p>
+          <p className="text-muted-foreground text-xs">{CHAMADA_FINAL.observacao}</p>
         </div>
       </div>
     </section>

@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { estilosBotao } from '@/components/ui/botao';
 
 export function NavegacaoMobile({
   secoes,
@@ -49,10 +48,10 @@ export function NavegacaoMobile({
             </a>
           ))}
           <div className="mt-3 grid grid-cols-2 gap-3 border-t pt-4">
-            <Link href="/entrar" className={estilosBotao({ variante: 'secundario' })}>
+            <Link href="/entrar" className="botao botao-contorno botao-pequeno">
               Entrar
             </Link>
-            <Link href="/cadastro" className={estilosBotao()}>
+            <Link href="/cadastro" className="botao botao-acento botao-pequeno">
               Criar conta
             </Link>
           </div>

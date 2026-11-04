@@ -1,12 +1,9 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-/* Superfície do vídeo exportado e contraste do título comercial. */
+/* Altura do cabeçalho das páginas públicas (o visual delas mora em `(site)/site.css`). */
 :root {
   --altura-cabecalho-site: 4rem;
-  --hero-video-fundo: #f7f7f7;
-  --hero-video-texto: #606060;
-  --hero-enfase: oklch(0.18 0 0);
 }
 
 /*
@@ -319,58 +316,6 @@
     color: var(--foreground);
   }
 
-  /*
-   * Entrada progressiva das seções comerciais quando chegam à tela.
-   *
-   * Conduzida pela rolagem, não por JavaScript: `animation-timeline: view()`
-   * amarra o progresso da animação à posição do bloco na viewport. Antes disso
-   * havia um `IntersectionObserver` por bloco — JavaScript baixado e hidratado
-   * numa página que, fora isso, é estática.
-   *
-   * O padrão é o estado **visível**. Quem não tem animação por rolagem
-   * (Safari, Firefox) simplesmente lê a página; a animação é um acréscimo para
-   * quem tem, nunca a condição para o texto aparecer.
-   */
-  .revelar-site {
-    opacity: 1;
-  }
-
-  @supports (animation-timeline: view()) {
-    .revelar-site {
-      animation: revelar-entrada 1ms linear both;
-      animation-timeline: view();
-      animation-range: entry 10% cover 22%;
-      animation-delay: var(--atraso-revelar, 0ms);
-    }
-  }
-
-  @keyframes revelar-entrada {
-    from {
-      opacity: 0;
-      transform: translateY(18px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-
-  /* Elevação pequena: comunica que o cartão é uma unidade, sem parecer botão. */
-  .cartao-elevavel {
-    transition:
-      transform var(--duracao-normal) var(--curva),
-      border-color var(--duracao-normal) var(--curva),
-      box-shadow var(--duracao-normal) var(--curva);
-  }
-
-  @media (hover: hover) {
-    .cartao-elevavel:hover {
-      transform: translateY(-3px);
-      border-color: color-mix(in oklch, var(--primary) 42%, var(--border));
-      box-shadow: var(--sombra-media);
-    }
-  }
-
   /* O gráfico se desenha ao aparecer e novamente quando o cenário muda. */
   @keyframes desenhar-linha {
     from {
@@ -428,12 +373,6 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
-    }
-
-    .revelar-site {
-      animation: none;
-      opacity: 1;
-      transform: none;
     }
   }
 }

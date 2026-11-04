@@ -1,0 +1,667 @@
+/*
+  Identidade visual da página pública: elegância editorial.
+
+  Vale só dentro de `.site` (o layout do grupo `(site)`), então o painel, o
+  login e o cadastro continuam com o sistema visual do produto, intocados.
+
+  ## Por que redefinir os tokens do Tailwind aqui
+
+  As classes `bg-background`, `text-muted-foreground`, `border` etc. leem
+  variáveis CSS (`@theme inline` no `globals.css`). Redefinir essas variáveis
+  dentro de `.site` faz toda a página — inclusive componentes compartilhados
+  como a `Marca` e o menu do celular — trocar de paleta sem uma classe nova.
+
+  ## Paleta
+
+  Preto e branco, sem croma. O "acento" é o próprio preto (no tema escuro, o
+  branco): o botão principal, os números e as ênfases dos títulos ganham peso
+  pelo contraste e pelo itálico, não pela cor. Até os tons de significado
+  (sucesso, atenção, erro) viram cinza aqui dentro — o texto ao lado já diz
+  o que eles querem dizer.
+*/
+
+.site {
+  --papel: oklch(1 0 0);
+  --papel-2: oklch(0.972 0 0);
+  --cartao-site: oklch(1 0 0);
+  --tinta: oklch(0.15 0 0);
+  --tinta-suave: oklch(0.43 0 0);
+  --linha: oklch(0.9 0 0);
+  --linha-forte: oklch(0.78 0 0);
+
+  --acento: oklch(0.15 0 0);
+  --acento-forte: oklch(0.3 0 0);
+  --acento-suave: oklch(0.94 0 0);
+  --acento-texto: oklch(1 0 0);
+
+  --sucesso: var(--tinta);
+  --sucesso-suave: var(--acento-suave);
+  --atencao: var(--tinta);
+  --atencao-suave: var(--acento-suave);
+  --destructive: var(--tinta);
+
+  --sombra-camadas:
+    0 1px 1px oklch(0 0 0 / 0.04), 0 4px 10px -2px oklch(0 0 0 / 0.06),
+    0 18px 40px -12px oklch(0 0 0 / 0.14);
+  --sombra-flutuante:
+    0 1px 1px oklch(0 0 0 / 0.05), 0 12px 24px -8px oklch(0 0 0 / 0.12),
+    0 40px 80px -24px oklch(0 0 0 / 0.22);
+
+  background-color: var(--papel);
+  color: var(--tinta);
+  font-family: var(--fonte-texto), var(--fonte-sans);
+  font-feature-settings: 'ss01', 'cv11';
+  isolation: isolate;
+  /*
+    Rede de segurança: nada decorativo (halo, balão, cartão flutuante) alarga a
+    página e cria rolagem lateral no celular. `clip`, e não `hidden`: não cria
+    contêiner de rolagem, então o cabeçalho `sticky` continua funcionando.
+  */
+  overflow-x: clip;
+}
+
+/*
+  Os tokens que as classes do Tailwind leem, a partir da paleta do site.
+
+  Ficam numa regra própria, que vale também para `.invertido`: uma variável
+  como `--foreground: var(--tinta)` é resolvida no elemento onde é declarada.
+  Se ela fosse declarada só em `.site`, a faixa invertida trocaria `--tinta` e
+  o texto continuaria escuro. Declarada de novo lá dentro, acompanha.
+*/
+.site,
+.site .invertido {
+  --background: var(--papel);
+  --foreground: var(--tinta);
+  --superficie: var(--papel-2);
+  --card: var(--cartao-site);
+  --card-foreground: var(--tinta);
+  --popover: var(--cartao-site);
+  --popover-foreground: var(--tinta);
+  --primary: var(--tinta);
+  --primary-foreground: var(--papel);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: var(--tinta);
+  --muted: oklch(0.935 0 0);
+  --muted-foreground: var(--tinta-suave);
+  --accent: oklch(0.935 0 0);
+  --accent-foreground: var(--tinta);
+  --border: var(--linha);
+  --input: var(--linha-forte);
+  --ring: var(--acento);
+  --sombra-media: var(--sombra-camadas);
+}
+
+/*
+  Faixa invertida (a seção de segurança): preta com texto branco nos dois
+  temas. No escuro ela fica um pouco mais clara que a página, para continuar
+  sendo uma faixa, e não sumir no fundo.
+*/
+.site .invertido {
+  --papel: oklch(0.13 0 0);
+  --papel-2: oklch(0.17 0 0);
+  --cartao-site: oklch(0.18 0 0);
+  --tinta: oklch(0.98 0 0);
+  --tinta-suave: oklch(0.74 0 0);
+  --linha: oklch(0.3 0 0);
+  --linha-forte: oklch(0.42 0 0);
+  --acento: oklch(0.98 0 0);
+  --acento-forte: oklch(0.86 0 0);
+  --acento-suave: oklch(0.26 0 0);
+  --acento-texto: oklch(0.13 0 0);
+  --secondary: oklch(0.22 0 0);
+  --muted: oklch(0.22 0 0);
+  --accent: oklch(0.24 0 0);
+
+  background-color: var(--papel);
+  color: var(--tinta);
+}
+
+@media (prefers-color-scheme: dark) {
+  .site .invertido {
+    --papel: oklch(0.2 0 0);
+    --linha: oklch(0.33 0 0);
+  }
+}
+
+/*
+  Tema escuro, pela preferência do sistema operacional.
+
+  Sem botão de alternar: alternar exigiria guardar a escolha e aplicá-la antes
+  da primeira pintura, ou seja, um script no <head> — e a CSP com nonce só
+  aceita scripts do próprio Next. Seguir o sistema não precisa de nada disso.
+*/
+@media (prefers-color-scheme: dark) {
+  .site {
+    color-scheme: dark;
+
+    --papel: oklch(0.1 0 0);
+    --papel-2: oklch(0.14 0 0);
+    --cartao-site: oklch(0.155 0 0);
+    --tinta: oklch(0.98 0 0);
+    --tinta-suave: oklch(0.72 0 0);
+    --linha: oklch(0.27 0 0);
+    --linha-forte: oklch(0.38 0 0);
+
+    --acento: oklch(0.98 0 0);
+    --acento-forte: oklch(0.86 0 0);
+    --acento-suave: oklch(0.22 0 0);
+    --acento-texto: oklch(0.1 0 0);
+
+    --sombra-camadas:
+      0 1px 1px oklch(0 0 0 / 0.3), 0 4px 10px -2px oklch(0 0 0 / 0.35),
+      0 18px 40px -12px oklch(0 0 0 / 0.5);
+    --sombra-flutuante:
+      0 1px 1px oklch(0 0 0 / 0.3), 0 12px 24px -8px oklch(0 0 0 / 0.45),
+      0 40px 80px -24px oklch(0 0 0 / 0.6);
+
+    --secondary: oklch(0.2 0 0);
+    --muted: oklch(0.2 0 0);
+    --accent: oklch(0.22 0 0);
+  }
+
+  /* O fundo do documento acompanha: sem faixa clara ao puxar a página além do fim. */
+  html:has(.site),
+  html:has(.site) body {
+    background-color: oklch(0.1 0 0);
+  }
+}
+
+/* ─── Tipografia ─────────────────────────────────────────────────────────── */
+
+/* Títulos: serifada display. `opsz` alto e `SOFT` dão o desenho editorial. */
+.site .display {
+  font-family: var(--fonte-display), 'Iowan Old Style', Georgia, serif;
+  font-variation-settings:
+    'opsz' 144,
+    'SOFT' 50;
+  font-weight: 420;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+/* A ênfase dos títulos: itálico na cor de acento. */
+.site .display em {
+  font-style: italic;
+  font-variation-settings:
+    'opsz' 144,
+    'SOFT' 100;
+  color: var(--acento);
+}
+
+/* Rótulo de seção: pequeno, espaçado, com um traço antes. */
+.site .rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.site .rotulo::before {
+  content: '';
+  width: 1.75rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.site .numero-destaque {
+  font-family: var(--fonte-display), Georgia, serif;
+  font-variation-settings:
+    'opsz' 144,
+    'SOFT' 30;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Acabamento ─────────────────────────────────────────────────────────── */
+
+/*
+  Granulação leve sobre a página inteira: tira o aspecto "digital chapado" do
+  papel. É um SVG de ruído em `data:` (permitido pela CSP em img-src), fixo e
+  sem eventos de ponteiro.
+*/
+.site::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  .site::before {
+    opacity: 0.1;
+    mix-blend-mode: soft-light;
+  }
+}
+
+/* Halo de luz no topo do hero, no tom do acento. */
+.site .halo {
+  background:
+    radial-gradient(
+      60% 50% at 75% 20%,
+      color-mix(in oklch, var(--acento) 14%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 40% at 10% 0%,
+      color-mix(in oklch, var(--tinta) 5%, transparent),
+      transparent 70%
+    );
+}
+
+/* ─── Vídeo no fundo do hero ─────────────────────────────────────────────── */
+
+/*
+  O hero sobe por baixo do cabeçalho (margem negativa da altura dele), então o
+  vídeo começa no topo da tela e passa por trás do vidro fosco. O padding
+  devolve a mesma altura, e o texto continua no lugar.
+
+  `isolation` cria um contexto de empilhamento próprio: o vídeo fica atrás do
+  conteúdo do hero sem escapar para trás do resto da página.
+*/
+.site .hero-com-video {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-top: calc(-1 * var(--altura-cabecalho-site));
+  padding-top: var(--altura-cabecalho-site);
+}
+
+.site .hero-video {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.site .hero-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  /*
+    A gravação tem fundo preto e linhas claras. No tema claro, `invert` faz o
+    preto virar o branco da página e as linhas virarem traço escuro;
+    `grayscale` tira o azul do gráfico, para tudo ficar preto e branco.
+    `contrast` abaixo de 1 deixa as linhas como textura, sem brigar com o título.
+  */
+  filter: invert(1) grayscale(1) contrast(0.75) brightness(1.08);
+  opacity: 0.85;
+}
+
+/*
+  Véu de legibilidade: sólido atrás da coluna do texto (esquerda), aberto à
+  direita, e fechando embaixo para o hero emendar na faixa seguinte.
+*/
+.site .hero-video::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, transparent 55%, var(--papel) 100%),
+    linear-gradient(
+      to right,
+      var(--papel) 0%,
+      color-mix(in oklch, var(--papel) 82%, transparent) 38%,
+      color-mix(in oklch, var(--papel) 25%, transparent) 70%,
+      transparent 100%
+    );
+}
+
+/* No escuro, o vídeo entra como foi gravado: fundo preto, linhas claras. */
+@media (prefers-color-scheme: dark) {
+  .site .hero-video video {
+    filter: grayscale(1) contrast(0.85) brightness(0.9);
+    opacity: 0.7;
+  }
+}
+
+/* Sem coluna livre no celular: o texto cobre a largura toda e o vídeo vira textura. */
+@media (max-width: 1023px) {
+  .site .hero-video::after {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--papel) 55%, transparent) 0%,
+      color-mix(in oklch, var(--papel) 85%, transparent) 45%,
+      var(--papel) 100%
+    );
+  }
+}
+
+.site .cartao {
+  background: var(--cartao-site);
+  border: 1px solid var(--linha);
+  border-radius: 1rem;
+  box-shadow: var(--sombra-camadas);
+}
+
+/* Elevação no hover: o cartão sobe e a sombra abre, sem mudar de tamanho. */
+.site .elevavel {
+  transition:
+    transform 280ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 280ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    border-color 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (hover: hover) {
+  .site .elevavel:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--sombra-flutuante);
+    border-color: var(--linha-forte);
+  }
+}
+
+/* ─── Botões ─────────────────────────────────────────────────────────────── */
+
+.site .botao {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 3rem;
+  padding-inline: 1.5rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    border-color 200ms ease,
+    transform 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.site .botao svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  transition: transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.site .botao:hover svg {
+  transform: translateX(3px);
+}
+
+.site .botao-acento {
+  background: var(--acento);
+  color: var(--acento-texto);
+  box-shadow:
+    0 1px 0 color-mix(in oklch, white 22%, transparent) inset,
+    0 8px 20px -8px color-mix(in oklch, var(--acento) 70%, transparent);
+}
+
+.site .botao-acento:hover {
+  background: var(--acento-forte);
+  box-shadow:
+    0 1px 0 color-mix(in oklch, white 22%, transparent) inset,
+    0 12px 28px -10px color-mix(in oklch, var(--acento) 80%, transparent);
+}
+
+.site .botao-contorno {
+  border: 1px solid var(--linha-forte);
+  color: var(--tinta);
+  background: color-mix(in oklch, var(--cartao-site) 70%, transparent);
+}
+
+.site .botao-contorno:hover {
+  border-color: var(--tinta);
+}
+
+.site .botao-pequeno {
+  height: 2.25rem;
+  padding-inline: 1rem;
+  font-size: 0.85rem;
+}
+
+/* Link com seta: sublinhado que cresce do zero no hover. */
+.site .link-seta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.site .link-seta:hover {
+  background-size: 100% 1px;
+}
+
+/* ─── Termo com explicação ───────────────────────────────────────────────── */
+
+.site .termo {
+  position: relative;
+  display: inline;
+}
+
+.site .termo > button {
+  font: inherit;
+  color: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--acento);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.22em;
+  cursor: help;
+  border-radius: 0.25rem;
+}
+
+.site .termo > [role='tooltip'] {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.6rem);
+  z-index: 30;
+  width: max-content;
+  max-width: min(18rem, 80vw);
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--linha);
+  background: var(--cartao-site);
+  box-shadow: var(--sombra-flutuante);
+  color: var(--tinta);
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    visibility 180ms;
+  pointer-events: none;
+}
+
+.site .termo:hover > [role='tooltip'],
+.site .termo:focus-within > [role='tooltip'] {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+/*
+  No celular, centralizar o balão na palavra o empurra para fora da tela
+  quando a palavra está perto da borda. Ali ele ocupa a largura do cartão em
+  volta (que é `relative`), logo acima dele.
+*/
+@media (max-width: 640px) {
+  .site .termo {
+    position: static;
+  }
+
+  .site .termo > [role='tooltip'] {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+    bottom: calc(100% + 0.5rem);
+    transform: translateY(4px);
+  }
+
+  .site .termo:hover > [role='tooltip'],
+  .site .termo:focus-within > [role='tooltip'] {
+    transform: none;
+  }
+}
+
+/* ─── Movimento conduzido pela rolagem (sem JavaScript) ─────────────────── */
+
+/*
+  Revelação ao rolar. O padrão é visível: onde `animation-timeline` não existe,
+  o conteúdo simplesmente está lá. `--ordem` escalona cartões vizinhos.
+*/
+@supports (animation-timeline: view()) {
+  .site .surgir {
+    animation: site-surgir linear both;
+    animation-timeline: view();
+    animation-range: entry calc(4% + var(--ordem, 0) * 6%) cover calc(20% + var(--ordem, 0) * 6%);
+  }
+
+  /* Parallax leve do mockup do hero, preso à rolagem da página. */
+  .site .paralaxe {
+    animation: site-paralaxe linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 100vh;
+  }
+
+  /* As etapas da jornada "acendem" ao cruzar o meio da tela. */
+  .site .etapa-jornada {
+    animation: site-acender linear both;
+    animation-timeline: view();
+    animation-range: cover 28% cover 46%;
+  }
+
+  /* A linha da jornada se desenha conforme a lista passa. */
+  .site .linha-jornada {
+    transform-origin: top;
+    animation: site-desenhar-linha linear both;
+    animation-timeline: view();
+    animation-range: cover 25% cover 75%;
+  }
+}
+
+@keyframes site-surgir {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes site-paralaxe {
+  to {
+    transform: translateY(-7%);
+  }
+}
+
+@keyframes site-acender {
+  from {
+    opacity: 0.32;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes site-desenhar-linha {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* O mockup do hero entra suave ao carregar (e o contador corre por dentro). */
+@keyframes site-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.site .entrada {
+  animation: site-entrada 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--atraso, 0ms);
+}
+
+/* As barras de margem do mockup crescem da esquerda, uma depois da outra. */
+@keyframes site-barra {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.site .barra {
+  transform-origin: left;
+  animation: site-barra 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--atraso, 0ms);
+}
+
+/* O total do funil "respira" quando muda: o olho percebe que ele recalculou. */
+@keyframes site-numero-novo {
+  from {
+    opacity: 0.35;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.site .numero-novo {
+  animation: site-numero-novo 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/*
+  Quem pediu menos movimento no sistema não recebe nenhum. As animações por
+  rolagem precisam de regra própria: o `animation-duration` mínimo do
+  `globals.css` não se aplica a elas, que não dependem de tempo.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .site .surgir,
+  .site .paralaxe,
+  .site .etapa-jornada,
+  .site .linha-jornada,
+  .site .entrada,
+  .site .barra,
+  .site .numero-novo {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .site .elevavel,
+  .site .botao,
+  .site .botao svg {
+    transition: none;
+  }
+
+  .site .elevavel:hover {
+    transform: none;
+  }
+}
