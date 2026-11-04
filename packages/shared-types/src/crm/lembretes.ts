@@ -41,6 +41,7 @@ export type LembretesQuery = z.infer<typeof lembretesQuerySchema>;
 
 export const ROTULO_STATUS_LEMBRETE: Record<StatusLembrete, string> = {
   pendente: 'Pendente',
+  enviando: 'Enviando',
   enviado: 'Enviado',
   falhou: 'Falhou',
   cancelado: 'Cancelado',

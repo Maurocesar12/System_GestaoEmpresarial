@@ -28,6 +28,9 @@ export const metadata: Metadata = {
 /** Mesma escala de significado dos selos do resto do sistema. */
 const TOM_DO_STATUS: Record<StatusLembrete, 'atencao' | 'sucesso' | 'perigo' | 'neutro'> = {
   pendente: 'atencao',
+  // Em trânsito: o worker já reivindicou e está enviando. Mesma cor de pendente,
+  // porque ainda não há resultado, mas o rótulo diz que não dá mais para cancelar.
+  enviando: 'atencao',
   enviado: 'sucesso',
   falhou: 'perigo',
   cancelado: 'neutro',

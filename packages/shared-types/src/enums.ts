@@ -36,7 +36,7 @@ export type StatusAgendamento = z.infer<typeof statusAgendamentoSchema>;
 export const canalLembreteSchema = z.enum(CANAIS_LEMBRETE);
 export type CanalLembrete = z.infer<typeof canalLembreteSchema>;
 
-export const STATUS_LEMBRETE = ['pendente', 'enviado', 'falhou', 'cancelado'] as const;
+export const STATUS_LEMBRETE = ['pendente', 'enviando', 'enviado', 'falhou', 'cancelado'] as const;
 export const statusLembreteSchema = z.enum(STATUS_LEMBRETE);
 export type StatusLembrete = z.infer<typeof statusLembreteSchema>;
 
