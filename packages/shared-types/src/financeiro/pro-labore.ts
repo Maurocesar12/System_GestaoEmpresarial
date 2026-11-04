@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { dinheiroNaoNegativoSchema } from '../common/dinheiro';
 
 /**
  * Pró-labore: a retirada mensal do dono (arquitetura §7).
@@ -16,7 +16,7 @@ import { dinheiroDigitadoSchema } from '../common/dinheiro';
  */
 
 export const proLaboreFormSchema = z.object({
-  valor: dinheiroDigitadoSchema,
+  valor: dinheiroNaoNegativoSchema,
 
   /** A partir de quando este valor vale, `AAAA-MM-DD`. */
   vigenciaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
@@ -104,7 +104,7 @@ export type SugestaoQuery = z.infer<typeof sugestaoQuerySchema>;
  * dinheiro, diferente do usado ao gravar.
  */
 export const simulacaoProLaboreSchema = sugestaoQuerySchema.extend({
-  valor: dinheiroDigitadoSchema,
+  valor: dinheiroNaoNegativoSchema,
 });
 
 export type SimulacaoProLaboreInput = z.infer<typeof simulacaoProLaboreSchema>;

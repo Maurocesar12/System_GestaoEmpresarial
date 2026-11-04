@@ -276,7 +276,8 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     resposta:
       'Em **Operação > Orçamentos**: cliente, serviço, valor e validade opcional.\n\n' +
       'Três estados, aberto, aprovado ou recusado, e dá pra reabrir se a conversa voltar. Aprovar já move o cliente pro funil sozinho.\n\n' +
-      '**Dica:** só dá pra editar enquanto está aberto. Depois de aprovado, o valor fica travado, pois mudar seria alterar um compromisso já fechado.',
+      '**Dica:** só dá pra editar enquanto está aberto. Depois de aprovado, o valor fica travado, pois mudar seria alterar um compromisso já fechado.\n\n' +
+      '**Quem aprova:** o administrador, e quem ele liberar. Aprovar gera a comissão de venda, então fica à parte: em **Equipe**, no acesso da pessoa, marque "Aprovar orçamentos". Sem isso, ela emite, edita e recusa, mas não aprova.',
     relacionados: ['funil-etapas', 'servicos', 'financeiro-lancamentos'],
   },
   {
@@ -341,6 +342,7 @@ export const BASE_DE_CONHECIMENTO: readonly TopicoAjuda[] = [
     resposta:
       'Em **Relacionamento > Lembretes**: escolha o cliente, o canal e a data.\n\n' +
       'Por **e-mail**, o envio é automático. Por **WhatsApp**, ainda não, pois depende de aprovação da Meta, então esses ficam marcados como falha, com o motivo explicado.\n\n' +
+      '**Limite do plano:** cada plano tem um número de envios por mês (veja em **Plano**). Chegando nele, os próximos lembretes do mês não saem e ficam marcados como falha, com o motivo.\n\n' +
       '**Dica:** lembrete pendente com data já passada aparece como atrasado no painel, pra você não perder o retorno.',
     relacionados: ['reativacao', 'painel'],
   },

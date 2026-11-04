@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import type { PrismaService } from '../../../infra/prisma/prisma.service';
 import { runComTenant, type TenantContext } from '../../../infra/tenant/tenant-context';
 import type { ComissoesService } from '../../operacao/comissoes/comissoes.service';
@@ -102,6 +102,62 @@ describe('OrcamentosService — corrida entre requisições', () => {
 
       expect(moverParaMarco).not.toHaveBeenCalled();
       expect(gerarVenda).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Aprovar gera a comissão de venda de quem emitiu. Sem a liberação do
+   * administrador (`orcamentos.aprovar`), um atendente emitiria e aprovaria o
+   * próprio orçamento — a requisição pode ser montada à mão, sem o botão.
+   */
+  describe('aprovar depende de liberação do administrador', () => {
+    const atendente = (permissoes: TenantContext['permissoes']): TenantContext => ({
+      ...contexto,
+      papel: 'atendente',
+      permissoes,
+    });
+
+    it('recusa quem gerencia orçamentos mas não foi liberado, antes de gravar', async () => {
+      await expect(
+        runComTenant(atendente(['orcamentos.visualizar', 'orcamentos.gerenciar']), () =>
+          servico.mudarStatus(ID, 'aprovar'),
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(tx.orcamento.update).not.toHaveBeenCalled();
+      expect(gerarVenda).not.toHaveBeenCalled();
+    });
+
+    it('recusar continua com quem gerencia', async () => {
+      tx.orcamento.update.mockResolvedValue(linha('recusado'));
+
+      await runComTenant(atendente(['orcamentos.visualizar', 'orcamentos.gerenciar']), () =>
+        servico.mudarStatus(ID, 'recusar'),
+      );
+
+      expect(tx.orcamento.update).toHaveBeenCalled();
+    });
+
+    it('com a liberação, aprova e gera a comissão', async () => {
+      tx.orcamento.update.mockResolvedValue(linha('aprovado'));
+
+      await runComTenant(
+        atendente(['orcamentos.visualizar', 'orcamentos.gerenciar', 'orcamentos.aprovar']),
+        () => servico.mudarStatus(ID, 'aprovar'),
+      );
+
+      expect(gerarVenda).toHaveBeenCalled();
+    });
+
+    it('a tela só recebe o botão "aprovar" de quem foi liberado', async () => {
+      const semLiberacao = await runComTenant(
+        atendente(['orcamentos.visualizar', 'orcamentos.gerenciar']),
+        () => servico.buscarPorId(ID),
+      );
+      const admin = await runComTenant(contexto, () => servico.buscarPorId(ID));
+
+      expect(semLiberacao.acoesDisponiveis).toEqual(['recusar']);
+      expect(admin.acoesDisponiveis).toEqual(['aprovar', 'recusar']);
     });
   });
 

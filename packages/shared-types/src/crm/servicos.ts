@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { dinheiroNaoNegativoSchema } from '../common/dinheiro';
 import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 
@@ -15,7 +15,7 @@ import { paginacaoQuerySchema } from '../common/paginacao';
  */
 
 /** Campo de dinheiro opcional: vazio vira `null`, não zero. */
-const dinheiroOpcionalSchema = opcional(dinheiroDigitadoSchema);
+const dinheiroOpcionalSchema = opcional(dinheiroNaoNegativoSchema);
 
 export const servicoFormSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome do serviço').max(120),
@@ -28,7 +28,7 @@ export const servicoFormSchema = z.object({
    * é ficar em branco: um catálogo com custo desconhecido inviabiliza o
    * relatório de margem, que é o diferencial do produto.
    */
-  custoBase: dinheiroDigitadoSchema,
+  custoBase: dinheiroNaoNegativoSchema,
 
   /** Preço sugerido. Cada orçamento pode cobrar diferente. */
   precoPadrao: dinheiroOpcionalSchema,
@@ -70,8 +70,8 @@ export interface Servico {
  * conversão própria, diferente desta — a prévia podia discordar do salvo.
  */
 export const simulacaoMargemSchema = z.object({
-  custoBase: dinheiroDigitadoSchema,
-  precoPadrao: dinheiroDigitadoSchema,
+  custoBase: dinheiroNaoNegativoSchema,
+  precoPadrao: dinheiroNaoNegativoSchema,
 });
 
 export type SimulacaoMargemInput = z.infer<typeof simulacaoMargemSchema>;

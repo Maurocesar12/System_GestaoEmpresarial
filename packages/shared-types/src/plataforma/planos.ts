@@ -47,11 +47,14 @@ export interface PlanoAtualResponse {
   limites: {
     usuarios: number | null;
     clientes: number | null;
+    /** Lembretes enviados por mês. Atingido, os próximos não saem. */
+    enviosMensais: number | null;
     previsoesIaMensais: number | null;
   };
   uso: {
     usuarios: number;
     clientes: number;
+    enviosNoMes: number;
     previsoesIaNoMes: number;
   };
   assinatura: {

@@ -10,6 +10,7 @@ import {
   TEMPO_MAXIMO_ENVIANDO_MS,
   type PayloadEnvioLembrete,
 } from './envio.constantes';
+import { contarEnviosDoMes, mensagemLimiteEnvios } from './limite-envios';
 import { montarMensagemLembrete } from './mensagem-lembrete';
 
 /**
@@ -57,9 +58,14 @@ export class LembretesProcessor extends WorkerHost {
     // mesmo lembrete (retry, varredura repetida) passavam juntos pela leitura.
     // Quem perde a reivindicação não envia nada. Depois dela, o cancelamento
     // deixa de valer (só cancela `pendente`), então "enviado" é sempre verdade.
-    const reivindicado = await this.reivindicar(tenantId, lembreteId);
+    const reivindicacao = await this.reivindicar(tenantId, lembreteId);
 
-    if (!reivindicado) {
+    if (reivindicacao === 'limite') {
+      this.logger.warn(`Lembrete ${lembreteId} não enviado: limite mensal de envios do plano.`);
+      return;
+    }
+
+    if (reivindicacao === 'perdida') {
       this.logger.log(`Lembrete ${lembreteId} já está "${lembrete.status}" — envio ignorado.`);
       return;
     }
@@ -157,27 +163,65 @@ export class LembretesProcessor extends WorkerHost {
 
   /**
    * `pendente -> enviando`, ou retoma um `enviando` que travou (o processo que o
-   * reivindicou morreu e passou de `TEMPO_MAXIMO_ENVIANDO_MS`). `true` se este
-   * job ficou com o lembrete.
+   * reivindicou morreu e passou de `TEMPO_MAXIMO_ENVIANDO_MS`).
+   *
+   * Antes, confere o limite mensal de envios do plano — a mesma regra para
+   * todos os planos, cada um com o seu número. A linha da empresa fica travada
+   * (`FOR UPDATE`) até o fim da transação: dois jobs da mesma empresa contam
+   * um depois do outro, e o segundo já vê o primeiro como `enviando`. Sem a
+   * trava, os dois liam "299 de 300" e saíam os dois.
+   *
+   * Estourado o limite, o lembrete vira `falhou` com o motivo, que aparece na
+   * tela. Deixá-lo pendente faria ele sair no mês seguinte, atrasado e fora de
+   * contexto.
+   *
+   * @returns `reivindicada` se este job ficou com o lembrete; `perdida` se
+   * outro job ou um cancelamento chegou antes; `limite` se o plano não permite.
    */
-  private async reivindicar(tenantId: string, lembreteId: string): Promise<boolean> {
+  private reivindicar(
+    tenantId: string,
+    lembreteId: string,
+  ): Promise<'reivindicada' | 'perdida' | 'limite'> {
     const agora = new Date();
-    const limite = new Date(agora.getTime() - TEMPO_MAXIMO_ENVIANDO_MS);
-
-    const { count } = await this.prisma.comTenantExplicito(tenantId, (tx) =>
-      tx.lembreteFollowUp.updateMany({
-        where: {
-          id: lembreteId,
-          OR: [
-            { status: 'pendente' },
-            { status: 'enviando', OR: [{ iniciadoEm: null }, { iniciadoEm: { lt: limite } }] },
-          ],
+    const travadoAntesDe = new Date(agora.getTime() - TEMPO_MAXIMO_ENVIANDO_MS);
+    const disponivel = {
+      id: lembreteId,
+      OR: [
+        { status: 'pendente' as const },
+        {
+          status: 'enviando' as const,
+          OR: [{ iniciadoEm: null }, { iniciadoEm: { lt: travadoAntesDe } }],
         },
-        data: { status: 'enviando', iniciadoEm: agora },
-      }),
-    );
+      ],
+    };
 
-    return count === 1;
+    return this.prisma.comTenantExplicito(tenantId, async (tx) => {
+      await tx.$executeRaw`SELECT id FROM tenant WHERE id = ${tenantId}::uuid FOR UPDATE`;
+
+      const { plano } = await tx.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { plano: { select: { nome: true, limiteEnviosMensais: true } } },
+      });
+      const limite = plano.limiteEnviosMensais;
+
+      if (limite !== null && (await contarEnviosDoMes(tx, agora, lembreteId)) >= limite) {
+        const { count } = await tx.lembreteFollowUp.updateMany({
+          where: disponivel,
+          data: {
+            status: 'falhou',
+            iniciadoEm: null,
+            erro: mensagemLimiteEnvios(plano.nome, limite),
+          },
+        });
+        return count === 1 ? 'limite' : 'perdida';
+      }
+
+      const { count } = await tx.lembreteFollowUp.updateMany({
+        where: disponivel,
+        data: { status: 'enviando', iniciadoEm: agora },
+      });
+      return count === 1 ? 'reivindicada' : 'perdida';
+    });
   }
 
   private async registrarDesfecho(

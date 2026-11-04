@@ -7,6 +7,7 @@ import {
   type Funcionario,
   type MapaAcessos,
   type PapelUsuario,
+  type Permissao,
 } from '@gestao/shared-types';
 import { SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
@@ -24,13 +25,28 @@ export function GerenciadorEquipe({
   catalogo,
   mostrarComissoes,
   ehAdmin,
+  quemEdita,
 }: EquipeResponse & {
   /** Percentuais de comissão são só do admin; a API também recusa os demais. */
   mostrarComissoes: boolean;
   /** Mostra "Redefinir 2FA". A API só aceita do admin, com ou sem o botão. */
   ehAdmin: boolean;
+  /** Quem está na tela: sem ser admin, não edita admins nem o próprio acesso. */
+  quemEdita: { id: string; permissoes: readonly Permissao[] };
 }) {
   const [editando, setEditando] = useState<Funcionario>();
+
+  // As mesmas travas da API (`garantirQueNaoAmpliaAcesso`), só para não
+  // oferecer um botão que terminaria em recusa.
+  function bloqueioDeEdicao(funcionario: Funcionario): string | undefined {
+    if (ehAdmin) return undefined;
+    if (funcionario.papel === 'admin') return 'Só o administrador altera';
+    if (funcionario.id === quemEdita.id) return 'Definido pelo administrador';
+    return undefined;
+  }
+  const concedivel = ehAdmin
+    ? undefined
+    : (permissao: Permissao) => quemEdita.permissoes.includes(permissao);
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,6 +65,7 @@ export function GerenciadorEquipe({
                 key={funcionario.id}
                 funcionario={funcionario}
                 catalogo={catalogo}
+                bloqueio={bloqueioDeEdicao(funcionario)}
                 aoEditar={() => setEditando(funcionario)}
               />
             ))}
@@ -59,6 +76,7 @@ export function GerenciadorEquipe({
             bloqueado={capacidade.limiteAtingido}
             capacidade={capacidade}
             catalogo={catalogo}
+            concedivel={concedivel}
           />
           {convites.length > 0 && <ConvitesPendentes convites={convites} />}
         </div>
@@ -72,6 +90,7 @@ export function GerenciadorEquipe({
           catalogo={catalogo}
           mostrarComissoes={mostrarComissoes}
           ehAdmin={ehAdmin}
+          permissoesDeQuemEdita={quemEdita.permissoes}
           aoFechar={() => setEditando(undefined)}
         />
       )}
@@ -82,10 +101,13 @@ export function GerenciadorEquipe({
 function LinhaFuncionario({
   funcionario,
   catalogo,
+  bloqueio,
   aoEditar,
 }: {
   funcionario: Funcionario;
   catalogo: CatalogoAcessos;
+  /** Motivo de não poder editar; ausente mostra o botão. */
+  bloqueio?: string;
   aoEditar: () => void;
 }) {
   return (
@@ -110,16 +132,20 @@ function LinhaFuncionario({
         </div>
         <ResumoAcesso papel={funcionario.papel} acessos={funcionario.acessos} catalogo={catalogo} />
       </div>
-      <Botao
-        type="button"
-        variante="secundario"
-        tamanho="sm"
-        onClick={aoEditar}
-        className="self-start"
-      >
-        <SlidersHorizontal aria-hidden />
-        Editar acesso
-      </Botao>
+      {bloqueio ? (
+        <span className="text-muted-foreground self-start text-xs sm:pt-2">{bloqueio}</span>
+      ) : (
+        <Botao
+          type="button"
+          variante="secundario"
+          tamanho="sm"
+          onClick={aoEditar}
+          className="self-start"
+        >
+          <SlidersHorizontal aria-hidden />
+          Editar acesso
+        </Botao>
+      )}
     </li>
   );
 }

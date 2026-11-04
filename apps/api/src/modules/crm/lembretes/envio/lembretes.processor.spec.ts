@@ -31,14 +31,30 @@ const LEMBRETE_PENDENTE: LembreteCarregado = {
  *
  * @param reivindica Se a reivindicação (`pendente -> enviando`) casa uma linha.
  *   `false` simula o lembrete já cancelado, já enviado ou nas mãos de outro job.
+ * @param cota Limite mensal do plano (`null` = sem teto) e envios já usados.
  */
-function criarAmbiente(lembrete: LembreteCarregado | null, erroDeEnvio?: Error, reivindica = true) {
+function criarAmbiente(
+  lembrete: LembreteCarregado | null,
+  erroDeEnvio?: Error,
+  reivindica = true,
+  cota: { limite: number | null; usados: number } = { limite: null, usados: 0 },
+) {
   const findUnique = jest.fn(() => Promise.resolve(lembrete));
   const updateMany = jest.fn(() => Promise.resolve({ count: reivindica ? 1 : 0 }));
   const update = jest.fn(() => Promise.resolve({}));
+  const count = jest.fn(() => Promise.resolve(cota.usados));
+  const travar = jest.fn(() => Promise.resolve(1));
   const enviar = jest.fn(() => (erroDeEnvio ? Promise.reject(erroDeEnvio) : Promise.resolve()));
 
-  const transacao = { lembreteFollowUp: { findUnique, updateMany, update } };
+  const transacao = {
+    $executeRaw: travar,
+    tenant: {
+      findUniqueOrThrow: jest.fn(() =>
+        Promise.resolve({ plano: { nome: 'Básico', limiteEnviosMensais: cota.limite } }),
+      ),
+    },
+    lembreteFollowUp: { findUnique, updateMany, update, count },
+  };
 
   const comTenantExplicito = jest.fn(
     (_tenantId: string, operacao: (tx: unknown) => Promise<unknown>) => operacao(transacao),
@@ -52,7 +68,7 @@ function criarAmbiente(lembrete: LembreteCarregado | null, erroDeEnvio?: Error, 
     enviar,
   });
 
-  return { processador, findUnique, updateMany, update, enviar, comTenantExplicito };
+  return { processador, findUnique, updateMany, update, count, travar, enviar, comTenantExplicito };
 }
 
 function criarJob(data: Partial<PayloadEnvioLembrete> = {}): Job<PayloadEnvioLembrete> {
@@ -176,6 +192,87 @@ describe('LembretesProcessor', () => {
       // O corte é "agora menos o prazo": um envio em curso (poucos segundos) fica de fora.
       expect(limite.lt.getTime()).toBeLessThanOrEqual(antes - TEMPO_MAXIMO_ENVIANDO_MS + 1000);
       expect(limite.lt.getTime()).toBeGreaterThan(antes - TEMPO_MAXIMO_ENVIANDO_MS - 5000);
+    });
+  });
+
+  /**
+   * Limite mensal de envios do plano — a mesma regra para todos os planos,
+   * cada um com o seu número (Básico 300, Premium 2.000).
+   */
+  describe('limite mensal de envios do plano', () => {
+    it('dentro do limite, envia normalmente', async () => {
+      const { processador, enviar } = criarAmbiente(LEMBRETE_PENDENTE, undefined, true, {
+        limite: 300,
+        usados: 299,
+      });
+
+      await processador.process(criarJob());
+
+      expect(enviar).toHaveBeenCalledTimes(1);
+    });
+
+    it('no limite, não envia e marca como falhou com o motivo', async () => {
+      const { processador, enviar, updateMany } = criarAmbiente(
+        LEMBRETE_PENDENTE,
+        undefined,
+        true,
+        { limite: 300, usados: 300 },
+      );
+
+      await processador.process(criarJob());
+
+      expect(enviar).not.toHaveBeenCalled();
+      const { data } = (updateMany.mock.calls[0] as unknown as [{ data: Record<string, unknown> }])[0];
+      expect(data).toMatchObject({ status: 'falhou', iniciadoEm: null });
+      expect(String(data.erro)).toMatch(/Básico permite 300 envio/);
+    });
+
+    it('trava a empresa antes de contar: dois jobs simultâneos não passam juntos', async () => {
+      const { processador, travar, count } = criarAmbiente(LEMBRETE_PENDENTE, undefined, true, {
+        limite: 300,
+        usados: 10,
+      });
+      const ordem: string[] = [];
+      travar.mockImplementation(() => {
+        ordem.push('trava');
+        return Promise.resolve(1);
+      });
+      count.mockImplementation(() => {
+        ordem.push('conta');
+        return Promise.resolve(10);
+      });
+
+      await processador.process(criarJob());
+
+      expect(ordem).toEqual(['trava', 'conta']);
+    });
+
+    it('conta o que saiu no mês e o que está saindo agora, sem contar o próprio lembrete', async () => {
+      const { processador, count } = criarAmbiente(LEMBRETE_PENDENTE, undefined, true, {
+        limite: 300,
+        usados: 0,
+      });
+
+      await processador.process(criarJob());
+
+      expect(count).toHaveBeenCalledWith({
+        where: {
+          id: { not: LEMBRETE },
+          OR: [
+            { status: 'enviado', enviadoEm: { gte: expect.any(Date) } },
+            { status: 'enviando', iniciadoEm: { gte: expect.any(Date) } },
+          ],
+        },
+      });
+    });
+
+    it('plano sem teto não conta nada', async () => {
+      const { processador, count, enviar } = criarAmbiente(LEMBRETE_PENDENTE);
+
+      await processador.process(criarJob());
+
+      expect(count).not.toHaveBeenCalled();
+      expect(enviar).toHaveBeenCalledTimes(1);
     });
   });
 

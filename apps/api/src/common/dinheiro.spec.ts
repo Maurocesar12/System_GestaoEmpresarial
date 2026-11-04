@@ -1,4 +1,10 @@
-import { dinheiroDigitadoSchema, formatarBRL, normalizarDinheiro } from '@gestao/shared-types';
+import {
+  dinheiroDigitadoSchema,
+  dinheiroNaoNegativoSchema,
+  dinheiroPositivoSchema,
+  formatarBRL,
+  normalizarDinheiro,
+} from '@gestao/shared-types';
 
 /**
  * Conversão de valores monetários.
@@ -96,5 +102,32 @@ describe('formatarBRL', () => {
     // — deixando um teste que falha sem motivo aparente.
     expect(formatado).toContain('R$');
     expect(formatado.replace(/^R\$\s*/, '')).toBe(esperado);
+  });
+});
+
+/**
+ * Sinal e tamanho. Qualquer requisição pode ser montada à mão: um preço,
+ * custo ou lançamento negativo inverteria margens e totais sem erro nenhum.
+ */
+describe('dinheiro não negativo, positivo e com teto', () => {
+  it.each(['-10', '-0,01', '-1.234,56'])('recusa %s onde o sinal não faz sentido', (valor) => {
+    expect(dinheiroNaoNegativoSchema.safeParse(valor).success).toBe(false);
+    expect(dinheiroPositivoSchema.safeParse(valor).success).toBe(false);
+  });
+
+  it('zero vale como preço ou custo, mas não como lançamento', () => {
+    expect(dinheiroNaoNegativoSchema.safeParse('0,00').success).toBe(true);
+    expect(dinheiroPositivoSchema.safeParse('0,00').success).toBe(false);
+    expect(dinheiroPositivoSchema.safeParse('0').success).toBe(false);
+  });
+
+  it('aceita valores positivos comuns', () => {
+    expect(dinheiroPositivoSchema.parse('1.250,00')).toBe('1250.00');
+    expect(dinheiroPositivoSchema.parse('0,01')).toBe('0.01');
+  });
+
+  it('recusa o que não cabe no Decimal(14,2) do banco', () => {
+    expect(dinheiroDigitadoSchema.safeParse('999999999999.99').success).toBe(true);
+    expect(dinheiroDigitadoSchema.safeParse('1000000000000').success).toBe(false);
   });
 });

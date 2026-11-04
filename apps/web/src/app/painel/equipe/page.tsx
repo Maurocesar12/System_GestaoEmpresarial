@@ -22,6 +22,7 @@ export default async function PaginaEquipe() {
         {...equipe}
         mostrarComissoes={usuario.papel === 'admin'}
         ehAdmin={usuario.papel === 'admin'}
+        quemEdita={{ id: usuario.id, permissoes: usuario.permissoes }}
       />
     </div>
   );

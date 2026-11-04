@@ -7,6 +7,7 @@ import {
   type EquipeResponse,
   type MapaAcessos,
   type PapelUsuario,
+  type Permissao,
 } from '@gestao/shared-types';
 import { Mail, SlidersHorizontal, UserPlus } from 'lucide-react';
 import { useState, useTransition } from 'react';
@@ -30,10 +31,13 @@ export function FormularioConvite({
   bloqueado,
   capacidade,
   catalogo,
+  concedivel,
 }: {
   bloqueado: boolean;
   capacidade: EquipeResponse['capacidade'];
   catalogo: CatalogoAcessos;
+  /** Sem ser admin, só concede o que tem. Ausente: tudo (administrador). */
+  concedivel?: (permissao: Permissao) => boolean;
 }) {
   const [papel, setPapel] = useState<PapelUsuario>('atendente');
   const [acessos, setAcessos] = useState<MapaAcessos>(catalogo.padraoPorPapel.atendente);
@@ -151,6 +155,7 @@ export function FormularioConvite({
             aoTrocarPapel={trocarPapel}
             acessos={acessos}
             aoMudar={setAcessos}
+            concedivel={concedivel}
           />
         </PainelLateral>
       )}

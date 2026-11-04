@@ -63,9 +63,14 @@ export default async function PaginaPlano() {
             </p>
           </div>
         </CartaoConteudo>
-        <CartaoConteudo className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <CartaoConteudo className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Uso rotulo="Usuários" usado={atual.uso.usuarios} limite={atual.limites.usuarios} />
           <Uso rotulo="Clientes" usado={atual.uso.clientes} limite={atual.limites.clientes} />
+          <Uso
+            rotulo="Envios neste mês"
+            usado={atual.uso.enviosNoMes}
+            limite={atual.limites.enviosMensais}
+          />
           <Uso
             rotulo="Previsões neste mês"
             usado={atual.uso.previsoesIaNoMes}

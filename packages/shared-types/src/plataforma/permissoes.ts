@@ -13,6 +13,8 @@ export const PERMISSOES = [
   'funil.configurar',
   'orcamentos.visualizar',
   'orcamentos.gerenciar',
+  // Fora de qualquer padrão de papel além do admin: o dono libera por pessoa.
+  'orcamentos.aprovar',
   'agenda.visualizar',
   'agenda.gerenciar',
   'lembretes.visualizar',

@@ -29,6 +29,7 @@ export function EditorAcessos({
   aoTrocarPapel,
   acessos,
   aoMudar,
+  concedivel,
 }: {
   catalogo: CatalogoAcessos;
   papel: PapelUsuario;
@@ -37,6 +38,12 @@ export function EditorAcessos({
   aoTrocarPapel: (papel: PapelUsuario) => void;
   acessos: MapaAcessos;
   aoMudar: (acessos: MapaAcessos) => void;
+  /**
+   * Para quem edita sem ser admin: a API só aceita conceder permissão que ele
+   * mesmo tem. A tela esconde o resto para não oferecer o que será recusado.
+   * Ausente, tudo pode (administrador).
+   */
+  concedivel?: (permissao: Permissao) => boolean;
 }) {
   const padrao = catalogo.padraoPorPapel[papel];
   const personalizado = !mesmosAcessos(acessos, padrao);
@@ -116,6 +123,7 @@ export function EditorAcessos({
               </h3>
               <p className="text-muted-foreground text-xs">
                 Acessa {areasComAcesso(catalogo.areas, acessos)} de {catalogo.areas.length} áreas.
+                {concedivel && ' Você só pode liberar o que você mesmo acessa.'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -145,6 +153,7 @@ export function EditorAcessos({
                   area={area}
                   acesso={acessos[area.id]}
                   aoMudar={(acesso) => mudarArea(area, acesso)}
+                  concedivel={concedivel}
                 />
               </li>
             ))}
@@ -159,11 +168,18 @@ function EditorArea({
   area,
   acesso,
   aoMudar,
+  concedivel = () => true,
 }: {
   area: AreaDeAcesso;
   acesso: AcessoArea;
   aoMudar: (acesso: AcessoArea) => void;
+  concedivel?: (permissao: Permissao) => boolean;
 }) {
+  // O nível que a pessoa já tem fica sempre visível, mesmo que quem edita não
+  // pudesse concedê-lo: mantê-lo não amplia nada.
+  const niveisOferecidos = area.niveis.filter(
+    (item) => item.nivel === acesso.nivel || item.permissoes.every(concedivel),
+  );
   const soExtras = area.niveis.length === 0;
   const nivelAtual = area.niveis.find((item) => item.nivel === acesso.nivel);
   // Numa área com níveis, extra sem nível não vale nada — a API descarta.
@@ -189,7 +205,7 @@ function EditorArea({
           rotulo={area.titulo}
           opcoes={[
             { valor: 'nenhum', rotulo: 'Sem acesso' },
-            ...area.niveis.map((item) => ({ valor: item.nivel, rotulo: item.rotulo })),
+            ...niveisOferecidos.map((item) => ({ valor: item.nivel, rotulo: item.rotulo })),
           ]}
           valor={acesso.nivel}
           // Sem nível, os extras somem junto: voltar a dar acesso não deve
@@ -212,10 +228,12 @@ function EditorArea({
           {area.extras.map((extra) => (
             <label
               key={extra.codigo}
-              className="flex cursor-pointer items-start gap-2.5 text-sm has-[:disabled]:cursor-not-allowed"
+              className="flex cursor-pointer items-start gap-2.5 text-sm has-disabled:cursor-not-allowed has-disabled:opacity-60"
             >
               <input
                 type="checkbox"
+                // Desligar sempre pode; ligar, só o que quem edita também tem.
+                disabled={!acesso.extras.includes(extra.codigo) && !concedivel(extra.codigo)}
                 checked={acesso.extras.includes(extra.codigo)}
                 onChange={(evento) => alternarExtra(extra.codigo, evento.target.checked)}
                 className="accent-primary mt-0.5 size-4 shrink-0"

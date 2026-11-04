@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { dinheiroNaoNegativoSchema } from '../common/dinheiro';
 import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 import { statusOrcamentoSchema, type StatusOrcamento } from '../enums';
@@ -41,7 +41,7 @@ export const orcamentoFormSchema = z.object({
 
   descricao: textoOpcional(2000),
 
-  valor: dinheiroDigitadoSchema,
+  valor: dinheiroNaoNegativoSchema,
 
   /** Data limite da proposta, no formato AAAA-MM-DD. */
   validoAte: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')),

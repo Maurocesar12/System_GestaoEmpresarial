@@ -65,7 +65,35 @@ export const dinheiroDigitadoSchema = z
   .string()
   .trim()
   .transform(normalizarDinheiro)
-  .pipe(dinheiroSchema);
+  .pipe(
+    dinheiroSchema.refine(
+      // `Decimal(14,2)` no banco: 12 dígitos antes da vírgula. Acima disso o
+      // Postgres recusaria com erro de estouro, que não diz nada a ninguém.
+      (valor) => valor.replace('-', '').split('.')[0]!.length <= 12,
+      'Valor alto demais',
+    ),
+  );
+
+/**
+ * Valor digitado que não pode ser negativo: preço, custo, orçamento, retirada.
+ *
+ * O schema base aceita sinal porque há valores que podem ser negativos (saldo,
+ * ajuste de conciliação). Onde o sinal não faz sentido, um valor negativo
+ * enviado à mão inverteria margens, totais e relatórios sem erro nenhum.
+ */
+export const dinheiroNaoNegativoSchema = dinheiroDigitadoSchema.refine(
+  (valor) => !valor.startsWith('-'),
+  'O valor não pode ser negativo',
+);
+
+/**
+ * Valor digitado estritamente maior que zero: o lançamento financeiro, em que
+ * a direção do dinheiro já vem do tipo (entrada ou saída), não do sinal.
+ */
+export const dinheiroPositivoSchema = dinheiroNaoNegativoSchema.refine(
+  (valor) => /[1-9]/.test(valor),
+  'O valor precisa ser maior que zero',
+);
 
 /**
  * Converte para centavos inteiros.

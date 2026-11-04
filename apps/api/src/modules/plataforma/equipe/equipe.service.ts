@@ -9,6 +9,7 @@ import {
   montarCatalogoAcessos,
   permissoesDoUsuario,
   permissoesDosAcessos,
+  possuiPermissao,
   type MapaAcessos,
   type PapelUsuario,
   type Permissao,
@@ -60,6 +61,55 @@ function permissoesParaGravar(
   const permissoes = papel === 'admin' || !acessos ? [...padrao] : permissoesDosAcessos(acessos);
 
   return { permissoes, personalizadas: !mesmoConjunto(permissoes, padrao) };
+}
+
+/**
+ * Impede que quem gerencia a equipe sem ser administrador amplie acesso.
+ *
+ * `equipe.gerenciar` pode ser concedido a um funcionário (área
+ * "Administração"). Sem esta trava, ele mandava `papel: 'admin'` no próprio
+ * cadastro — ou convidava um cúmplice como admin — e virava dono da empresa,
+ * com cobrança, comissões e tudo o mais. A tela não oferece isso a ele, mas a
+ * requisição pode ser montada à mão: a regra mora aqui.
+ *
+ * Para quem não é admin:
+ * - não concede o papel de administrador;
+ * - não mexe na conta de um administrador;
+ * - não altera o próprio papel nem os próprios acessos;
+ * - só concede permissões que ele mesmo tem (o que a pessoa já tinha e ele
+ *   não tem pode continuar, para ele conseguir, por exemplo, só trocar o nome).
+ *
+ * O administrador não passa por nada disso.
+ */
+function garantirQueNaoAmpliaAcesso(
+  novo: { papel: PapelUsuario; permissoes: readonly Permissao[] },
+  alvo?: { id: string; papel: PapelUsuario; permissoes: readonly Permissao[] },
+): void {
+  const contexto = exigirContextoTenant();
+  if (contexto.papel === 'admin') return;
+
+  const recusar = (mensagem: string): never => {
+    throw new ForbiddenException({ codigo: CODIGOS_ERRO.SEM_PERMISSAO, mensagem });
+  };
+
+  if (novo.papel === 'admin') {
+    recusar('Só o administrador da empresa concede acesso de administrador.');
+  }
+  if (alvo?.papel === 'admin') {
+    recusar('Só o administrador da empresa altera a conta de outro administrador.');
+  }
+  if (
+    alvo?.id === contexto.usuarioId &&
+    (alvo.papel !== novo.papel || !mesmoConjunto(alvo.permissoes, novo.permissoes))
+  ) {
+    recusar('Você não pode alterar o seu próprio acesso. Peça ao administrador.');
+  }
+
+  const jaTinha = new Set(alvo?.permissoes ?? []);
+  const concedidas = novo.permissoes.filter((permissao) => !jaTinha.has(permissao));
+  if (concedidas.some((permissao) => !possuiPermissao(contexto, permissao))) {
+    recusar('Você só pode conceder acessos que você mesmo tem.');
+  }
 }
 
 interface TokenConvite {
@@ -188,6 +238,7 @@ export class EquipeService {
 
     const tenantId = tenantAtual();
     const { permissoes } = permissoesParaGravar(dados.papel, dados.acessos);
+    garantirQueNaoAmpliaAcesso({ papel: dados.papel, permissoes });
     const conviteId = uuidv7();
     const token = this.jwt.sign(
       { tipo: 'convite-equipe', conviteId, tenantId } satisfies TokenConvite,
@@ -267,6 +318,10 @@ export class EquipeService {
       const anteriores = permissoesDoUsuario(
         atual.papel,
         atual.permissoesPersonalizadas ? atual.permissoes : undefined,
+      );
+      garantirQueNaoAmpliaAcesso(
+        { papel: dados.papel, permissoes: novo.permissoes },
+        { id: atual.id, papel: atual.papel, permissoes: anteriores },
       );
 
       // As travas acima (último admin, vaga) leram o estado: a versão da tela

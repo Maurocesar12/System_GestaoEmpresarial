@@ -5,7 +5,7 @@ import {
   type NaturezaLancamento,
   type TipoLancamento,
 } from '../enums';
-import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { dinheiroPositivoSchema } from '../common/dinheiro';
 import { opcional } from '../common/opcional';
 import { PERIODICIDADES } from './recorrencia-exibicao';
 
@@ -51,7 +51,7 @@ export const recorrenciaFormSchema = z.object({
   natureza: naturezaLancamentoSchema.default('empresa'),
 
   descricao: z.string().trim().min(2, 'Descreva o lançamento').max(180),
-  valor: dinheiroDigitadoSchema,
+  valor: dinheiroPositivoSchema,
 
   periodicidade: periodicidadeSchema,
 

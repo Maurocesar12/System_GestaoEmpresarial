@@ -5,6 +5,7 @@ import {
   type Funcionario,
   type MapaAcessos,
   type PapelUsuario,
+  type Permissao,
 } from '@gestao/shared-types';
 import { ShieldCheck } from 'lucide-react';
 import { useId, useState, useTransition, type ReactNode } from 'react';
@@ -19,18 +20,23 @@ import { EditorAcessos } from './editor-acessos';
 /** O painel lateral de edição de um funcionário: dados, comissão, acesso e 2FA. */
 
 const TODOS_OS_PAPEIS: readonly PapelUsuario[] = ['admin', 'financeiro', 'atendente', 'tecnico'];
+/** Quem gerencia a equipe sem ser admin não concede administrador — a API recusa. */
+const PAPEIS_SEM_ADMIN: readonly PapelUsuario[] = ['financeiro', 'atendente', 'tecnico'];
 
 export function PainelFuncionario({
   funcionario,
   catalogo,
   mostrarComissoes,
   ehAdmin,
+  permissoesDeQuemEdita,
   aoFechar,
 }: {
   funcionario: Funcionario;
   catalogo: CatalogoAcessos;
   mostrarComissoes: boolean;
   ehAdmin: boolean;
+  /** O que quem está editando acessa: sem ser admin, só isso pode conceder. */
+  permissoesDeQuemEdita: readonly Permissao[];
   aoFechar: () => void;
 }) {
   const idFormulario = useId();
@@ -141,13 +147,20 @@ export function PainelFuncionario({
           <EditorAcessos
             catalogo={catalogo}
             papel={papel}
-            papeisPermitidos={TODOS_OS_PAPEIS}
+            papeisPermitidos={ehAdmin ? TODOS_OS_PAPEIS : PAPEIS_SEM_ADMIN}
             aoTrocarPapel={(novo) => {
               setPapel(novo);
               setAcessos(catalogo.padraoPorPapel[novo]);
             }}
             acessos={acessos}
             aoMudar={setAcessos}
+            concedivel={
+              ehAdmin
+                ? undefined
+                : (permissao) =>
+                    permissoesDeQuemEdita.includes(permissao) ||
+                    funcionario.permissoes.includes(permissao)
+            }
           />
         </SecaoPainel>
 

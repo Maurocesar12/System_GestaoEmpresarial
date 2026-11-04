@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { dinheiroNaoNegativoSchema } from '../common/dinheiro';
 import { opcional, textoOpcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 import { UNIDADES_MATERIAL } from './estoque-exibicao';
@@ -69,7 +69,7 @@ export type MaterialFormInput = z.infer<typeof materialFormSchema>;
 export const entradaEstoqueSchema = z.object({
   quantidade: quantidadeSchema,
   /** Quanto custou cada unidade nesta compra. */
-  custoUnitario: dinheiroDigitadoSchema,
+  custoUnitario: dinheiroNaoNegativoSchema,
   /** `AAAA-MM-DD`. Vazio usa hoje. */
   data: opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')),
   observacao: textoOpcional(240),

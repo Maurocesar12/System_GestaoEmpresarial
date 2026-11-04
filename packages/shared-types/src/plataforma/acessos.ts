@@ -132,11 +132,14 @@ export const AREAS_ACESSO: readonly AreaDeAcesso[] = [
       {
         nivel: 'editar',
         rotulo: 'Editar',
-        descricao: 'Emite, edita, aprova e recusa orçamentos.',
+        descricao: 'Emite, edita, recusa e reabre orçamentos. Aprovar é liberado à parte.',
         permissoes: ['orcamentos.visualizar', 'orcamentos.gerenciar'],
       },
     ],
-    extras: [],
+    // Aprovar fica fora do nível: aprovar gera a comissão de venda, e quem
+    // emite o orçamento não deve aprovar o próprio sem o dono liberar.
+    // Só vale junto com "Editar" (a rota de status exige `orcamentos.gerenciar`).
+    extras: [{ codigo: 'orcamentos.aprovar', rotulo: 'Aprovar orçamentos (gera a comissão de venda)' }],
   },
   {
     id: 'agenda',

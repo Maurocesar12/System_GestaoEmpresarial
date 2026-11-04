@@ -10,6 +10,7 @@ import {
 import type { Env } from '../../../config/env.schema';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { tenantAtual } from '../../../infra/tenant/tenant-context';
+import { contarEnviosDoMes } from '../../crm/lembretes/envio/limite-envios';
 import { calcularMensalidade } from './calcular-mensalidade';
 
 @Injectable()
@@ -39,16 +40,18 @@ export class PlanosService {
     inicioDoMes.setUTCDate(1);
     inicioDoMes.setUTCHours(0, 0, 0, 0);
 
-    const { tenant, usuarios, clientes, previsoes } = await this.prisma.comTenant(async (tx) => {
-      const [tenant, usuarios, clientes, previsoes] = await Promise.all([
+    const { tenant, usuarios, clientes, previsoes, envios } = await this.prisma.comTenant(async (tx) => {
+      const [tenant, usuarios, clientes, previsoes, envios] = await Promise.all([
         tx.tenant.findUniqueOrThrow({ where: { id: tenantAtual() }, include: { plano: true } }),
         tx.usuario.count({ where: { ativo: true } }),
         tx.cliente.count({ where: { anonimizadoEm: null } }),
         tx.previsaoFinanceira.count({
           where: { criadoEm: { gte: inicioDoMes }, modelo: { not: 'processando' } },
         }),
+        // A mesma conta que o envio usa para barrar: a tela mostra o que vale.
+        contarEnviosDoMes(tx),
       ]);
-      return { tenant, usuarios, clientes, previsoes };
+      return { tenant, usuarios, clientes, previsoes, envios };
     });
     const cobranca = calcularMensalidade({
       precoBase: tenant.plano.preco,
@@ -78,11 +81,12 @@ export class PlanosService {
       limites: {
         usuarios: tenant.plano.limiteUsuarios,
         clientes: tenant.plano.limiteClientes,
+        enviosMensais: tenant.plano.limiteEnviosMensais,
         // Zero, e não `null`, para quem não tem IA no plano: `null` significa
         // "sem teto" no resto do contrato, e diria exatamente o contrário.
         previsoesIaMensais: tenant.plano.iaHabilitada ? tenant.plano.limitePrevisoesIaMensais : 0,
       },
-      uso: { usuarios, clientes, previsoesIaNoMes: previsoes },
+      uso: { usuarios, clientes, enviosNoMes: envios, previsoesIaNoMes: previsoes },
       assinatura: {
         status: tenant.status,
         trialTerminaEm: tenant.trialTerminaEm?.toISOString() ?? null,

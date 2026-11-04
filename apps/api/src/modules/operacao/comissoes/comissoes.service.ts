@@ -85,8 +85,8 @@ export class ComissoesService {
   /**
    * Comissão do técnico, na execução do agendamento.
    *
-   * A base é o valor do orçamento ligado ao agendamento; sem orçamento, o preço
-   * padrão do serviço. Sem nenhum dos dois não há sobre o que calcular.
+   * A base é o valor do orçamento **aprovado** ligado ao agendamento; sem ele, o
+   * preço padrão do serviço. Sem nenhum dos dois não há sobre o que calcular.
    */
   async gerarExecucao(
     tx: TransacaoComTenant,
@@ -106,8 +106,11 @@ export class ComissoesService {
         select: { comissaoExecucaoPercentual: true },
       }),
       agendamento.orcamentoId
-        ? tx.orcamento.findUnique({
-            where: { id: agendamento.orcamentoId },
+        ? // Só orçamento aprovado é base: o agendamento aceita ligar um orçamento
+          // aberto ou recusado do mesmo cliente, e o valor dele é só proposta —
+          // quem agenda poderia escolher o de maior valor para inflar a comissão.
+          tx.orcamento.findFirst({
+            where: { id: agendamento.orcamentoId, status: 'aprovado' },
             select: { valor: true },
           })
         : null,

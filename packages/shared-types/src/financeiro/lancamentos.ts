@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dinheiroDigitadoSchema } from '../common/dinheiro';
+import { dinheiroPositivoSchema } from '../common/dinheiro';
 import { opcional } from '../common/opcional';
 import { paginacaoQuerySchema } from '../common/paginacao';
 import {
@@ -98,7 +98,7 @@ export const lancamentoFormSchema = z.object({
   natureza: naturezaLancamentoSchema.default('empresa'),
 
   descricao: z.string().trim().min(2, 'Descreva o lançamento').max(180),
-  valor: dinheiroDigitadoSchema,
+  valor: dinheiroPositivoSchema,
 
   /** Data do fato — a competência, `AAAA-MM-DD`. Quando o serviço foi prestado. */
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
@@ -339,7 +339,7 @@ export function dividirEmParcelas(total: string, parcelas: number): string[] {
  * prometido na prévia é, por construção, o valor salvo.
  */
 export const simulacaoParcelasSchema = z.object({
-  valor: dinheiroDigitadoSchema,
+  valor: dinheiroPositivoSchema,
   parcelas: z.coerce.number().int().min(2).max(MAX_PARCELAS),
 });
 

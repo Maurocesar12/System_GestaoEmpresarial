@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import {
   CODIGOS_ERRO,
   paginar,
+  possuiPermissao,
   ROTULO_ACAO,
   ROTULO_STATUS,
   TRANSICOES,
@@ -59,6 +60,18 @@ type OrcamentoBanco = Prisma.OrcamentoGetPayload<{ include: typeof INCLUDE_PADRA
  * E se a empresa não tiver etapa com aquele marco, o orçamento é criado ou
  * aprovado do mesmo jeito: a automação é conveniência, não requisito.
  */
+/**
+ * Quem está logado pode aprovar orçamento?
+ *
+ * O admin sempre pode, independente da lista no token: um token emitido antes
+ * de `orcamentos.aprovar` existir não a traria, e o dono ficaria 15 minutos
+ * sem conseguir aprovar. Os demais, só se o admin liberou.
+ */
+function podeAprovar(): boolean {
+  const contexto = exigirContextoTenant();
+  return contexto.papel === 'admin' || possuiPermissao(contexto, 'orcamentos.aprovar');
+}
+
 @Injectable()
 export class OrcamentosService {
   constructor(
@@ -233,6 +246,16 @@ export class OrcamentosService {
    * requisição pode chegar de qualquer lugar.
    */
   async mudarStatus(id: string, acao: AcaoOrcamento): Promise<Orcamento> {
+    // Aprovar gera a comissão de venda de quem emitiu: só quem o administrador
+    // liberou (`orcamentos.aprovar`). Recusar e reabrir seguem com quem edita.
+    if (acao === 'aprovar' && !podeAprovar()) {
+      throw new ForbiddenException({
+        codigo: CODIGOS_ERRO.SEM_PERMISSAO,
+        mensagem:
+          'Aprovar orçamento depende de liberação do administrador. Peça para ele habilitar "Aprovar orçamentos" no seu acesso.',
+      });
+    }
+
     const orcamento = await this.prisma.comTenant(async (tx) => {
       const atual = await this.exigir(tx, id);
       const novoStatus = TRANSICOES[atual.status][acao];
@@ -339,8 +362,11 @@ export class OrcamentosService {
       criadoEm: registro.criadoEm.toISOString(),
       // A mesma tabela que `mudarStatus` usa para recusar transição inválida,
       // e a mesma regra que `atualizar` usa para recusar edição: a tela nunca
-      // oferece o que esta API recusaria.
-      acoesDisponiveis: acoesDisponiveis(registro.status),
+      // oferece o que esta API recusaria — inclusive "aprovar" para quem não
+      // foi liberado.
+      acoesDisponiveis: acoesDisponiveis(registro.status).filter(
+        (acao) => acao !== 'aprovar' || podeAprovar(),
+      ),
       vencido: estaVencido({ status: registro.status, validoAte }),
       editavel: registro.status === 'aberto',
     };
